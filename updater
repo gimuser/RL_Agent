@@ -1,0 +1,77 @@
+#\!/usr/bin/env bash
+set -euo pipefail
+
+# Navigate to repository root from this script location.
+cd "$(dirname "$0")"
+
+if \! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "Error: not inside a git repository."
+  exit 1
+fi
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+remote=${1:-origin}
+message=${2:-"Update organisation"}
+
+if [ "$branch" = "HEAD" ]; then
+  echo "Error: detached HEAD. Switch to a branch before using this script."
+  exit 1
+fi
+
+os_type="Unknown"
+case "$(uname -s)" in
+  Linux*) os_type="Linux" ;;
+  Darwin*) os_type="macOS" ;;
+  CYGWIN*|MINGW*|MSYS*) os_type="Windows" ;;
+  *) os_type="Unknown" ;;
+esac
+
+echo "OS detected: $os_type"
+echo "Repository root: $(pwd)"
+echo "Current branch: $branch"
+echo "Remote: $remote"
+echo
+
+echo "Choisissez une action :"
+echo "1) recevoir mise a jour"
+echo "2) push mise a jour"
+read -r -p "Entrez 1 ou 2 : " choice
+
+git_status() {
+  echo
+  echo "== Statut git =="
+  git status --short
+  echo
+}
+
+case "$choice" in
+  1)
+    git_status
+    echo "Récupération des mises à jour depuis $remote/$branch..."
+    git fetch "$remote"
+    git pull --ff-only "$remote" "$branch"
+    echo "Mise à jour reçue."
+    ;;
+  2)
+    git_status
+    read -r -p "Commit all changes and push to $remote/$branch? [y/N] " confirm
+    if [ "$confirm" \!= "y" ] && [ "$confirm" \!= "Y" ]; then
+      echo "Aborted. No changes were pushed."
+      exit 0
+    fi
+
+    git add .
+    if git diff --cached --quiet; then
+      echo "No staged changes to commit."
+    else
+      git commit -m "$message"
+    fi
+
+    git push --set-upstream "$remote" "$branch"
+    echo "Mises à jour envoyées."
+    ;;
+  *)
+    echo "Choix invalide : $choice. Utilisez 1 ou 2."
+    exit 1
+    ;;
+esac
