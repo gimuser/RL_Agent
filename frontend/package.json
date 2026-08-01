@@ -1,0 +1,7 @@
+{
+  "name": "soar-rl-agent-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Frontend scaffold ready'"
+  }
+}
