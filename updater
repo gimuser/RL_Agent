@@ -51,13 +51,26 @@ case "$choice" in
     ;;
   2)
     git_status
-    read -r -p "Commit all changes and push to $remote/$branch? [y/N] " confirm
-    if [ "$confirm" \!= "y" ] && [ "$confirm" \!= "Y" ]; then
+    echo "== Fichiers modifies =="
+    if git diff --name-only | tee /dev/stderr | grep -q .; then
+      :
+    else
+      echo "(Aucune modification détectée)"
+    fi
+    echo
+    read -r -p "Stage all changes before commit? [y/N] " stage
+    if [ "$stage" = "y" ] || [ "$stage" = "Y" ]; then
+      git add .
+    else
+      echo "Skipping automatic staging. Commit will include only already-staged files."
+    fi
+    echo
+    read -r -p "Commit current staged changes and push to $remote/$branch? [y/N] " confirm
+    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
       echo "Aborted. No changes were pushed."
       exit 0
     fi
 
-    git add .
     if git diff --cached --quiet; then
       echo "No staged changes to commit."
     else

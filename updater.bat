@@ -47,13 +47,20 @@ echo.
 echo == Statut git ==
 git status --short
 echo.
-set /p confirm=Commit all changes and push to %remote%/%branch%? [y/N] 
+echo == Fichiers modifies ==
+git diff --name-only
+if errorlevel 1 echo (Aucune modification detectee)
+echo.
+echo Si vous ne voulez pas inclure un fichier modifie, repondez N ci-dessous.
+set /p stage=Stage all changes before commit? [y/N] 
+if /i "%stage%" == "y" git add .
+echo.
+set /p confirm=Commit current staged changes and push to %remote%/%branch%? [y/N] 
 if /i "%confirm%" == "y" goto commit
 echo Aborted. No changes were pushed.
 exit /b 0
 
 :commit
-git add .
 git diff --cached --quiet
 if errorlevel 1 (
   git commit -m "%message%"
