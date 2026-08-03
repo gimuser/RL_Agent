@@ -1,0 +1,1 @@
+"""Alert request/response schemas."""

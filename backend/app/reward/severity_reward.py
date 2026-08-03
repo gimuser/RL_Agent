@@ -1,0 +1,1 @@
+"""Severity-based reward logic."""
