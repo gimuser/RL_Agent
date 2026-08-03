@@ -1,0 +1,1 @@
+"""Analyst workload reward logic."""
