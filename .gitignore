@@ -52,5 +52,7 @@ Thumbs.db
 
 # Dataset guidelines
 # Ignore generic CSV dataset files, allow only the cybersecurity dataset
+# Keep installed cybersecurity dataset available for tracking
 data/*.csv
 !data/extracted/cybersecurity_attacks_data.csv
+!data/cybersecurity_attacks_data.csv
