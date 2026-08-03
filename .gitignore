@@ -56,3 +56,5 @@ Thumbs.db
 data/*.csv
 !data/extracted/cybersecurity_attacks_data.csv
 !data/cybersecurity_attacks_data.csv
+data/Unco*
+data/GUIDE*
