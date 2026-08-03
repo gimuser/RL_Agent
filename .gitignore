@@ -49,3 +49,8 @@ coverage.*
 # System files
 .DS_Store
 Thumbs.db
+
+# Dataset guidelines
+# Ignore generic CSV dataset files, allow only the cybersecurity dataset
+data/*.csv
+!data/extracted/cybersecurity_attacks_data.csv
