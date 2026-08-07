@@ -1,0 +1,24 @@
+# app/api/router.py
+from fastapi import APIRouter
+from app.api.alerts import router as alerts_router
+from app.api.health import router as health_router
+from app.api.pipeline import router as pipeline_router
+from app.api.decisions import router as decisions_router
+from app.api.training import router as training_router
+from app.api.rewards import router as rewards_router
+from app.api.database_monitoring import router as db_router
+from app.api.dashboard import router as dashboard_router
+
+router = APIRouter()
+
+# 1. Alerts & System Health
+router.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
+router.include_router(health_router, prefix="/api/system", tags=["System Health"])
+router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
+router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
+router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+
+# 2. Routers الخرى اللي نجحات سابقاً
+router.include_router(pipeline_router)
+router.include_router(training_router)
+router.include_router(db_router)
