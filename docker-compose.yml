@@ -1,4 +1,14 @@
+version: "3.8"
+
 services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
+
   backend:
     build:
       context: .
@@ -7,6 +17,10 @@ services:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     environment:
       PYTHONUNBUFFERED: "1"
+      MONGO_URI: "mongodb://mongo:27017"
+      DATABASE_NAME: "soar_rl_agent"
+    depends_on:
+      - mongo
 
   frontend:
     build:
@@ -16,3 +30,8 @@ services:
       - "127.0.0.1:${FRONTEND_PORT:-8081}:80"
     environment:
       NODE_ENV: "production"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
