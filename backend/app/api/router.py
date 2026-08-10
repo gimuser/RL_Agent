@@ -8,6 +8,9 @@ from app.api.training import router as training_router
 from app.api.rewards import router as rewards_router
 from app.api.database_monitoring import router as db_router
 from app.api.dashboard import router as dashboard_router
+from app.api.agent import router as agent_router
+from app.api.evaluation import router as evaluation_router
+from app.api.metrics import router as metrics_router
 
 router = APIRouter()
 
@@ -22,3 +25,6 @@ router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboar
 router.include_router(pipeline_router)
 router.include_router(training_router)
 router.include_router(db_router)
+router.include_router(agent_router)
+router.include_router(evaluation_router)
+router.include_router(metrics_router)

@@ -1,6 +1,10 @@
 from fastapi import APIRouter
 from app.schemas import Reward, RewardCreate
-from app.database.repository import create_reward_in_db, get_rewards_from_db
+from app.database.repository import (
+    create_reward_in_db,
+    get_rewards_from_db,
+    get_reward_statistics_from_db,
+)
 
 # إزالة prefix="/rewards"
 router = APIRouter(tags=["Rewards"])
@@ -21,4 +25,4 @@ def add_reward(reward: RewardCreate):
 @router.get("/statistics")
 def get_reward_stats():
     """Statistiques globales sur les récompenses."""
-    return {"mean_reward": 4.5, "max_reward": 10.0, "min_reward": -2.0}
+    return get_reward_statistics_from_db()

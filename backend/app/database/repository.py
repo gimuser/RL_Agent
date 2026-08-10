@@ -1,11 +1,16 @@
 # app/database/repository.py
 
+from datetime import datetime
 from typing import Optional
 from app.database.database import (
+    client,
+    db,
     alerts_collection,
     decisions_collection,
     rewards_collection,
     evaluations_collection,
+    pipeline_collection,
+    training_collection,
 )
 from app.schemas import Alert, AlertCreate, Decision, DecisionCreate, Reward, RewardCreate, DashboardSummary
 from app.utils.logger import logger
@@ -145,6 +150,25 @@ def get_rewards_from_db(skip: int = 0, limit: int = 10) -> list[Reward]:
         rewards.append(Reward(**doc))
     logger.info(f"{len(rewards)} rewards retrieved")
     return rewards
+
+
+def get_reward_statistics_from_db() -> dict[str, float]:
+    """Calcule les statistiques de récompenses."""
+    total_rewards = rewards_collection.count_documents({})
+    if total_rewards == 0:
+        return {"mean_reward": 0.0, "max_reward": 0.0, "min_reward": 0.0}
+
+    pipeline = [{"$group": {"_id": None, "avg_reward": {"$avg": "$reward_value"}, "max_reward": {"$max": "$reward_value"}, "min_reward": {"$min": "$reward_value"}}}]
+    result = list(rewards_collection.aggregate(pipeline))
+    if not result:
+        return {"mean_reward": 0.0, "max_reward": 0.0, "min_reward": 0.0}
+
+    stats = result[0]
+    return {
+        "mean_reward": float(stats.get("avg_reward", 0.0) or 0.0),
+        "max_reward": float(stats.get("max_reward", 0.0) or 0.0),
+        "min_reward": float(stats.get("min_reward", 0.0) or 0.0),
+    }
 
 
 # ==========================================

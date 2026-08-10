@@ -1,23 +1,30 @@
 from fastapi import APIRouter
+from app.services.training_service import (
+    get_training_status,
+    start_training as start_training_service,
+    stop_training as stop_training_service,
+    get_checkpoints,
+    get_history,
+)
 
 router = APIRouter(prefix="/api/training", tags=["Training"])
 
 @router.get("/status")
 def training_status():
-    return {"status": "running", "current_epoch": 5}
+    return get_training_status()
 
 @router.post("/start")
 def start_training():
-    return {"message": "Training started"}
+    return start_training_service()
 
 @router.post("/stop")
 def stop_training():
-    return {"message": "Training stopped"}
+    return stop_training_service()
 
 @router.get("/checkpoints")
-def get_checkpoints():
-    return {"checkpoints": ["model_v1.pth", "model_v2.pth"]}
+def api_get_checkpoints():
+    return {"checkpoints": get_checkpoints()}
 
 @router.get("/history")
-def get_history():
-    return {"history": [{"epoch": 1, "loss": 0.45}]}
+def api_get_history():
+    return {"history": get_history()}

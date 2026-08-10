@@ -4,222 +4,330 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-DEFAULT_FRONTEND_PORT=8080
-MAX_FRONTEND_PORT=8999
-BACKEND_PORT=8000
+PROJECT_NAME="rl_agent"
+
+BACKEND_CONTAINER_PORT=8000
+FRONTEND_CONTAINER_PORT=80
+
+DEFAULT_BACKEND_PORT="${BACKEND_PORT:-8000}"
+DEFAULT_FRONTEND_PORT="${FRONTEND_PORT:-8081}"
+
+# ============================================================
+# COLORS / LOGGING
+# ============================================================
 
 log() {
-    printf "\n==> %s\n" "$1"
+    printf '\n==> %s\n' "$1"
 }
 
 info() {
-    printf "  %s\n" "$1"
+    printf '    %s\n' "$1"
 }
 
-error() {
-    printf "\nERROR: %s\n" "$1" >&2
+die() {
+    printf '\nERROR: %s\n' "$1" >&2
     exit 1
 }
 
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
+# ============================================================
+# DOCKER CLEANUP
+# Ctrl+C automatically reaches this function
+# ============================================================
 
-assert_docker_available() {
-    if ! command_exists docker; then
-        error "Docker is not installed or not available in PATH."
+CLEANUP_DONE=0
+
+cleanup() {
+    if [[ "$CLEANUP_DONE" -eq 1 ]]; then
+        return
     fi
 
-    unset DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH
+    CLEANUP_DONE=1
 
-    if ! docker info >/dev/null 2>&1; then
-        error "Docker daemon is not running or the current user cannot access Docker.\n\nHint: add your user to the docker group with:\n  sudo usermod -aG docker \"$USER\"\nand then log out and log back in."
+    echo
+    echo
+    echo "============================================================"
+    echo " Stopping RL_AGENT..."
+    echo "============================================================"
+
+    if [[ -n "${COMPOSE_FILE:-}" ]] && [[ -n "${COMPOSE[*]:-}" ]]; then
+        "${COMPOSE[@]}" \
+            -f "$COMPOSE_FILE" \
+            --project-name "$PROJECT_NAME" \
+            down --remove-orphans >/dev/null 2>&1 || true
     fi
+
+    echo
+    echo "RL_AGENT containers stopped."
+    echo "Docker network removed."
+    echo "Ports released."
+    echo
+    echo "RL_AGENT stopped cleanly."
+    echo
 }
 
-detect_compose_cmd() {
-    if docker compose version >/dev/null 2>&1; then
-        COMPOSE_CMD=(docker compose)
-    elif command_exists docker-compose; then
-        COMPOSE_CMD=(docker-compose)
-    else
-        error "Docker Compose is not installed."
-    fi
-}
+# IMPORTANT:
+# Ctrl+C / SIGINT
+# SIGTERM
+# normal script exit
+trap 'cleanup' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-find_compose_file() {
-    if [[ -f "$ROOT_DIR/docker-compose.yml" ]]; then
-        COMPOSE_FILE="docker-compose.yml"
-    elif [[ -f "$ROOT_DIR/compose.yml" ]]; then
-        COMPOSE_FILE="compose.yml"
-    elif [[ -f "$ROOT_DIR/compose.yaml" ]]; then
-        COMPOSE_FILE="compose.yaml"
-    else
-        error "No docker-compose.yml, compose.yml, or compose.yaml found."
-    fi
-}
+# ============================================================
+# DOCKER CHECK
+# ============================================================
 
-validate_compose_config() {
-    log "Validating Docker Compose configuration..."
-    if ! "${COMPOSE_CMD[@]}" config >/dev/null; then
-        error "Docker Compose configuration is invalid."
-    fi
-    info "Compose configuration is valid."
-}
+command -v docker >/dev/null 2>&1 || die "Docker is not installed."
 
-port_is_in_use() {
+unset DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH || true
+
+docker info >/dev/null 2>&1 || \
+    die "Docker daemon is not running or current user cannot access Docker."
+
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE=(docker-compose)
+else
+    die "Docker Compose is not installed."
+fi
+
+# ============================================================
+# FIND COMPOSE FILE
+# ============================================================
+
+if [[ -f "$ROOT_DIR/docker-compose.yml" ]]; then
+    COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
+elif [[ -f "$ROOT_DIR/compose.yml" ]]; then
+    COMPOSE_FILE="$ROOT_DIR/compose.yml"
+elif [[ -f "$ROOT_DIR/compose.yaml" ]]; then
+    COMPOSE_FILE="$ROOT_DIR/compose.yaml"
+else
+    die "No Docker Compose file found."
+fi
+
+# ============================================================
+# PORT CHECK
+# ============================================================
+
+port_busy() {
     local port="$1"
 
-    if command_exists python3 || command_exists python; then
-        local pycmd=python3
-        if ! command_exists python3; then
-            pycmd=python
-        fi
-
-        if "$pycmd" - <<PYTHON "$port" 2>/dev/null
-import socket, sys
-port = int(sys.argv[1])
-for addr in ['127.0.0.1', '0.0.0.0']:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    try:
-        s.bind((addr, port))
-    except OSError:
-        sys.exit(0)
-    finally:
-        s.close()
-sys.exit(1)
-PYTHON
-        then
-            return 0
-        fi
-        return 1
-    fi
-
-    if command_exists docker; then
-        if docker ps --format '{{.Ports}}' 2>/dev/null | grep -qiE "(127\\.0\\.0\\.1|0\\.0\\.0\\.0|\\[::\\]):${port}->"; then
+    if command -v ss >/dev/null 2>&1; then
+        if ss -H -ltn 2>/dev/null | awk -v p=":$port" '{ addr=$4; if (addr ~ p "$" ) found=1 } END { exit(found ? 0 : 1) }'; then
             return 0
         fi
     fi
 
-    if command_exists ss; then
-        if ss -ltnH 2>/dev/null | awk -v p=":${port}" '$4 ~ p"$" { exit 0 } END { exit 1 }'; then
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
             return 0
         fi
-        return 1
     fi
 
-    if command_exists lsof; then
-        lsof -iTCP:"$port" -sTCP:LISTEN -n >/dev/null 2>&1
-        return $?
-    fi
-
-    error "Cannot determine port availability because neither Python, docker, ss, nor lsof is installed."
-}
-
-select_frontend_port() {
-    local try_port="${FRONTEND_PORT:-$DEFAULT_FRONTEND_PORT}"
-
-    while port_is_in_use "$try_port"; do
-        info "Port $try_port is already in use."
-        try_port=$((try_port + 1))
-
-        if [[ "$try_port" -gt "$MAX_FRONTEND_PORT" ]]; then
-            error "Could not find a free frontend port between $DEFAULT_FRONTEND_PORT and $MAX_FRONTEND_PORT."
-        fi
-    done
-
-    FRONTEND_PORT="$try_port"
-    info "Using frontend port: $FRONTEND_PORT"
-}
-
-compose_up_with_retries() {
-    local attempt=1
-    local output
-
-    while true; do
-        export FRONTEND_PORT
-        log "Attempting to start RL_AGENT with frontend port $FRONTEND_PORT..."
-
-        if output="$("${COMPOSE_CMD[@]}" up -d 2>&1)"; then
-            printf '%s\n' "$output"
-            return 0
-        fi
-
-        if printf '%s\n' "$output" | grep -qiE 'port .* is already allocated|Bind( for)? .* failed|address already in use|failed to set up containernetworking|failed to set up container networking'; then
-            info "Port $FRONTEND_PORT remains unavailable. Selecting next available port."
-            "${COMPOSE_CMD[@]}" down --remove-orphans >/dev/null 2>&1 || true
-            FRONTEND_PORT=$((FRONTEND_PORT + 1))
-            while port_is_in_use "$FRONTEND_PORT"; do
-                FRONTEND_PORT=$((FRONTEND_PORT + 1))
-                if [[ "$FRONTEND_PORT" -gt "$MAX_FRONTEND_PORT" ]]; then
-                    error "Could not find a free frontend port between $DEFAULT_FRONTEND_PORT and $MAX_FRONTEND_PORT."
-                fi
-            done
-            info "Retrying with frontend port $FRONTEND_PORT."
-            attempt=$((attempt + 1))
-            continue
-        fi
-
-        error "Docker Compose failed to start RL_AGENT:\n$output"
-    done
-}
-
-check_container_running() {
-    local service="$1"
-    local container_id
-
-    container_id="$("${COMPOSE_CMD[@]}" ps -q "$service" 2>/dev/null | tr -d '\n')"
-    if [[ -n "$container_id" ]] && docker inspect -f '{{.State.Running}}' "$container_id" 2>/dev/null | grep -q '^true$'; then
-        return 0
-    fi
     return 1
 }
 
-assert_docker_available
+find_free_port() {
+    local port="$1"
+    local max="$2"
 
-detect_compose_cmd
-find_compose_file
+    while [[ "$port" -le "$max" ]]; do
 
-log "Project root: $ROOT_DIR"
-info "Compose command: ${COMPOSE_CMD[*]}"
-info "Compose file: ${COMPOSE_FILE}"
+        if ! port_busy "$port"; then
+            printf '%s\n' "$port"
+            return 0
+        fi
 
-FRONTEND_PORT="${FRONTEND_PORT:-$DEFAULT_FRONTEND_PORT}"
-select_frontend_port
-export FRONTEND_PORT
+        port=$((port + 1))
+    done
 
-validate_compose_config
+    return 1
+}
+
+# ============================================================
+# STARTUP INFORMATION
+# ============================================================
+
+log "RL_AGENT Docker startup"
+
+info "Project root: $ROOT_DIR"
+info "Compose command: ${COMPOSE[*]}"
+info "Compose file: $COMPOSE_FILE"
+
+# ============================================================
+# STOP OLD RL_AGENT CONTAINERS
+# ============================================================
 
 log "Stopping existing RL_AGENT containers..."
-"${COMPOSE_CMD[@]}" down --remove-orphans >/dev/null 2>&1 || true
-info "Stopped existing containers."
+
+"${COMPOSE[@]}" \
+    -f "$COMPOSE_FILE" \
+    --project-name "$PROJECT_NAME" \
+    down --remove-orphans >/dev/null 2>&1 || true
+
+info "RL_AGENT containers stopped."
+
+# ============================================================
+# REMOVE STALE CONTAINERS
+# ============================================================
+
+log "Removing stale RL_AGENT containers..."
+
+mapfile -t OLD_CONTAINERS < <(
+    docker ps -aq \
+        --filter "label=com.docker.compose.project=$PROJECT_NAME" \
+        2>/dev/null || true
+)
+
+if [[ "${#OLD_CONTAINERS[@]}" -gt 0 ]]; then
+    docker rm -f "${OLD_CONTAINERS[@]}" >/dev/null 2>&1 || true
+fi
+
+info "Stale RL_AGENT containers removed."
+
+# ============================================================
+# BACKEND PORT
+# ============================================================
+
+log "Selecting backend port..."
+
+BACKEND_PORT="$(find_free_port "$DEFAULT_BACKEND_PORT" 8999)" || \
+    die "No free backend port available."
+
+export BACKEND_PORT
+
+info "Selected backend host port: $BACKEND_PORT"
+
+# ============================================================
+# FRONTEND PORT
+# ============================================================
+
+log "Selecting frontend port..."
+
+FRONTEND_PORT="$(find_free_port "$DEFAULT_FRONTEND_PORT" 8999)" || \
+    die "No free frontend port available."
+
+export FRONTEND_PORT
+
+info "Selected frontend host port: $FRONTEND_PORT"
+
+# ============================================================
+# VALIDATE COMPOSE
+# ============================================================
+
+log "Validating Docker Compose configuration..."
+
+CONFIG_FILE="$(mktemp)"
+
+if ! "${COMPOSE[@]}" \
+        -f "$COMPOSE_FILE" \
+        --project-name "$PROJECT_NAME" \
+        config > "$CONFIG_FILE"; then
+
+    echo
+    cat "$CONFIG_FILE" || true
+    rm -f "$CONFIG_FILE"
+
+    die "Docker Compose configuration is invalid."
+fi
+
+rm -f "$CONFIG_FILE"
+
+info "Compose configuration is valid."
+
+# ============================================================
+# BUILD
+# ============================================================
 
 log "Building Docker images..."
-FRONTEND_PORT="$FRONTEND_PORT" "${COMPOSE_CMD[@]}" build
+
+"${COMPOSE[@]}" \
+    -f "$COMPOSE_FILE" \
+    --project-name "$PROJECT_NAME" \
+    build
+
 info "Docker images built successfully."
 
-compose_up_with_retries
+# ============================================================
+# FINAL PORT CHECK
+# ============================================================
 
-log "Project containers status:"
-"${COMPOSE_CMD[@]}" ps
+log "Final port availability check..."
 
-log "Verifying service status..."
-if check_container_running backend; then
-    info "Backend container: RUNNING"
-else
-    info "Backend container: NOT RUNNING"
+if port_busy "$BACKEND_PORT"; then
+    die "Backend port $BACKEND_PORT became occupied before startup."
 fi
 
-if check_container_running frontend; then
-    info "Frontend container: RUNNING"
-else
-    info "Frontend container: NOT RUNNING"
+if port_busy "$FRONTEND_PORT"; then
+    die "Frontend port $FRONTEND_PORT became occupied before startup."
 fi
 
-printf '\nFrontend:\n  http://127.0.0.1:%s\n\n' "$FRONTEND_PORT"
-printf 'Backend:\n  http://127.0.0.1:%s\n\n' "$BACKEND_PORT"
-printf 'Useful commands:\n'
-printf '  %s logs --tail=100\n' "${COMPOSE_CMD[*]}"
-printf '  %s down --remove-orphans\n' "${COMPOSE_CMD[*]}"
-printf '  %s ps\n' "${COMPOSE_CMD[*]}"
+info "Backend port $BACKEND_PORT is free."
+info "Frontend port $FRONTEND_PORT is free."
+
+# ============================================================
+# START CONTAINERS
+# ============================================================
+
+log "Starting RL_AGENT..."
+
+"${COMPOSE[@]}" \
+    -f "$COMPOSE_FILE" \
+    --project-name "$PROJECT_NAME" \
+    up -d
+
+info "RL_AGENT containers started."
+
+# ============================================================
+# WAIT
+# ============================================================
+
+log "Waiting for services..."
+
+sleep 3
+
+# ============================================================
+# STATUS
+# ============================================================
+
+log "Container status"
+
+"${COMPOSE[@]}" \
+    -f "$COMPOSE_FILE" \
+    --project-name "$PROJECT_NAME" \
+    ps
+
+# ============================================================
+# URLS
+# ============================================================
+
+echo
+echo "============================================================"
+echo " RL_AGENT IS RUNNING"
+echo "============================================================"
+
+echo
+echo "Frontend:"
+echo "  http://127.0.0.1:${FRONTEND_PORT}"
+
+echo
+echo "Backend:"
+echo "  http://127.0.0.1:${BACKEND_PORT}"
+
+echo
+echo "============================================================"
+echo " Press CTRL+C to stop RL_AGENT cleanly"
+echo "============================================================"
+echo
+
+# ============================================================
+# KEEP SCRIPT RUNNING
+#
+# This is important:
+# The script stays alive so Ctrl+C can trigger cleanup().
+# ============================================================
+
+while true; do
+    sleep 1
+done
