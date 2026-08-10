@@ -13,6 +13,7 @@ export function TrainingPage() {
   const status = useApi(trainingService.getStatus, { poll: true });
   const history = useApi(trainingService.getHistory, { poll: true });
   const checkpoints = useApi(trainingService.getCheckpoints);
+  const metrics = useApi(trainingService.getMetrics, { poll: true });
   const { notify } = useToast();
   const runAction = useCallback(async (action: "start" | "stop") => {
     const verb = action === "start" ? "start" : "stop";
@@ -32,6 +33,10 @@ export function TrainingPage() {
       <article className="panel"><div className="panel__header"><div><p className="eyebrow">LOSS CURVE</p><h2>Training loss</h2></div></div><QueryState state={history} empty={(data) => data.history.length === 0}>{(data) => <LineChart label="Training loss by epoch" points={data.history.map((point) => ({ label: `Epoch ${point.epoch}`, value: point.loss }))} />}</QueryState></article>
       <article className="panel"><div className="panel__header"><div><p className="eyebrow">CHECKPOINTS</p><h2>Available models</h2></div></div><QueryState state={checkpoints} empty={(data) => data.checkpoints.length === 0}>{(data) => <ul className="checkpoint-list">{data.checkpoints.map((checkpoint) => <li key={checkpoint}><span aria-hidden="true">▣</span>{checkpoint}</li>)}</ul>}</QueryState></article>
     </section>
-    <section className="panel"><div className="panel__header"><div><p className="eyebrow">REWARD & PERFORMANCE</p><h2>Awaiting metrics</h2></div></div><EmptyState compact title="No reward or performance curve available" description="The training API currently exposes loss history only. Reward, F1, learning rate, batch size, and duration will appear here when their endpoints are added." /></section>
+    <section className="panel"><div className="panel__header"><div><p className="eyebrow">REWARD & PERFORMANCE</p><h2>Awaiting metrics</h2></div></div>
+      <QueryState state={metrics} empty={(d) => d.metrics.length === 0}>
+        {(data) => <LineChart label="Training loss (metrics)" points={data.metrics.map((m) => ({ label: `Epoch ${m.epoch}`, value: m.loss }))} />}
+      </QueryState>
+    </section>
   </>;
 }
