@@ -2,10 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# copy only requirements first to leverage Docker layer caching
+COPY backend/requirements.txt ./backend/requirements.txt
+
+# install all backend requirements
+RUN pip install --no-cache-dir -r ./backend/requirements.txt
+
+# copy application code
 COPY backend ./backend
 COPY README.md ./README.md
-
-RUN pip install --no-cache-dir fastapi uvicorn
 
 EXPOSE 8000
 
