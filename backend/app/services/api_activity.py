@@ -1,6 +1,7 @@
 import asyncio
 import time
 from typing import Dict
+from datetime import datetime
 from fastapi import FastAPI, Request
 from app.config.settings import settings
 
@@ -41,6 +42,8 @@ async def api_status_monitor_task(app: FastAPI):
     # Background task that marks components 'down' if not seen recently
     interval = max(1, settings.api_status_poll_interval)
     timeout = max(1, settings.api_status_timeout_seconds)
+    from app.database.database import api_statuses_collection  # local import to avoid startup cycles
+
     while True:
         now = time.time()
         statuses: Dict = getattr(app.state, "api_statuses", {})
@@ -57,6 +60,29 @@ async def api_status_monitor_task(app: FastAPI):
                 else:
                     entry["status"] = "up"
             entry["last_checked"] = now
+
+            # Persist to DB if enabled
+            if getattr(settings, "persist_api_statuses", False):
+                try:
+                    # Upsert a document per component by name
+                    api_statuses_collection.update_one(
+                        {"name": entry["name"]},
+                        {
+                            "$set": {
+                                "name": entry["name"],
+                                "prefix": entry["prefix"],
+                                "status": entry["status"],
+                                "last_seen": entry["last_seen"],
+                                "last_checked": entry["last_checked"],
+                                "request_count": entry.get("request_count", 0),
+                                "updated_at": datetime.utcfromtimestamp(entry.get("last_checked", now)),
+                            }
+                        },
+                        upsert=True,
+                    )
+                except Exception:
+                    # Don't fail the monitor on DB errors
+                    pass
         await asyncio.sleep(interval)
 
 

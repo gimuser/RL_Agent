@@ -29,6 +29,9 @@ class Settings:
         self.api_status_poll_interval: int = 5  # seconds
         self.api_status_timeout_seconds: int = 15  # mark 'down' if not seen within this
 
+        # Whether to persist API statuses to the database
+        self.persist_api_statuses: bool = True
+
         # Components to track. Each component is identified by a name and a
         # request path prefix. Incoming requests that start with the prefix
         # update the component's last-seen timestamp and status.

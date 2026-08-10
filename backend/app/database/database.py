@@ -19,6 +19,8 @@ pipeline_collection = db["pipeline_logs"]
 training_collection = db["training"]
 metrics_collection = db.get("metrics")
 checkpoints_collection = db.get("checkpoints")
+api_statuses_collection = db.get("api_statuses")
+training_metrics_collection = db.get("training_metrics")
 
 # Export client and db for health checks and administrative endpoints
 # (some parts of the code import client and db directly).
@@ -34,4 +36,6 @@ __all__ = [
     "training_collection",
     "metrics_collection",
     "checkpoints_collection",
+    "api_statuses_collection",
+    "training_metrics_collection",
 ]
