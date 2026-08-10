@@ -25,6 +25,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Start API activity tracking (middleware + background monitor)
+from app.services.api_activity import start_status_monitor, stop_status_monitor
+
+
+@app.on_event("startup")
+async def _startup_api_monitor():
+    start_status_monitor(app)
+
+
+@app.on_event("shutdown")
+async def _shutdown_api_monitor():
+    await stop_status_monitor(app)
+
 # تسجيل الـ Routers الأساسية
 app.include_router(router)
 

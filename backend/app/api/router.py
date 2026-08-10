@@ -11,13 +11,15 @@ from app.api.dashboard import router as dashboard_router
 from app.api.agent import router as agent_router
 from app.api.evaluation import router as evaluation_router
 from app.api.metrics import router as metrics_router
+from app.api.api_status import router as api_status_router
 
 router = APIRouter()
 
 # 1. Alerts & System Health
 router.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
 router.include_router(health_router, prefix="/api/system", tags=["System Health"])
-router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
+# API status / activity tracking endpoint
+router.include_router(api_status_router)router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
 router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
 router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 

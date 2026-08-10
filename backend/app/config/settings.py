@@ -22,5 +22,26 @@ class Settings:
             "http://127.0.0.1:5173",
         ]
 
+        # API activity tracking: define components to track by prefix and
+        # a timeout in seconds after which an API is considered 'down' if not
+        # observed.
+        self.enable_api_activity_tracking: bool = True
+        self.api_status_poll_interval: int = 5  # seconds
+        self.api_status_timeout_seconds: int = 15  # mark 'down' if not seen within this
+
+        # Components to track. Each component is identified by a name and a
+        # request path prefix. Incoming requests that start with the prefix
+        # update the component's last-seen timestamp and status.
+        self.api_components: list[dict] = [
+            {"name": "training", "prefix": "/api/training"},
+            {"name": "database", "prefix": "/api/database"},
+            {"name": "alerts", "prefix": "/api/alerts"},
+            {"name": "decisions", "prefix": "/api/decisions"},
+            {"name": "rewards", "prefix": "/api/rewards"},
+            {"name": "dashboard", "prefix": "/api/dashboard"},
+            {"name": "agent", "prefix": "/api/agent"},
+            {"name": "evaluation", "prefix": "/api/evaluation"},
+        ]
+
 
 settings = Settings()
