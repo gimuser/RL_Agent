@@ -39,6 +39,14 @@ export interface SystemHealth {
   status: string;
 }
 
+export interface ApiComponent {
+  name: string;
+  prefix: string;
+  status: string;
+  last_seen?: number | null;
+  request_count?: number;
+}
+
 export interface TrainingStatus {
   status: string;
   current_epoch: number;

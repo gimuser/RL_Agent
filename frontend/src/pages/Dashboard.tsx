@@ -6,6 +6,7 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { useApi } from "../hooks/useApi";
 import { alertsService } from "../services/alerts.service";
 import { dashboardService } from "../services/dashboard.service";
+import { systemService } from "../services/system.service";
 import { decisionsService } from "../services/decisions.service";
 import { rewardsService } from "../services/rewards.service";
 import { formatDateTime, formatDecimal, formatNumber } from "../utils/format";
@@ -15,6 +16,7 @@ export function DashboardPage() {
   const alerts = useApi(alertsService.getAlerts, { poll: true });
   const decisions = useApi(decisionsService.getDecisions, { poll: true });
   const rewards = useApi(rewardsService.getRewards, { poll: true });
+  const apis = useApi(systemService.getApis, { poll: true });
 
   return (
     <>
@@ -96,6 +98,14 @@ export function DashboardPage() {
             <HealthItem label="Database" state={summary.data?.database_status ?? "unknown"} />
             <HealthItem label="Training" state={summary.data?.training_status ?? "unknown"} />
             <HealthItem label="RL agent" state="unknown" note="No agent status endpoint" />
+            <div style={{ marginTop: 12 }}>
+              <p className="eyebrow">API Components</p>
+              <QueryState state={apis} empty={(d) => (d?.components?.length ?? 0) === 0}>{(data) => (
+                <ul className="metric-list">
+                  {data.components.map((c) => <li key={c.name}><strong>{c.name}</strong>: <StatusBadge value={c.status} /></li>)}
+                </ul>
+              )}</QueryState>
+            </div>
           </div>
         </article>
         <article className="panel">
