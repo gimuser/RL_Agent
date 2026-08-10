@@ -5,6 +5,7 @@ from app.services.training_service import (
     stop_training as stop_training_service,
     get_checkpoints,
     get_history,
+    get_metrics,
 )
 
 router = APIRouter(prefix="/api/training", tags=["Training"])
@@ -28,3 +29,7 @@ def api_get_checkpoints():
 @router.get("/history")
 def api_get_history():
     return {"history": get_history()}
+
+@router.get("/metrics")
+def api_get_metrics(limit: int = 100):
+    return {"metrics": get_metrics(limit)}

@@ -207,3 +207,11 @@ def get_checkpoints():
 def get_history():
     history_docs = training_collection.find({"type": "history"}).sort("epoch", 1)
     return [{"epoch": doc["epoch"], "loss": doc["loss"]} for doc in history_docs]
+
+
+def get_metrics(limit: int = 100):
+    try:
+        docs = list(training_metrics_collection.find().sort("timestamp", -1).limit(limit))
+        return [{"epoch": int(doc.get("epoch")), "loss": float(doc.get("loss")), "timestamp": doc.get("timestamp")} for doc in docs]
+    except Exception:
+        return []
