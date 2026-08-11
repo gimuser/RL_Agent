@@ -152,22 +152,22 @@ def get_rewards_from_db(skip: int = 0, limit: int = 10) -> list[Reward]:
     return rewards
 
 
-def get_reward_statistics_from_db() -> dict[str, float]:
+def get_reward_statistics_from_db() -> dict[str, float | None]:
     """Calcule les statistiques de récompenses."""
     total_rewards = rewards_collection.count_documents({})
     if total_rewards == 0:
-        return {"mean_reward": 0.0, "max_reward": 0.0, "min_reward": 0.0}
+        return {"mean_reward": None, "max_reward": None, "min_reward": None}
 
     pipeline = [{"$group": {"_id": None, "avg_reward": {"$avg": "$reward_value"}, "max_reward": {"$max": "$reward_value"}, "min_reward": {"$min": "$reward_value"}}}]
     result = list(rewards_collection.aggregate(pipeline))
     if not result:
-        return {"mean_reward": 0.0, "max_reward": 0.0, "min_reward": 0.0}
+        return {"mean_reward": None, "max_reward": None, "min_reward": None}
 
     stats = result[0]
     return {
-        "mean_reward": float(stats.get("avg_reward", 0.0) or 0.0),
-        "max_reward": float(stats.get("max_reward", 0.0) or 0.0),
-        "min_reward": float(stats.get("min_reward", 0.0) or 0.0),
+        "mean_reward": float(stats["avg_reward"]) if stats.get("avg_reward") is not None else None,
+        "max_reward": float(stats["max_reward"]) if stats.get("max_reward") is not None else None,
+        "min_reward": float(stats["min_reward"]) if stats.get("min_reward") is not None else None,
     }
 
 
@@ -175,25 +175,7 @@ def get_reward_statistics_from_db() -> dict[str, float]:
 # 4. DASHBOARD SUMMARY (Mohammed)
 # ==========================================
 def get_dashboard_summary_from_db() -> DashboardSummary:
-    """Calcule et agrège toutes les statistiques pour le Dashboard."""
-    total_alerts = alerts_collection.count_documents({})
-    total_decisions = decisions_collection.count_documents({})
-    total_rewards = rewards_collection.count_documents({})
+    """Backward-compatible delegation to the real dashboard aggregation."""
+    from app.services.dashboard_service import get_enhanced_dashboard_summary
 
-    # Calcul de la moyenne des récompenses
-    pipeline = [{"$group": {"_id": None, "avg_reward": {"$avg": "$reward_value"}}}]
-    avg_reward_res = list(rewards_collection.aggregate(pipeline))
-    average_reward = avg_reward_res[0]["avg_reward"] if avg_reward_res else 0.0
-
-    return DashboardSummary(
-        total_alerts=total_alerts,
-        processed_alerts=total_decisions,
-        total_decisions=total_decisions,
-        total_rewards=total_rewards,
-        average_reward=round(average_reward, 2),
-        average_latency=12.5,  # Valeur simulée/par défaut
-        accuracy=0.94,          # Valeur simulée/par défaut
-        database_status="healthy",
-        training_status="idle",
-        current_episode=15,
-    )
+    return get_enhanced_dashboard_summary()

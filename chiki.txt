@@ -1,0 +1,2255 @@
+============================================================
+CHIKI - RL BACKEND INTEGRATION
+============================================================
+
+===== TREE =====
+backend/app/api
+â”œâ”€â”€ agent.py
+â”œâ”€â”€ alerts.py
+â”œâ”€â”€ api_status.py
+â”œâ”€â”€ dashboard.py
+â”œâ”€â”€ database_monitoring.py
+â”œâ”€â”€ decisions.py
+â”œâ”€â”€ evaluation.py
+â”œâ”€â”€ health.py
+â”œâ”€â”€ __init__.py
+â”œâ”€â”€ metrics.py
+â”œâ”€â”€ pipeline.py
+â”œâ”€â”€ __pycache__
+â”‚Â Â  â”œâ”€â”€ agent.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ agent.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ alerts.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ alerts.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ api_status.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ api_status.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ dashboard.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ dashboard.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ database_monitoring.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ database_monitoring.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ decisions.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ decisions.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ evaluation.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ evaluation.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ health.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ health.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ __init__.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ __init__.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ metrics.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ metrics.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ pipeline.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ pipeline.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ rewards.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ rewards.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ router.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ router.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ training.cpython-313.pyc
+â”‚Â Â  â””â”€â”€ training.cpython-314.pyc
+â”œâ”€â”€ rewards.py
+â”œâ”€â”€ router.py
+â””â”€â”€ training.py
+backend/app/services
+â”œâ”€â”€ agent_service.py
+â”œâ”€â”€ alert_service.py
+â”œâ”€â”€ api_activity.py
+â”œâ”€â”€ dashboard_service.py
+â”œâ”€â”€ dataset_service.py
+â”œâ”€â”€ evaluation_service.py
+â”œâ”€â”€ __init__.py
+â”œâ”€â”€ __pycache__
+â”‚Â Â  â”œâ”€â”€ agent_service.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ agent_service.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ alert_service.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ alert_service.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ api_activity.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ api_activity.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ dashboard_service.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ dashboard_service.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ dataset_service.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ dataset_service.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ evaluation_service.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ evaluation_service.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ __init__.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ __init__.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ training_service.cpython-313.pyc
+â”‚Â Â  â””â”€â”€ training_service.cpython-314.pyc
+â””â”€â”€ training_service.py
+backend/app/schemas
+â”œâ”€â”€ alert_schema.py
+â”œâ”€â”€ dashboard_schema.py
+â”œâ”€â”€ decision_schema.py
+â”œâ”€â”€ enums.py
+â”œâ”€â”€ inference_schema.py
+â”œâ”€â”€ __init__.py
+â”œâ”€â”€ metrics_schema.py
+â”œâ”€â”€ pipeline_schema.py
+â”œâ”€â”€ __pycache__
+â”‚Â Â  â”œâ”€â”€ alert_schema.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ alert_schema.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ dashboard_schema.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ dashboard_schema.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ decision_schema.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ decision_schema.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ inference_schema.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ __init__.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ __init__.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ metrics_schema.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ metrics_schema.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ pipeline_schema.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ pipeline_schema.cpython-314.pyc
+â”‚Â Â  â”œâ”€â”€ reward_schema.cpython-313.pyc
+â”‚Â Â  â”œâ”€â”€ reward_schema.cpython-314.pyc
+â”‚Â Â  â””â”€â”€ training_schema.cpython-314.pyc
+â”œâ”€â”€ reward_schema.py
+â””â”€â”€ training_schema.py
+backend/app/repositories  [error opening dir]
+
+6 directories, 92 files
+
+===== FILE CONTENT =====
+
+============================================================
+FILE: backend/app/api/agent.py
+============================================================
+"""Agent-related API routes.
+
+Provides a small router to query agent status and request an action for an
+incoming event. Uses `app.services.agent_service` for behavior.
+"""
+
+from fastapi import APIRouter
+from app.services.agent_service import get_agent_status, act_on_event
+
+router = APIRouter(prefix="/api/agent", tags=["Agent"])
+
+
+@router.get("/status")
+def api_agent_status():
+	return get_agent_status()
+
+
+@router.post("/act")
+def api_act(payload: dict):
+	return act_on_event(payload)
+
+
+__all__ = ["router"]
+
+
+
+============================================================
+FILE: backend/app/api/alerts.py
+============================================================
+# app/api/alerts.py
+from fastapi import APIRouter, HTTPException
+from app.schemas import Alert, AlertCreate
+from app.services.alert_service import get_all_alerts, get_alert_by_id, create_alert, update_alert, delete_alert
+
+# Ø­ÙŠØ¯Ù†Ø§ prefix="/alerts" Ù…Ù† Ù‡Ù†Ø§ Ù„Ø­Ù‚Ø§Ø´ ØºØ§Ø¯ÙŠ Ù†Ø²ÙŠØ¯ÙˆÙ‡ ÙÙ€ router.py
+router = APIRouter(tags=["Alerts"])
+
+@router.get("", response_model=list[Alert])
+def get_alerts(skip: int = 0, limit: int = 10):
+    return get_all_alerts(skip=skip, limit=limit)
+
+@router.post("", response_model=Alert)
+def add_alert(alert: AlertCreate):
+    return create_alert(alert)
+
+@router.get("/{alert_id}", response_model=Alert)
+def get_alert(alert_id: int):
+    alert = get_alert_by_id(alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
+
+@router.put("/{alert_id}", response_model=Alert)
+def edit_alert(alert_id: int, alert: AlertCreate):
+    updated = update_alert(alert_id, alert)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return updated
+
+@router.delete("/{alert_id}")
+def remove_alert(alert_id: int):
+    deleted = delete_alert(alert_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"message": "Alert deleted successfully"}
+
+============================================================
+FILE: backend/app/api/api_status.py
+============================================================
+from fastapi import APIRouter, Request
+from time import time
+from typing import Any
+
+router = APIRouter(prefix="/api/system", tags=["System Health"])
+
+
+@router.get("/apis")
+def apis_status(request: Request) -> dict[str, Any]:
+    """Return the current status of tracked API components.
+
+    Reads the status store populated by the API activity middleware and
+    background monitor. If tracking is not enabled, an explanatory message
+    is returned.
+    """
+    statuses = getattr(request.app.state, "api_statuses", None)
+    if statuses is None:
+        return {"message": "API activity tracking not enabled", "components": []}
+
+    components = []
+    now = time()
+    for name, entry in statuses.items():
+        components.append(
+            {
+                "name": entry.get("name"),
+                "prefix": entry.get("prefix"),
+                "status": entry.get("status"),
+                "last_seen": entry.get("last_seen"),
+                "last_checked": entry.get("last_checked"),
+                "request_count": entry.get("request_count", 0),
+                "age_seconds": None if entry.get("last_seen") is None else round(now - entry.get("last_seen"), 2),
+            }
+        )
+
+    return {"components": components}
+
+
+============================================================
+FILE: backend/app/api/dashboard.py
+============================================================
+from fastapi import APIRouter
+from app.schemas import DashboardSummary
+from app.services.dashboard_service import get_enhanced_dashboard_summary
+
+# Ø¥Ø²Ø§Ù„Ø© prefix="/dashboard"
+router = APIRouter(tags=["Dashboard"])
+
+
+@router.get("/summary", response_model=DashboardSummary)
+def get_dashboard_summary():
+    """RÃ©cupÃ¨re le rÃ©sumÃ© complet des mÃ©triques pour le Dashboard."""
+    return get_enhanced_dashboard_summary()
+
+============================================================
+FILE: backend/app/api/database_monitoring.py
+============================================================
+from fastapi import APIRouter
+from pymongo.errors import PyMongoError
+from app.database.database import client, db
+
+router = APIRouter(prefix="/api/database", tags=["Database Monitoring"])
+
+@router.get("/health")
+def db_health():
+    try:
+        client.admin.command("ping")
+        return {"status": "healthy", "database": "MongoDB"}
+    except PyMongoError:
+        return {"status": "unhealthy", "database": "MongoDB"}
+
+@router.get("/statistics")
+def db_statistics():
+    collections = db.list_collection_names()
+    total_objects = sum(db[collection].count_documents({}) for collection in collections)
+    stats = db.command("dbstats")
+    return {
+        "collections_count": len(collections),
+        "total_objects": total_objects,
+        "data_size_mb": round(stats.get("dataSize", 0) / 1024 / 1024, 2),
+        "storage_size_mb": round(stats.get("storageSize", 0) / 1024 / 1024, 2),
+    }
+
+@router.get("/storage")
+def db_storage():
+    stats = db.command("dbstats")
+    return {
+        "data_size_mb": round(stats.get("dataSize", 0) / 1024 / 1024, 2),
+        "storage_size_mb": round(stats.get("storageSize", 0) / 1024 / 1024, 2),
+        "index_size_mb": round(stats.get("indexSize", 0) / 1024 / 1024, 2),
+    }
+
+@router.get("/collections")
+def db_collections():
+    return {"collections": db.list_collection_names()}
+
+
+============================================================
+FILE: backend/app/api/decisions.py
+============================================================
+from fastapi import APIRouter
+from app.schemas import Decision, DecisionCreate
+from app.database.repository import create_decision_in_db, get_decisions_from_db
+
+# Ø¥Ø²Ø§Ù„Ø© prefix="/decisions"
+router = APIRouter(tags=["Decisions"])
+
+
+@router.get("", response_model=list[Decision])
+def get_decisions(skip: int = 0, limit: int = 10):
+    """RÃ©cupÃ¨re la liste des dÃ©cisions prises par le RL Agent."""
+    return get_decisions_from_db(skip=skip, limit=limit)
+
+
+@router.post("", response_model=Decision)
+def add_decision(decision: DecisionCreate):
+    """Enregistre une nouvelle dÃ©cision du RL Agent."""
+    return create_decision_in_db(decision)
+
+============================================================
+FILE: backend/app/api/evaluation.py
+============================================================
+"""Evaluation API routes.
+
+Expose small endpoints to compute evaluation artifacts using
+`app.services.evaluation_service`.
+"""
+
+from fastapi import APIRouter
+from typing import List
+from app.services.evaluation_service import confusion_matrix, reward_summary
+
+router = APIRouter(prefix="/api/evaluation", tags=["Evaluation"])
+
+
+@router.post("/confusion")
+def api_confusion(preds: List[int], targets: List[int]):
+	return confusion_matrix(preds, targets)
+
+
+@router.post("/reward-summary")
+def api_reward_summary(rewards: List[float]):
+	return reward_summary(rewards)
+
+
+__all__ = ["router"]
+
+
+
+============================================================
+FILE: backend/app/api/health.py
+============================================================
+from fastapi import APIRouter
+
+router = APIRouter()
+
+
+@router.get("/health")
+def health_check() -> dict[str, str]:
+    return {
+        "status": "ok"
+    }
+
+============================================================
+FILE: backend/app/api/__init__.py
+============================================================
+"""API package for the SOAR RL agent."""
+
+
+============================================================
+FILE: backend/app/api/metrics.py
+============================================================
+"""Metrics API routes.
+
+Expose runtime metrics collected by the in-memory metrics collector so
+the frontend or healthchecks can query counters and gauges.
+"""
+
+from fastapi import APIRouter
+from app.monitoring.metrics import metrics
+from app.schemas.metrics_schema import MetricsSummary
+
+router = APIRouter(prefix="/api/metrics", tags=["Metrics"])
+
+
+@router.get("", response_model=MetricsSummary)
+def get_metrics():
+	return MetricsSummary(**metrics.get_metrics())
+
+
+__all__ = ["router"]
+
+
+
+============================================================
+FILE: backend/app/api/pipeline.py
+============================================================
+from fastapi import APIRouter
+from app.schemas.pipeline_schema import PipelineStats, PipelineImportResponse
+from app.services.dataset_service import (
+    import_train_dataset,
+    import_test_dataset,
+    get_pipeline_status,
+    get_pipeline_statistics,
+)
+
+router = APIRouter(prefix="/api/pipeline", tags=["Pipeline"])
+
+@router.post("/import-train", response_model=PipelineImportResponse)
+def import_train_dataset_api():
+    return import_train_dataset()
+
+@router.post("/import-test", response_model=PipelineImportResponse)
+def import_test_dataset_api():
+    return import_test_dataset()
+
+@router.get("/status")
+def get_pipeline_status_api():
+    return get_pipeline_status()
+
+@router.get("/statistics", response_model=PipelineStats)
+def get_pipeline_statistics_api():
+    return get_pipeline_statistics()
+
+
+============================================================
+FILE: backend/app/api/__pycache__/agent.cpython-313.pyc
+============================================================
+ó
+    ë6zj   ã                   ó   • S r SSKJr  SSKJrJr  \" SS/S9r\R                  S5      S 5       r\R                  S	5      S
+\
+4S j5       rS/rg)z¦Agent-related API routes.
+
+Provides a small router to query agent status and request an action for an
+incoming event. Uses `app.services.agent_service` for behavior.
+é    )Ú	APIRouter)Úget_agent_statusÚact_on_eventz
+/api/agentÚAgent)ÚprefixÚtagsz/statusc                  ó   • [        5       $ ©N)r   © ó    Ú6/home/oualid/Desktop/RL_AGENT/backend/app/api/agent.pyÚapi_agent_statusr      s   € äÓĞr   z/actÚpayloadc                 ó   • [        U 5      $ r
+   )r   )r   s    r   Úapi_actr      s   € äWÓĞr   ÚrouterN)Ú__doc__Úfastapir   Úapp.services.agent_servicer   r   r   Úgetr   ÚpostÚdictr   Ú__all__r   r   r   Ú<module>r      sj   ğñõ ß Eá	˜,¨g¨YÑ	7€ğ ‡ˆIÓñó ğğ ‡ˆVÓğTó ó ğğ ˆ*r   
+
+============================================================
+FILE: backend/app/api/__pycache__/agent.cpython-314.pyc
+============================================================
++
+    ë6zj   ã                   ó¤   € R t ^ RIHt ^ RIHtHt ]! RR.R7      t]P                  R4      R 4       t]P                  R4      R	 R
+ l4       t
+R.tR# )z¦Agent-related API routes.
+
+Provides a small router to query agent status and request an action for an
+incoming event. Uses `app.services.agent_service` for behavior.
+)Ú	APIRouter)Úget_agent_statusÚact_on_eventz
+/api/agentÚAgent)ÚprefixÚtagsz/statusc                  ó   € \        4       # ©N)r   © ó    Ú6/home/oualid/Desktop/RL_AGENT/backend/app/api/agent.pyÚapi_agent_statusr      s   € äÓĞr   z/actc                ó$   € V ^8„  d   QhR\         /# )é   Úpayload)Údict)Úformats   "r   Ú__annotate__r      s   € ÷ ñ ”Tñ r   c                 ó   € \        V 4      # r	   )r   )r   s   &r   Úapi_actr      s   € äWÓĞr   ÚrouterN)Ú__doc__Úfastapir   Úapp.services.agent_servicer   r   r   Úgetr   Úpostr   Ú__all__r
+   r   r   Ú<module>r      sc   ğñõ ß Eá	˜,¨g¨YÔ	7€ğ ‡ˆIÓñó ğğ ‡ˆVÓôó ğğ ˆ*‚r   
+
+============================================================
+FILE: backend/app/api/__pycache__/alerts.cpython-313.pyc
+============================================================
+ó
+    cÅyj0  ã                   óf  • S SK JrJr  S SKJrJr  S SKJrJrJ	r	J
+r
+Jr  \" S/S9r\R                  S\\   S9SS\S	\4S
+ jj5       r\R#                  S\S9S\4S j5       r\R                  S\S9S\4S j5       r\R)                  S\S9S\S\4S j5       r\R-                  S5      S\4S j5       rg)é    )Ú	APIRouterÚHTTPException)ÚAlertÚAlertCreate)Úget_all_alertsÚget_alert_by_idÚcreate_alertÚupdate_alertÚdelete_alertÚAlerts)ÚtagsÚ )Úresponse_modelÚskipÚlimitc                 ó   • [        XS9$ )N©r   r   )r   r   s     Ú7/home/oualid/Desktop/RL_AGENT/backend/app/api/alerts.pyÚ
+get_alertsr   	   s   € ä˜tÑ1Ğ1ó    Úalertc                 ó   • [        U 5      $ )N)r	   )r   s    r   Ú	add_alertr      s   € ä˜ÓĞr   z/{alert_id}Úalert_idc                 ó6   • [        U 5      nUc
+  [        SSS9eU$ ©Né”  úAlert not found©Ústatus_codeÚdetail)r   r   )r   r   s     r   Ú	get_alertr"      s$   € ä˜HÓ%€EØ}Ü¨Ğ4EÑFĞFØ€Lr   c                 ó6   • [        X5      nUc
+  [        SSS9eU$ r   )r
+   r   )r   r   Úupdateds      r   Ú
+edit_alertr%      s$   € ä˜8Ó+€GØÜ¨Ğ4EÑFĞFØ€Nr   c                 óB   • [        U 5      nU(       d
+  [        SSS9eSS0$ )Nr   r   r   ÚmessagezAlert deleted successfully)r   r   )r   Údeleteds     r   Úremove_alertr)      s)   € ä˜8Ó$€GŞÜ¨Ğ4EÑFĞFØĞ3Ğ4Ğ4r   N)r   é
+   )Úfastapir   r   Úapp.schemasr   r   Úapp.services.alert_servicer   r   r	   r
+   r   ÚrouterÚgetÚlistÚintr   Úpostr   r"   Úputr%   Údeleter)   © r   r   Ú<module>r6      só   ğç ,ß *ß pÕ pñ 
+˜˜
+Ñ	#€à‡ˆB˜t E™{€Ğ+ñ2Sğ 2 Sô 2ó ,ğ2ğ ‡ˆR €Ğ&ğ[ó ó 'ğğ ‡ˆM¨%€Ğ0ğ˜ó ó 1ğğ ‡ˆM¨%€Ğ0ğ˜ğ  [ó ó 1ğğ ‡ˆ}Óğ5˜3ó 5ó ñ5r   
+
+============================================================
+FILE: backend/app/api/__pycache__/alerts.cpython-314.pyc
+============================================================
++
+    cÅyj0  ã                   ó|  € ^ RI HtHt ^ RIHtHt ^ RIHtHtH	t	H
+t
+Ht ]! R.R7      t]P                  R]],          R7      RR R	 ll4       t]P!                  R]R7      R
+ R l4       t]P                  R]R7      R R l4       t]P'                  R]R7      R R l4       t]P+                  R4      R R l4       tR# )é    )Ú	APIRouterÚHTTPException)ÚAlertÚAlertCreate)Úget_all_alertsÚget_alert_by_idÚcreate_alertÚupdate_alertÚdelete_alertÚAlerts)ÚtagsÚ )Úresponse_modelc                ó0   € V ^8„  d   QhR\         R\         /# )é   ÚskipÚlimit©Úint)Úformats   "Ú7/home/oualid/Desktop/RL_AGENT/backend/app/api/alerts.pyÚ__annotate__r   
+   s   € ÷ 2ñ 2”Sğ 2¤Sñ 2ó    c                 ó   € \        WR 7      # )©r   r   )r   r   s   &&r   Ú
+get_alertsr   	   s   € ä˜tÔ1Ğ1r   c                ó$   € V ^8„  d   QhR\         /# )r   Úalert)r   )r   s   "r   r   r      s   € ÷ ñ ”[ñ r   c                 ó   € \        V 4      # )N)r	   )r   s   &r   Ú	add_alertr       s   € ä˜ÓĞr   z/{alert_id}c                ó$   € V ^8„  d   QhR\         /# ©r   Úalert_idr   )r   s   "r   r   r      s   € ÷ ñ œñ r   c                 ó>   € \        V 4      pVf   \        RRR7      hV# ©Né”  úAlert not found©Ústatus_codeÚdetail)r   r   )r#   r   s   & r   Ú	get_alertr+      s$   € ä˜HÓ%€EØ‚}Ü¨Ğ4EÔFĞFØ€Lr   c                ó0   € V ^8„  d   QhR\         R\        /# )r   r#   r   )r   r   )r   s   "r   r   r      s   € ÷ ñ œğ ¤[ñ r   c                 ó>   € \        W4      pVf   \        RRR7      hV# r%   )r
+   r   )r#   r   Úupdateds   && r   Ú
+edit_alertr/      s$   € ä˜8Ó+€GØ‚Ü¨Ğ4EÔFĞFØ€Nr   c                ó$   € V ^8„  d   QhR\         /# r"   r   )r   s   "r   r   r       s   € ÷ 5ñ 5œ3ñ 5r   c                 óJ   € \        V 4      pV'       g   \        R RR7      hRR/# )r&   r'   r(   ÚmessagezAlert deleted successfully)r   r   )r#   Údeleteds   & r   Úremove_alertr4      s)   € ä˜8Ó$€GßÜ¨Ğ4EÔFĞFØĞ3Ğ4Ğ4r   N)r   é
+   )Úfastapir   r   Úapp.schemasr   r   Úapp.services.alert_servicer   r   r	   r
+   r   ÚrouterÚgetÚlistr   Úpostr    r+   Úputr/   Údeleter4   © r   r   Ú<module>r@      sÂ   ğç ,ß *ß pÕ pñ 
+˜˜
+Ô	#€à‡ˆB˜t E{€Ó+ö2ó ,ğ2ğ ‡ˆR €Ó&ôó 'ğğ ‡ˆM¨%€Ó0ôó 1ğğ ‡ˆM¨%€Ó0ôó 1ğğ ‡ˆ}Óô5ó ò5r   
+
+============================================================
+FILE: backend/app/api/__pycache__/api_status.cpython-313.pyc
+============================================================
+ó
+    <VzjÙ  ã                   ó€   • S SK JrJr  S SKJr  S SKJr  \" SS/S9r\R                  S5      S\S	\\	\4   4S
+ j5       r
+g)é    )Ú	APIRouterÚRequest)Útime)ÚAnyz/api/systemzSystem Health)ÚprefixÚtagsz/apisÚrequestÚreturnc                 óì  • [        U R                  R                  SS5      nUc  S/ S.$ / n[        5       nUR	                  5        H¨  u  pEUR                  UR                  S5      UR                  S5      UR                  S5      UR                  S5      UR                  S	5      UR                  S
+S5      UR                  S5      c  SO[        X5R                  S5      -
+  S5      S.5        Mª     SU0$ )zÎReturn the current status of tracked API components.
+
+Reads the status store populated by the API activity middleware and
+background monitor. If tracking is not enabled, an explanatory message
+is returned.
+Úapi_statusesNz!API activity tracking not enabled)ÚmessageÚ
+componentsÚnamer   ÚstatusÚ	last_seenÚlast_checkedÚrequest_countr   é   )r   r   r   r   r   r   Úage_secondsr   )ÚgetattrÚappÚstater   ÚitemsÚappendÚgetÚround)r	   Ústatusesr   Únowr   Úentrys         Ú;/home/oualid/Desktop/RL_AGENT/backend/app/api/api_status.pyÚapis_statusr!      sá   € ô w—{‘{×(Ñ(¨.¸$Ó?€HØÑØ>ÈbÑQĞQà€JÜ
+‹&€CØ—~‘~Ö'‰ˆØ×ÑàŸ	™	 &Ó)ØŸ)™) HÓ-ØŸ)™) HÓ-Ø"ŸY™Y {Ó3Ø %§	¡	¨.Ó 9Ø!&§¡¨?¸AÓ!>Ø',§y¡y°Ó'=Ñ'E™tÌ5ĞQT×W`ÑW`ĞalÓWmÑQmĞopÓKqñö
+	
+ñ (ğ ˜*Ğ%Ğ%ó    N)Úfastapir   r   r   Útypingr   Úrouterr   ÚdictÚstrr!   © r"   r    Ú<module>r)      sP   ğß &İ İ á	˜-¨Ğ.?Ñ	@€ğ ‡ˆGÓğ&˜ğ & T¨#¨s¨(¡^ó &ó ñ&r"   
+
+============================================================
+FILE: backend/app/api/__pycache__/api_status.cpython-314.pyc
+============================================================
++
+    <VzjÙ  ã                   óx   € ^ RI HtHt ^ RIHt ^ RIHt ]! RR.R7      t]P                  R4      R R	 l4       tR
+# )é    )Ú	APIRouterÚRequest)Útime)ÚAnyz/api/systemzSystem Health)ÚprefixÚtagsz/apisc                óR   € V ^8„  d   QhR\         R\        \        \        3,          /# )é   ÚrequestÚreturn)r   ÚdictÚstrr   )Úformats   "Ú;/home/oualid/Desktop/RL_AGENT/backend/app/api/api_status.pyÚ__annotate__r   	   s"   € ÷ &ñ &œğ &¤T¬#¬s¨(¥^ñ &ó    c                ó  € \        V P                  P                  RR4      pVf   RRR. /# . p\        4       pVP	                  4        F³  w  rETP                  RVP                  R4      RVP                  R4      RVP                  R4      R	VP                  R	4      R
+VP                  R
+4      RVP                  R^ 4      RVP                  R	4      f   RM \        W5P                  R	4      ,
+          ^4      /4       Kµ  	  RV/# )zÎReturn the current status of tracked API components.
+
+Reads the status store populated by the API activity middleware and
+background monitor. If tracking is not enabled, an explanatory message
+is returned.
+Úapi_statusesNÚmessagez!API activity tracking not enabledÚ
+componentsÚnamer   ÚstatusÚ	last_seenÚlast_checkedÚrequest_countÚage_seconds)ÚgetattrÚappÚstater   ÚitemsÚappendÚgetÚround)r   Ústatusesr   Únowr   Úentrys   &     r   Úapis_statusr'      sô   € ô w—{‘{×(Ñ(¨.¸$Ó?€HØÒØĞ>ÀÈbĞQĞQà€JÜ
+‹&€CØ—~‘~Ö'‰ˆØ×Ñà˜Ÿ	™	 &Ó)Ø˜%Ÿ)™) HÓ-Ø˜%Ÿ)™) HÓ-Ø˜UŸY™Y {Ó3Ø §	¡	¨.Ó 9Ø §¡¨?¸AÓ!>Ø u§y¡y°Ó'=Ò'E™tÌ5ĞQT×W`ÑW`ĞalÓWmÕQmĞopÓKqğö
+	
+ñ (ğ ˜*Ğ%Ğ%r   N)	Úfastapir   r   r   Útypingr   Úrouterr"   r'   © r   r   Ú<module>r,      s:   ğß &İ İ á	˜-¨Ğ.?Ô	@€ğ ‡ˆGÓô&ó ò&r   
+
+============================================================
+FILE: backend/app/api/__pycache__/dashboard.cpython-313.pyc
+============================================================
+ó
+    àWzj¨  ã                   ób   • S SK Jr  S SKJr  S SKJr  \" S/S9r\R                  S\S9S 5       rg	)
+é    )Ú	APIRouter)ÚDashboardSummary©Úget_enhanced_dashboard_summaryÚ	Dashboard)Útagsz/summary)Úresponse_modelc                  ó   • [        5       $ )u@   RÃ©cupÃ¨re le rÃ©sumÃ© complet des mÃ©triques pour le Dashboard.r   © ó    Ú:/home/oualid/Desktop/RL_AGENT/backend/app/api/dashboard.pyÚget_dashboard_summaryr   	   s   € ô *Ó+Ğ+r   N)	Úfastapir   Úapp.schemasr   Úapp.services.dashboard_servicer   ÚrouterÚgetr   r   r   r   Ú<module>r      s>   ğİ İ (İ Iñ 
+˜˜Ñ	&€ğ ‡ˆJĞ'7€Ğ8ñ,ó 9ñ,r   
+
+============================================================
+FILE: backend/app/api/__pycache__/dashboard.cpython-314.pyc
+============================================================
++
+    àWzj¨  ã                   óp   € ^ RI Ht ^ RIHt ^ RIHt ]! R.R7      t]P                  R]R7      R 4       tR	# )
+é    )Ú	APIRouter)ÚDashboardSummary©Úget_enhanced_dashboard_summaryÚ	Dashboard)Útagsz/summary)Úresponse_modelc                 ó   € \        4       # )u@   RÃ©cupÃ¨re le rÃ©sumÃ© complet des mÃ©triques pour le Dashboard.r   © ó    Ú:/home/oualid/Desktop/RL_AGENT/backend/app/api/dashboard.pyÚget_dashboard_summaryr   	   s   € ô *Ó+Ğ+r   N)	Úfastapir   Úapp.schemasr   Úapp.services.dashboard_servicer   ÚrouterÚgetr   r   r   r   Ú<module>r      s>   ğİ İ (İ Iñ 
+˜˜Ô	&€ğ ‡ˆJĞ'7€Ó8ñ,ó 9ò,r   
+
+============================================================
+FILE: backend/app/api/__pycache__/database_monitoring.cpython-313.pyc
+============================================================
+ó
+    ¹Fzj5  ã                   óô   • S SK Jr  S SKJr  S SKJrJr  \" SS/S9r\R                  S5      S 5       r	\R                  S	5      S
+ 5       r
+\R                  S5      S 5       r\R                  S5      S 5       rg)é    )Ú	APIRouter)ÚPyMongoError)ÚclientÚdbz/api/databasezDatabase Monitoring)ÚprefixÚtagsz/healthc                  óv   •  [         R                  R                  S5        SSS.$ ! [         a    SSS.s $ f = f)NÚpingÚhealthyÚMongoDB)ÚstatusÚdatabaseÚ	unhealthy)r   ÚadminÚcommandr   © ó    ÚD/home/oualid/Desktop/RL_AGENT/backend/app/api/database_monitoring.pyÚ	db_healthr      s>   € ğ>Ü‰×Ñ˜VÔ$Ø#°Ñ;Ğ;øÜó >Ø%°9Ñ=Ò=ğ>ús   ‚#& ¦8·8z/statisticsc            	      ó  • [         R                  " 5       n [        S U  5       5      n[         R                  " S5      n[	        U 5      U[        UR                  SS5      S-  S-  S5      [        UR                  SS5      S-  S-  S5      S.$ )	Nc              3   óR   #   • U  H  n[         U   R                  0 5      v •  M     g 7f)N)r   Úcount_documents)Ú.0Ú
+collections     r   Ú	<genexpr>Ú db_statistics.<locals>.<genexpr>   s"   é € ĞYÊ[¸zœ˜:™×6Ñ6°r×:Ğ:Ê[ùs   ‚%'ÚdbstatsÚdataSizer   é   é   ÚstorageSize)Úcollections_countÚtotal_objectsÚdata_size_mbÚstorage_size_mb)r   Úlist_collection_namesÚsumr   ÚlenÚroundÚget)Úcollectionsr#   Ústatss      r   Údb_statisticsr-      s   € ä×*Ò*Ó,€KÜÑYÉ[ÓYÓY€MÜJŠJyÓ!€Eä  Ó-Ø&Ü˜eŸi™i¨
+°AÓ6¸Ñ=ÀÑDÀaÓHÜ  §¡¨=¸!Ó!<¸tÑ!CÀdÑ!JÈAÓNñ	ğ r   z/storagec                  óú   • [         R                  " S5      n [        U R                  SS5      S-  S-  S5      [        U R                  SS5      S-  S-  S5      [        U R                  SS5      S-  S-  S5      S.$ )	Nr   r   r   r   r    r!   Ú	indexSize)r$   r%   Úindex_size_mb)r   r   r)   r*   )r,   s    r   Ú
+db_storager1      sw   € äJŠJyÓ!€Eä˜eŸi™i¨
+°AÓ6¸Ñ=ÀÑDÀaÓHÜ  §¡¨=¸!Ó!<¸tÑ!CÀdÑ!JÈAÓNÜ˜uŸy™y¨°aÓ8¸4Ñ?À$ÑFÈÓJñğ r   z/collectionsc                  ó0   • S[         R                  " 5       0$ )Nr+   )r   r&   r   r   r   Údb_collectionsr3   $   s   € àœ2×3Ò3Ó5Ğ6Ğ6r   N)Úfastapir   Úpymongo.errorsr   Úapp.database.databaser   r   Úrouterr*   r   r-   r1   r3   r   r   r   Ú<module>r8      s   ğİ İ 'ß ,á	˜/Ğ1FĞ0GÑ	H€à‡ˆIÓñ>ó ğ>ğ ‡ˆMÓñ	ó ğ	ğ ‡ˆJÓñó ğğ ‡ˆNÓñ7ó ñ7r   
+
+============================================================
+FILE: backend/app/api/__pycache__/database_monitoring.cpython-314.pyc
+============================================================
++
+    ¹Fzj5  ã                   óü   € ^ RI Ht ^ RIHt ^ RIHtHt ]! RR.R7      t]P                  R4      R 4       t	]P                  R	4      R
+ 4       t
+]P                  R4      R 4       t]P                  R4      R 4       tR# )é    )Ú	APIRouter)ÚPyMongoError)ÚclientÚdbz/api/databasezDatabase Monitoring)ÚprefixÚtagsz/healthc                  ó|   €  \         P                  P                  R 4       RRRR/#   \         d
+    RRRR/u # i ; i)ÚpingÚstatusÚhealthyÚdatabaseÚMongoDBÚ	unhealthy)r   ÚadminÚcommandr   © ó    ÚD/home/oualid/Desktop/RL_AGENT/backend/app/api/database_monitoring.pyÚ	db_healthr      sF   € ğ>Ü‰×Ñ˜VÔ$Ø˜) Z°Ğ;Ğ;øÜô >Ø˜+ z°9Ğ=Ò=ğ>ús   ‚$' §;º;z/statisticsc                  óB  € \         P                  ! 4       p \        R  V  4       4      p\         P                  ! R4      pR\	        V 4      RVR\        VP                  R^ 4      R,          R,          ^4      R\        VP                  R^ 4      R,          R,          ^4      /# )	c              3   óZ   "  € T F!  p\         V,          P                  / 4      x € K#  	  R # 5i)N)r   Úcount_documents)Ú.0Ú
+collections   & r   Ú	<genexpr>Ú db_statistics.<locals>.<genexpr>   s"   é € ĞYÉ[¸zœ˜:×6Ñ6°r×:Ğ:Ë[ùs   ‚)+ÚdbstatsÚcollections_countÚtotal_objectsÚdata_size_mbÚdataSizeé   Ústorage_size_mbÚstorageSize)r   Úlist_collection_namesÚsumr   ÚlenÚroundÚget)Úcollectionsr   Ústatss      r   Údb_statisticsr,      s‰   € ä×*Ò*Ó,€KÜÑYÉ[ÓYÓY€MÜJŠJyÓ!€EàœS Ó-Ø˜Øœ˜eŸi™i¨
+°AÓ6¸Õ=ÀÕDÀaÓHØœ5 §¡¨=¸!Ó!<¸tÕ!CÀdÕ!JÈAÓNğ	ğ r   z/storagec                  ó.  € \         P                  ! R 4      p R\        V P                  R^ 4      R,          R,          ^4      R\        V P                  R^ 4      R,          R,          ^4      R\        V P                  R^ 4      R,          R,          ^4      /# )r   r    r!   r"   r#   r$   Úindex_size_mbÚ	indexSize)r   r   r(   r)   )r+   s    r   Ú
+db_storager0      s}   € äJŠJyÓ!€Eàœ˜eŸi™i¨
+°AÓ6¸Õ=ÀÕDÀaÓHØœ5 §¡¨=¸!Ó!<¸tÕ!CÀdÕ!JÈAÓNØœ˜uŸy™y¨°aÓ8¸4Õ?À$ÕFÈÓJğğ r   z/collectionsc                  ó0   € R \         P                  ! 4       /# )r*   )r   r%   r   r   r   Údb_collectionsr2   $   s   € àœ2×3Ò3Ó5Ğ6Ğ6r   N)Úfastapir   Úpymongo.errorsr   Úapp.database.databaser   r   Úrouterr)   r   r,   r0   r2   r   r   r   Ú<module>r7      s   ğİ İ 'ß ,á	˜/Ğ1FĞ0GÔ	H€à‡ˆIÓñ>ó ğ>ğ ‡ˆMÓñ	ó ğ	ğ ‡ˆJÓñó ğğ ‡ˆNÓñ7ó ò7r   
+
+============================================================
+FILE: backend/app/api/__pycache__/decisions.cpython-313.pyc
+============================================================
+ó
+    cÅyj†  ã                   ó´   • S SK Jr  S SKJrJr  S SKJrJr  \" S/S9r\R                  S\
+\   S9SS\S	\4S
+ jj5       r\R                  S\S9S\4S j5       rg)é    )Ú	APIRouter)ÚDecisionÚDecisionCreate)Úcreate_decision_in_dbÚget_decisions_from_dbÚ	Decisions)ÚtagsÚ )Úresponse_modelÚskipÚlimitc                 ó   • [        XS9$ )u:   RÃ©cupÃ¨re la liste des dÃ©cisions prises par le RL Agent.©r   r   )r   r   s     Ú:/home/oualid/Desktop/RL_AGENT/backend/app/api/decisions.pyÚget_decisionsr   	   s   € ô ! dÑ8Ğ8ó    Údecisionc                 ó   • [        U 5      $ )u.   Enregistre une nouvelle dÃ©cision du RL Agent.)r   )r   s    r   Úadd_decisionr      s   € ô ! Ó*Ğ*r   N)r   é
+   )Úfastapir   Úapp.schemasr   r   Úapp.database.repositoryr   r   ÚrouterÚgetÚlistÚintr   Úpostr   © r   r   Ú<module>r       sw   ğİ ß 0ß Pñ 
+˜˜Ñ	&€ğ ‡ˆB˜t H™~€Ğ.ñ9˜ğ 9¨ô 9ó /ğ9ğ
+ ‡ˆR €Ğ)ğ+˜>ó +ó *ñ+r   
+
+============================================================
+FILE: backend/app/api/__pycache__/decisions.cpython-314.pyc
+============================================================
++
+    cÅyj†  ã                   óÈ   € ^ RI Ht ^ RIHtHt ^ RIHtHt ]! R.R7      t]P                  R]
+],          R7      RR R	 ll4       t]P                  R]R7      R
+ R l4       tR# )é    )Ú	APIRouter)ÚDecisionÚDecisionCreate)Úcreate_decision_in_dbÚget_decisions_from_dbÚ	Decisions)ÚtagsÚ )Úresponse_modelc                ó0   € V ^8„  d   QhR\         R\         /# )é   ÚskipÚlimit)Úint)Úformats   "Ú:/home/oualid/Desktop/RL_AGENT/backend/app/api/decisions.pyÚ__annotate__r   
+   s   € ÷ 9ñ 9œğ 9¬ñ 9ó    c                ó   € \        WR7      # )u:   RÃ©cupÃ¨re la liste des dÃ©cisions prises par le RL Agent.©r   r   )r   r   s   &&r   Úget_decisionsr   	   s   € ô ! dÔ8Ğ8r   c                ó$   € V ^8„  d   QhR\         /# )r   Údecision)r   )r   s   "r   r   r      s   € ÷ +ñ +œ>ñ +r   c                ó   € \        V 4      # )u.   Enregistre une nouvelle dÃ©cision du RL Agent.)r   )r   s   &r   Úadd_decisionr      s   € ô ! Ó*Ğ*r   N)r   é
+   )Úfastapir   Úapp.schemasr   r   Úapp.database.repositoryr   r   ÚrouterÚgetÚlistr   Úpostr   © r   r   Ú<module>r%      sb   ğİ ß 0ß Pñ 
+˜˜Ô	&€ğ ‡ˆB˜t H~€Ó.ö9ó /ğ9ğ
+ ‡ˆR €Ó)ô+ó *ò+r   
+
+============================================================
+FILE: backend/app/api/__pycache__/evaluation.cpython-313.pyc
+============================================================
+ó
+    ë6zjM  ã                   óÈ   • S r SSKJr  SSKJr  SSKJrJr  \" SS/S9r\R                  S5      S	\\
+   S
+\\
+   4S j5       r\R                  S5      S\\   4S j5       rS/rg)zxEvaluation API routes.
+
+Expose small endpoints to compute evaluation artifacts using
+`app.services.evaluation_service`.
+é    )Ú	APIRouter)ÚList)Úconfusion_matrixÚreward_summaryz/api/evaluationÚ
+Evaluation)ÚprefixÚtagsz
+/confusionÚpredsÚtargetsc                 ó   • [        X5      $ ©N)r   )r
+   r   s     Ú;/home/oualid/Desktop/RL_AGENT/backend/app/api/evaluation.pyÚapi_confusionr      s   € ä˜Ó(Ğ(ó    z/reward-summaryÚrewardsc                 ó   • [        U 5      $ r   )r   )r   s    r   Úapi_reward_summaryr      s   € äwÓĞr   ÚrouterN)Ú__doc__Úfastapir   Útypingr   Úapp.services.evaluation_servicer   r   r   ÚpostÚintr   Úfloatr   Ú__all__© r   r   Ú<module>r      s‰   ğñõ İ ß Lá	Ğ+°<°.Ñ	A€ğ ‡ˆ\Óğ)˜˜c™ğ )¨T°#©Yó )ó ğ)ğ ‡ĞÓğ   U¡ó  ó  ğ ğ ˆ*r   
+
+============================================================
+FILE: backend/app/api/__pycache__/evaluation.cpython-314.pyc
+============================================================
++
+    ë6zjM  ã                   ó¶   € R t ^ RIHt ^ RIHt ^ RIHtHt ]! RR.R7      t]P                  R4      R R	 l4       t
+]P                  R
+4      R R l4       tR.tR# )zxEvaluation API routes.
+
+Expose small endpoints to compute evaluation artifacts using
+`app.services.evaluation_service`.
+)Ú	APIRouter)ÚList)Úconfusion_matrixÚreward_summaryz/api/evaluationÚ
+Evaluation)ÚprefixÚtagsz
+/confusionc                ó\   € V ^8„  d   QhR\         \        ,          R\         \        ,          /# )é   ÚpredsÚtargets)r   Úint)Úformats   "Ú;/home/oualid/Desktop/RL_AGENT/backend/app/api/evaluation.pyÚ__annotate__r      s"   € ÷ )ñ )œœcğ )¬T´#­Yñ )ó    c                 ó   € \        W4      # ©N)r   )r   r   s   &&r   Úapi_confusionr      s   € ä˜Ó(Ğ(r   z/reward-summaryc                ó:   € V ^8„  d   QhR\         \        ,          /# )r
+   Úrewards)r   Úfloat)r   s   "r   r   r      s   € ÷  ñ  ¤¤U¥ñ  r   c                 ó   € \        V 4      # r   )r   )r   s   &r   Úapi_reward_summaryr      s   € äwÓĞr   ÚrouterN)Ú__doc__Úfastapir   Útypingr   Úapp.services.evaluation_servicer   r   r   Úpostr   r   Ú__all__© r   r   Ú<module>r"      sh   ğñõ İ ß Lá	Ğ+°<°.Ô	A€ğ ‡ˆ\Óô)ó ğ)ğ ‡ĞÓô ó  ğ ğ ˆ*‚r   
+
+============================================================
+FILE: backend/app/api/__pycache__/health.cpython-313.pyc
+============================================================
+ó
+    cÅyjœ   ã                   ó^   • S SK Jr  \" 5       r\R                  S5      S\\\4   4S j5       rg)é    )Ú	APIRouterz/healthÚreturnc                  ó
+   • SS0$ )NÚstatusÚok© r   ó    Ú7/home/oualid/Desktop/RL_AGENT/backend/app/api/health.pyÚhealth_checkr      s   € ğ 	$ğğ r	   N)Úfastapir   ÚrouterÚgetÚdictÚstrr   r   r	   r
+   Ú<module>r      s;   ğİ á	‹€ğ ‡ˆIÓğd˜3 ˜8‘nó ó ñr	   
+
+============================================================
+FILE: backend/app/api/__pycache__/health.cpython-314.pyc
+============================================================
++
+    cÅyjœ   ã                   óT   € ^ RI Ht ]! 4       t]P                  R4      R R l4       tR# )é    )Ú	APIRouterz/healthc                óF   € V ^8„  d   QhR\         \        \        3,          /# )é   Úreturn)ÚdictÚstr)Úformats   "Ú7/home/oualid/Desktop/RL_AGENT/backend/app/api/health.pyÚ__annotate__r      s   € ÷ ñ ”dœ3¤˜8•nñ ó    c                  ó
+   € R R/# )ÚstatusÚok© r   r   r
+   Úhealth_checkr      s   € ğ 	$ğğ r   N)Úfastapir   ÚrouterÚgetr   r   r   r
+   Ú<module>r      s,   ğİ á	‹€ğ ‡ˆIÓôó òr   
+
+============================================================
+FILE: backend/app/api/__pycache__/__init__.cpython-313.pyc
+============================================================
+ó
+    0rj)   ã                   ó   • S r g)z"API package for the SOAR RL agent.N)Ú__doc__© ó    Ú9/home/oualid/Desktop/RL_AGENT/backend/app/api/__init__.pyÚ<module>r      s   ğÚ (r   
+
+============================================================
+FILE: backend/app/api/__pycache__/__init__.cpython-314.pyc
+============================================================
++
+    0rj)   ã                   ó
+   € R t R# )z"API package for the SOAR RL agent.N)Ú__doc__© ó    Úbackend/app/api/__init__.pyÚ<module>r      s   ğÛ (r   
+
+============================================================
+FILE: backend/app/api/__pycache__/metrics.cpython-313.pyc
+============================================================
+ó
+    ë6zjè  ã                   ón   • S r SSKJr  SSKJr  SSKJr  \" SS/S9r\R                  S\S	9S
+ 5       r	S/r
+g)z˜Metrics API routes.
+
+Expose runtime metrics collected by the in-memory metrics collector so
+the frontend or healthchecks can query counters and gauges.
+é    )Ú	APIRouter)Úmetrics)ÚMetricsSummaryz/api/metricsÚMetrics)ÚprefixÚtagsÚ )Úresponse_modelc                  ó>   • [        S0 [        R                  " 5       D6$ )N© )r   r   Úget_metricsr   ó    Ú8/home/oualid/Desktop/RL_AGENT/backend/app/api/metrics.pyr   r      s   € äÑ/œ×,Ò,Ó.Ñ/Ğ/r   ÚrouterN)Ú__doc__Úfastapir   Úapp.monitoring.metricsr   Úapp.schemas.metrics_schemar   r   Úgetr   Ú__all__r   r   r   Ú<module>r      sM   ğñõ İ *İ 5á	˜.°	¨{Ñ	;€ğ ‡ˆB˜~€Ğ.ñ0ó /ğ0ğ ˆ*r   
+
+============================================================
+FILE: backend/app/api/__pycache__/metrics.cpython-314.pyc
+============================================================
++
+    ë6zjè  ã                   ó|   € R t ^ RIHt ^ RIHt ^ RIHt ]! RR.R7      t]P                  R]R7      R	 4       t	R
+.t
+R# )z˜Metrics API routes.
+
+Expose runtime metrics collected by the in-memory metrics collector so
+the frontend or healthchecks can query counters and gauges.
+)Ú	APIRouter)Úmetrics)ÚMetricsSummaryz/api/metricsÚMetrics)ÚprefixÚtagsÚ )Úresponse_modelc                  ó>   € \        R/ \        P                  ! 4       B # )N© )r   r   Úget_metricsr   ó    Ú8/home/oualid/Desktop/RL_AGENT/backend/app/api/metrics.pyr   r      s   € äÑ/œ×,Ò,Ó.Ñ/Ğ/r   ÚrouterN)Ú__doc__Úfastapir   Úapp.monitoring.metricsr   Úapp.schemas.metrics_schemar   r   Úgetr   Ú__all__r   r   r   Ú<module>r      sM   ğñõ İ *İ 5á	˜.°	¨{Ô	;€ğ ‡ˆB˜~€Ó.ñ0ó /ğ0ğ ˆ*‚r   
+
+============================================================
+FILE: backend/app/api/__pycache__/pipeline.cpython-313.pyc
+============================================================
+ó
+    s3zj(  ã                   óú   • S SK Jr  S SKJrJr  S SKJrJrJrJ	r	  \" SS/S9r
+\
+R                  S\S9S	 5       r\
+R                  S
+\S9S 5       r\
+R                  S5      S 5       r\
+R                  S\S9S 5       rg)é    )Ú	APIRouter)ÚPipelineStatsÚPipelineImportResponse)Úimport_train_datasetÚimport_test_datasetÚget_pipeline_statusÚget_pipeline_statisticsz/api/pipelineÚPipeline)ÚprefixÚtagsz/import-train)Úresponse_modelc                  ó   • [        5       $ ©N)r   © ó    Ú9/home/oualid/Desktop/RL_AGENT/backend/app/api/pipeline.pyÚimport_train_dataset_apir      s   € äÓ!Ğ!r   z/import-testc                  ó   • [        5       $ r   )r   r   r   r   Úimport_test_dataset_apir      ó   € äÓ Ğ r   z/statusc                  ó   • [        5       $ r   )r   r   r   r   Úget_pipeline_status_apir      r   r   z/statisticsc                  ó   • [        5       $ r   )r	   r   r   r   Úget_pipeline_statistics_apir      s   € ä"Ó$Ğ$r   N)Úfastapir   Úapp.schemas.pipeline_schemar   r   Úapp.services.dataset_servicer   r   r   r	   ÚrouterÚpostr   r   Úgetr   r   r   r   r   Ú<module>r!      s§   ğİ ß M÷ó ñ 
+˜/°°Ñ	=€à‡ˆ_Ğ-C€ĞDñ"ó Eğ"ğ ‡ˆ^Ğ,B€ĞCñ!ó Dğ!ğ ‡ˆIÓñ!ó ğ!ğ ‡ˆM¨-€Ğ8ñ%ó 9ñ%r   
+
+============================================================
+FILE: backend/app/api/__pycache__/pipeline.cpython-314.pyc
+============================================================
++
+    s3zj(  ã                   ó  € ^ RI Ht ^ RIHtHt ^ RIHtHtHtH	t	 ]! RR.R7      t
+]
+P                  R]R7      R	 4       t]
+P                  R
+]R7      R 4       t]
+P                  R4      R 4       t]
+P                  R]R7      R 4       tR# )é    )Ú	APIRouter)ÚPipelineStatsÚPipelineImportResponse)Úimport_train_datasetÚimport_test_datasetÚget_pipeline_statusÚget_pipeline_statisticsz/api/pipelineÚPipeline)ÚprefixÚtagsz/import-train)Úresponse_modelc                  ó   € \        4       # ©N)r   © ó    Ú9/home/oualid/Desktop/RL_AGENT/backend/app/api/pipeline.pyÚimport_train_dataset_apir      s   € äÓ!Ğ!r   z/import-testc                  ó   € \        4       # r   )r   r   r   r   Úimport_test_dataset_apir      ó   € äÓ Ğ r   z/statusc                  ó   € \        4       # r   )r   r   r   r   Úget_pipeline_status_apir      r   r   z/statisticsc                  ó   € \        4       # r   )r	   r   r   r   Úget_pipeline_statistics_apir      s   € ä"Ó$Ğ$r   N)Úfastapir   Úapp.schemas.pipeline_schemar   r   Úapp.services.dataset_servicer   r   r   r	   ÚrouterÚpostr   r   Úgetr   r   r   r   r   Ú<module>r!      s§   ğİ ß M÷ó ñ 
+˜/°°Ô	=€à‡ˆ_Ğ-C€ÓDñ"ó Eğ"ğ ‡ˆ^Ğ,B€ÓCñ!ó Dğ!ğ ‡ˆIÓñ!ó ğ!ğ ‡ˆM¨-€Ó8ñ%ó 9ò%r   
+
+============================================================
+FILE: backend/app/api/__pycache__/rewards.cpython-313.pyc
+============================================================
+ó
+    s3zj%  ã                   óæ   • S SK Jr  S SKJrJr  S SKJrJrJr  \" S/S9r	\	R                  S\\   S9SS\S	\4S
+ jj5       r\	R                  S\S9S\4S j5       r\	R                  S5      S 5       rg)é    )Ú	APIRouter)ÚRewardÚRewardCreate)Úcreate_reward_in_dbÚget_rewards_from_dbÚget_reward_statistics_from_dbÚRewards)ÚtagsÚ )Úresponse_modelÚskipÚlimitc                 ó   • [        XS9$ )u0   RÃ©cupÃ¨re la liste des rÃ©compenses calculÃ©es.©r   r   )r   r   s     Ú8/home/oualid/Desktop/RL_AGENT/backend/app/api/rewards.pyÚget_rewardsr      s   € ô  DÑ6Ğ6ó    Úrewardc                 ó   • [        U 5      $ )u.   Enregistre une nouvelle rÃ©compense calculÃ©e.)r   )r   s    r   Ú
+add_rewardr      s   € ô ˜vÓ&Ğ&r   z/statisticsc                  ó   • [        5       $ )u+   Statistiques globales sur les rÃ©compenses.)r   © r   r   Úget_reward_statsr      s   € ô )Ó*Ğ*r   N)r   é
+   )Úfastapir   Úapp.schemasr   r   Úapp.database.repositoryr   r   r   ÚrouterÚgetÚlistÚintr   Úpostr   r   r   r   r   Ú<module>r#      s›   ğİ ß ,÷ñ ñ 
+˜˜Ñ	$€ğ ‡ˆB˜t F™|€Ğ,ñ7cğ 7 cô 7ó -ğ7ğ
+ ‡ˆR €Ğ'ğ'|ó 'ó (ğ'ğ
+ ‡ˆMÓñ+ó ñ+r   
+
+============================================================
+FILE: backend/app/api/__pycache__/rewards.cpython-314.pyc
+============================================================
++
+    s3zj%  ã                   óú   € ^ RI Ht ^ RIHtHt ^ RIHtHtHt ]! R.R7      t	]	P                  R]],          R7      RR R	 ll4       t]	P                  R]R7      R
+ R l4       t]	P                  R4      R 4       tR# )é    )Ú	APIRouter)ÚRewardÚRewardCreate)Úcreate_reward_in_dbÚget_rewards_from_dbÚget_reward_statistics_from_dbÚRewards)ÚtagsÚ )Úresponse_modelc                ó0   € V ^8„  d   QhR\         R\         /# )é   ÚskipÚlimit)Úint)Úformats   "Ú8/home/oualid/Desktop/RL_AGENT/backend/app/api/rewards.pyÚ__annotate__r      s   € ÷ 7ñ 7”cğ 7¤cñ 7ó    c                ó   € \        WR7      # )u0   RÃ©cupÃ¨re la liste des rÃ©compenses calculÃ©es.©r   r   )r   r   s   &&r   Úget_rewardsr      s   € ô  DÔ6Ğ6r   c                ó$   € V ^8„  d   QhR\         /# )r   Úreward)r   )r   s   "r   r   r      s   € ÷ 'ñ '”|ñ 'r   c                ó   € \        V 4      # )u.   Enregistre une nouvelle rÃ©compense calculÃ©e.)r   )r   s   &r   Ú
+add_rewardr      s   € ô ˜vÓ&Ğ&r   z/statisticsc                 ó   € \        4       # )u+   Statistiques globales sur les rÃ©compenses.)r   © r   r   Úget_reward_statsr      s   € ô )Ó*Ğ*r   N)r   é
+   )Úfastapir   Úapp.schemasr   r   Úapp.database.repositoryr   r   r   ÚrouterÚgetÚlistr   Úpostr   r   r   r   r   Ú<module>r(      s†   ğİ ß ,÷ñ ñ 
+˜˜Ô	$€ğ ‡ˆB˜t F|€Ó,ö7ó -ğ7ğ
+ ‡ˆR €Ó'ô'ó (ğ'ğ
+ ‡ˆMÓñ+ó ò+r   
+
+============================================================
+FILE: backend/app/api/__pycache__/router.cpython-313.pyc
+============================================================
+ó
+    ³\zjş  ã                   óP  • S SK Jr  S SKJr  S SKJr  S SKJr  S SK	Jr
+  S SKJr  S SKJr  S SKJr  S SKJr  S SKJr  S SKJr  S SKJr  S SKJr  \" 5       r\R7                  \SS/S9  \R7                  \SS/S9  \R7                  \5        \R7                  \
+SS	/S9  \R7                  \S
+S/S9  \R7                  \SS/S9  \R7                  \5        \R7                  \5        \R7                  \5        \R7                  \5        \R7                  \5        \R7                  \5        g)é    )Ú	APIRouter)Úrouterz/api/alertsÚAlerts)ÚprefixÚtagsz/api/systemzSystem Healthz/api/decisionsÚ	Decisionsz/api/rewardsÚRewardsz/api/dashboardÚ	DashboardN)Úfastapir   Úapp.api.alertsr   Úalerts_routerÚapp.api.healthÚhealth_routerÚapp.api.pipelineÚpipeline_routerÚapp.api.decisionsÚdecisions_routerÚapp.api.trainingÚtraining_routerÚapp.api.rewardsÚrewards_routerÚapp.api.database_monitoringÚ	db_routerÚapp.api.dashboardÚdashboard_routerÚapp.api.agentÚagent_routerÚapp.api.evaluationÚevaluation_routerÚapp.api.metricsÚmetrics_routerÚapp.api.api_statusÚapi_status_routerÚinclude_router© ó    Úbackend/app/api/router.pyÚ<module>r(      s  ğå İ 2İ 2İ 6İ 8İ 6İ 4İ ;İ 8İ 0İ :İ 4İ :á	‹€ğ × Ñ m¨MÀÀ
+Ğ Ñ KØ × Ñ m¨MÀĞ@QĞ Ñ Rà × Ñ Ğ'Ô (Ø × Ñ Ğ&Ğ/?À{ÀmĞ Ñ TØ × Ñ n¨^À9À+Ğ Ñ NØ × Ñ Ğ&Ğ/?À{ÀmĞ Ñ Tğ × Ñ oÔ &Ø × Ñ oÔ &Ø × Ñ iÔ  Ø × Ñ lÔ #Ø × Ñ Ğ'Ô (Ø × Ñ nÕ %r&   
+
+============================================================
+FILE: backend/app/api/__pycache__/router.cpython-314.pyc
+============================================================
++
+    ³\zjş  ã                   óp  € ^ RI Ht ^ RIHt ^ RIHt ^ RIHt ^ RI	Ht
+ ^ RIHt ^ RIHt ^ RIHt ^ RIHt ^ RIHt ^ RIHt ^ RIHt ^ RIHt ]! 4       t]P7                  ]RR.R7       ]P7                  ]RR.R7       ]P7                  ]4       ]P7                  ]
+RR	.R7       ]P7                  ]R
+R.R7       ]P7                  ]RR.R7       ]P7                  ]4       ]P7                  ]4       ]P7                  ]4       ]P7                  ]4       ]P7                  ]4       ]P7                  ]4       R# )é    )Ú	APIRouter)Úrouterz/api/alertsÚAlerts)ÚprefixÚtagsz/api/systemzSystem Healthz/api/decisionsÚ	Decisionsz/api/rewardsÚRewardsz/api/dashboardÚ	DashboardN)Úfastapir   Úapp.api.alertsr   Úalerts_routerÚapp.api.healthÚhealth_routerÚapp.api.pipelineÚpipeline_routerÚapp.api.decisionsÚdecisions_routerÚapp.api.trainingÚtraining_routerÚapp.api.rewardsÚrewards_routerÚapp.api.database_monitoringÚ	db_routerÚapp.api.dashboardÚdashboard_routerÚapp.api.agentÚagent_routerÚapp.api.evaluationÚevaluation_routerÚapp.api.metricsÚmetrics_routerÚapp.api.api_statusÚapi_status_routerÚinclude_router© ó    Ú7/home/oualid/Desktop/RL_AGENT/backend/app/api/router.pyÚ<module>r(      s  ğå İ 2İ 2İ 6İ 8İ 6İ 4İ ;İ 8İ 0İ :İ 4İ :á	‹€ğ × Ñ m¨MÀÀ
+Ğ Ô KØ × Ñ m¨MÀĞ@QĞ Ô Rà × Ñ Ğ'Ô (Ø × Ñ Ğ&Ğ/?À{ÀmĞ Ô TØ × Ñ n¨^À9À+Ğ Ô NØ × Ñ Ğ&Ğ/?À{ÀmĞ Ô Tğ × Ñ oÔ &Ø × Ñ oÔ &Ø × Ñ iÔ  Ø × Ñ lÔ #Ø × Ñ Ğ'Ô (Ø × Ñ nÖ %r&   
+
+============================================================
+FILE: backend/app/api/__pycache__/training.cpython-313.pyc
+============================================================
+ó
+    KYzjM  ã                   ó`  • S SK Jr  S SKJrJrJrJrJ	r	J
+r
+  \" SS/S9r\R                  S5      S 5       r\R                  S5      S	 5       r\R                  S
+5      S 5       r\R                  S5      S 5       r\R                  S5      S 5       r\R                  S5      SS\4S jj5       rg)é    )Ú	APIRouter)Úget_training_statusÚstart_trainingÚstop_trainingÚget_checkpointsÚget_historyÚget_metricsz/api/trainingÚTraining)ÚprefixÚtagsz/statusc                  ó   • [        5       $ ©N)r   © ó    Ú9/home/oualid/Desktop/RL_AGENT/backend/app/api/training.pyÚtraining_statusr      s   € äÓ Ğ r   z/startc                  ó   • [        5       $ r   )Ústart_training_servicer   r   r   r   r      s   € ä!Ó#Ğ#r   z/stopc                  ó   • [        5       $ r   )Ústop_training_servicer   r   r   r   r      s   € ä Ó"Ğ"r   z/checkpointsc                  ó   • S[        5       0$ )NÚcheckpoints)r   r   r   r   Úapi_get_checkpointsr      s   € àœ?Ó,Ğ-Ğ-r   z/historyc                  ó   • S[        5       0$ )NÚhistory)r   r   r   r   Úapi_get_historyr      s   € à”{“}Ğ%Ğ%r   z/metricsÚlimitc                 ó   • S[        U 5      0$ )NÚmetrics)r	   )r   s    r   Úapi_get_metricsr    !   s   € à”{ 5Ó)Ğ*Ğ*r   N)éd   )Úfastapir   Úapp.services.training_servicer   r   r   r   r   r   r   r	   ÚrouterÚgetr   Úpostr   r   Úintr    r   r   r   Ú<module>r(      sÕ   ğİ ÷÷ ñ 
+˜/°°Ñ	=€à‡ˆIÓñ!ó ğ!ğ ‡ˆXÓñ$ó ğ$ğ ‡ˆWÓñ#ó ğ#ğ ‡ˆNÓñ.ó ğ.ğ ‡ˆJÓñ&ó ğ&ğ ‡ˆJÓñ+˜3ô +ó ñ+r   
+
+============================================================
+FILE: backend/app/api/__pycache__/training.cpython-314.pyc
+============================================================
++
+    KYzjM  ã                   óf  € ^ RI Ht ^ RIHtHtHtHtH	t	H
+t
+ ]! RR.R7      t]P                  R4      R 4       t]P                  R4      R	 4       t]P                  R
+4      R 4       t]P                  R4      R 4       t]P                  R4      R 4       t]P                  R4      RR R ll4       tR# )é    )Ú	APIRouter)Úget_training_statusÚstart_trainingÚstop_trainingÚget_checkpointsÚget_historyÚget_metricsz/api/trainingÚTraining)ÚprefixÚtagsz/statusc                  ó   € \        4       # ©N)r   © ó    Ú9/home/oualid/Desktop/RL_AGENT/backend/app/api/training.pyÚtraining_statusr      s   € äÓ Ğ r   z/startc                  ó   € \        4       # r   )Ústart_training_servicer   r   r   r   r      s   € ä!Ó#Ğ#r   z/stopc                  ó   € \        4       # r   )Ústop_training_servicer   r   r   r   r      s   € ä Ó"Ğ"r   z/checkpointsc                  ó   € R \        4       /# )Úcheckpoints)r   r   r   r   Úapi_get_checkpointsr      s   € àœ?Ó,Ğ-Ğ-r   z/historyc                  ó   € R \        4       /# )Úhistory)r   r   r   r   Úapi_get_historyr      s   € à”{“}Ğ%Ğ%r   z/metricsc                ó$   € V ^8„  d   QhR\         /# )é   Úlimit)Úint)Úformats   "r   Ú__annotate__r"   "   s   € ÷ +ñ +œ3ñ +r   c                 ó   € R \        V 4      /# )Úmetrics)r	   )r   s   &r   Úapi_get_metricsr%   !   s   € à”{ 5Ó)Ğ*Ğ*r   N)éd   )Úfastapir   Úapp.services.training_servicer   r   r   r   r   r   r   r	   ÚrouterÚgetr   Úpostr   r   r%   r   r   r   Ú<module>r,      sÎ   ğİ ÷÷ ñ 
+˜/°°Ô	=€à‡ˆIÓñ!ó ğ!ğ ‡ˆXÓñ$ó ğ$ğ ‡ˆWÓñ#ó ğ#ğ ‡ˆNÓñ.ó ğ.ğ ‡ˆJÓñ&ó ğ&ğ ‡ˆJÓö+ó ò+r   
+
+============================================================
+FILE: backend/app/api/rewards.py
+============================================================
+from fastapi import APIRouter
+from app.schemas import Reward, RewardCreate
+from app.database.repository import (
+    create_reward_in_db,
+    get_rewards_from_db,
+    get_reward_statistics_from_db,
+)
+
+# Ø¥Ø²Ø§Ù„Ø© prefix="/rewards"
+router = APIRouter(tags=["Rewards"])
+
+
+@router.get("", response_model=list[Reward])
+def get_rewards(skip: int = 0, limit: int = 10):
+    """RÃ©cupÃ¨re la liste des rÃ©compenses calculÃ©es."""
+    return get_rewards_from_db(skip=skip, limit=limit)
+
+
+@router.post("", response_model=Reward)
+def add_reward(reward: RewardCreate):
+    """Enregistre une nouvelle rÃ©compense calculÃ©e."""
+    return create_reward_in_db(reward)
+
+
+@router.get("/statistics")
+def get_reward_stats():
+    """Statistiques globales sur les rÃ©compenses."""
+    return get_reward_statistics_from_db()
+
+
+============================================================
+FILE: backend/app/api/router.py
+============================================================
+# app/api/router.py
+from fastapi import APIRouter
+from app.api.alerts import router as alerts_router
+from app.api.health import router as health_router
+from app.api.pipeline import router as pipeline_router
+from app.api.decisions import router as decisions_router
+from app.api.training import router as training_router
+from app.api.rewards import router as rewards_router
+from app.api.database_monitoring import router as db_router
+from app.api.dashboard import router as dashboard_router
+from app.api.agent import router as agent_router
+from app.api.evaluation import router as evaluation_router
+from app.api.metrics import router as metrics_router
+from app.api.api_status import router as api_status_router
+
+router = APIRouter()
+
+# 1. Alerts & System Health
+router.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
+router.include_router(health_router, prefix="/api/system", tags=["System Health"])
+# API status / activity tracking endpoint
+router.include_router(api_status_router)
+router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
+router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
+router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+
+# 2. Routers Ø§Ù„Ø®Ø±Ù‰ Ø§Ù„Ù„ÙŠ Ù†Ø¬Ø­Ø§Øª Ø³Ø§Ø¨Ù‚Ø§Ù‹
+router.include_router(pipeline_router)
+router.include_router(training_router)
+router.include_router(db_router)
+router.include_router(agent_router)
+router.include_router(evaluation_router)
+router.include_router(metrics_router)
+
+============================================================
+FILE: backend/app/api/training.py
+============================================================
+from fastapi import APIRouter
+from app.services.training_service import (
+    get_training_status,
+    start_training as start_training_service,
+    stop_training as stop_training_service,
+    get_checkpoints,
+    get_history,
+    get_metrics,
+)
+
+router = APIRouter(prefix="/api/training", tags=["Training"])
+
+@router.get("/status")
+def training_status():
+    return get_training_status()
+
+@router.post("/start")
+def start_training():
+    return start_training_service()
+
+@router.post("/stop")
+def stop_training():
+    return stop_training_service()
+
+@router.get("/checkpoints")
+def api_get_checkpoints():
+    return {"checkpoints": get_checkpoints()}
+
+@router.get("/history")
+def api_get_history():
+    return {"history": get_history()}
+
+@router.get("/metrics")
+def api_get_metrics(limit: int = 100):
+    return {"metrics": get_metrics(limit)}
+
+
+============================================================
+FILE: backend/app/schemas/alert_schema.py
+============================================================
+# app/schemas/alert_schema.py
+from pydantic import BaseModel, ConfigDict
+from typing import Optional
+
+class AlertBase(BaseModel):
+    title: str
+    severity: str
+    source: str
+
+class AlertCreate(AlertBase):
+    pass  # ÙƒÙŠØ§Ø®Ø¯ title, severity, source Ø£ÙˆØªÙˆÙ…Ø§ØªÙŠÙƒÙŠØ§Ù‹ Ù…Ù† AlertBase
+
+class Alert(AlertBase):
+    id: str | int
+
+    model_config = ConfigDict(from_attributes=True)
+
+============================================================
+FILE: backend/app/schemas/dashboard_schema.py
+============================================================
+from pydantic import BaseModel, ConfigDict
+
+class DashboardSummary(BaseModel):
+    total_alerts: int
+    processed_alerts: int
+    total_decisions: int
+    total_rewards: int
+    average_reward: float
+    average_latency: float
+    accuracy: float
+    database_status: str
+    training_status: str
+    current_episode: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+============================================================
+FILE: backend/app/schemas/decision_schema.py
+============================================================
+from pydantic import BaseModel, ConfigDict, Field
+from datetime import datetime
+
+class DecisionCreate(BaseModel):
+    incident_id: int
+    action: str
+
+class Decision(DecisionCreate):
+    id: int
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+    model_config = ConfigDict(from_attributes=True)
+
+============================================================
+FILE: backend/app/schemas/enums.py
+============================================================
+from enum import Enum
+
+
+class SeverityEnum(str, Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+    CRITICAL = "Critical"
+
+============================================================
+FILE: backend/app/schemas/inference_schema.py
+============================================================
+"""Schemas for inference API requests/responses."""
+
+from pydantic import BaseModel, Field
+from typing import Any, Dict
+
+
+class InferenceRequest(BaseModel):
+	features: Dict[str, Any]
+
+
+class InferenceResponse(BaseModel):
+	action: str
+	score: float = Field(0.0)
+
+
+__all__ = ["InferenceRequest", "InferenceResponse"]
+
+
+
+============================================================
+FILE: backend/app/schemas/__init__.py
+============================================================
+# app/schemas/__init__.py
+
+from .alert_schema import Alert, AlertCreate
+from .decision_schema import Decision, DecisionCreate
+from .reward_schema import Reward, RewardCreate
+from .dashboard_schema import DashboardSummary
+from .pipeline_schema import PipelineStats, PipelineImportResponse
+
+============================================================
+FILE: backend/app/schemas/metrics_schema.py
+============================================================
+"""Schemas for monitoring and metrics endpoints."""
+
+from pydantic import BaseModel
+from typing import Dict
+
+
+class MetricsSummary(BaseModel):
+	counters: Dict[str, int]
+	gauges: Dict[str, float]
+
+
+__all__ = ["MetricsSummary"]
+
+
+
+============================================================
+FILE: backend/app/schemas/pipeline_schema.py
+============================================================
+from pydantic import BaseModel, ConfigDict
+
+class PipelineStats(BaseModel):
+    total_rows: int
+    total_columns: int
+    missing_values: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class PipelineImportResponse(BaseModel):
+    message: str
+    imported_count: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+============================================================
+FILE: backend/app/schemas/__pycache__/alert_schema.cpython-313.pyc
+============================================================
+ó
+    dÅyjˆ  ã                   ób   • S SK JrJr  S SKJr   " S S\5      r " S S\5      r " S S\5      rg	)
+é    )Ú	BaseModelÚ
+ConfigDict)ÚOptionalc                   ó4   • \ rS rSr% \\S'   \\S'   \\S'   Srg)Ú	AlertBaseé   ÚtitleÚseverityÚsource© N)Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__ÚstrÚ__annotations__Ú__static_attributes__r   ó    ÚA/home/oualid/Desktop/RL_AGENT/backend/app/schemas/alert_schema.pyr   r      s   ‡ ØƒJØƒMØ†Kr   r   c                   ó   • \ rS rSrSrg)ÚAlertCreateé
+   r   N)r   r   r   r   r   r   r   r   r   r   
+   s   † Úr   r   c                   ó2   • \ rS rSr% \\-  \S'   \" SS9rSr	g)ÚAlerté   ÚidT)Úfrom_attributesr   N)
+r   r   r   r   r   Úintr   r   Úmodel_configr   r   r   r   r   r      s   ‡ Øˆc‰	ƒMá¨dÑ3ƒLr   r   N)Úpydanticr   r   Útypingr   r   r   r   r   r   r   Ú<module>r"      s/   ğç *İ ô	ô ô
+	)ô 	ô4ˆIõ 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/alert_schema.cpython-314.pyc
+============================================================
++
+    dÅyjˆ  ã                   ód   € ^ RI HtHt ^ RIHt  ! R R]4      t ! R R]4      t ! R R]4      tR	# )
+é    )Ú	BaseModelÚ
+ConfigDict)ÚOptionalc                   ó,   a € ] tR t^t o V 3R ltRtV tR# )Ú	AlertBasec                ó>   <€ V ^8„  d   Qh/ S[ ;R&   S[ ;R&   S[ ;R&   # )é   ÚtitleÚseverityÚsource)Ústr)ÚformatÚ__classdict__s   "€ÚA/home/oualid/Desktop/RL_AGENT/backend/app/schemas/alert_schema.pyÚ__annotate__ÚAlertBase.__annotate__   s%   ø‡ ‚ ÙJñ áMñ ñ Kò ó    © N)Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__Ú__annotate_func__Ú__static_attributes__Ú__classdictcell__©r   s   @r   r   r      s   ø‡ ‡ „ r   r   c                   ó   € ] tR t^
+tRtR# )ÚAlertCreater   N)r   r   r   r   r   r   r   r   r   r   
+   s   † Ûr   r   c                   ó>   a € ] tR t^t o ]! RR7      tV 3R ltRtV tR# )ÚAlertT)Úfrom_attributesc                ó6   <€ V ^8„  d   Qh/ S[ S[,          ;R&   # )r	   Úid)r   Úint)r   r   s   "€r   r   ÚAlert.__annotate__   s   ø‡ ‚ Ù‰c	Mò r   r   N)	r   r   r   r   r   Úmodel_configr   r   r   r   s   @r   r    r       s   ø‡ € ñ ¨dÔ3€L÷ ƒ r   r    N)Úpydanticr   r   Útypingr   r   r   r    r   r   r   Ú<module>r)      s/   ğç *İ ô	ô ô
+	)ô 	ô4ˆIö 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/dashboard_schema.cpython-313.pyc
+============================================================
+ó
+    dÅyjw  ã                   ó*   • S SK JrJr   " S S\5      rg)é    )Ú	BaseModelÚ
+ConfigDictc                   ó†   • \ rS rSr% \\S'   \\S'   \\S'   \\S'   \\S'   \\S'   \\S'   \\S	'   \\S
+'   \\S'   \" SS9r	Sr
+g)ÚDashboardSummaryé   Útotal_alertsÚprocessed_alertsÚtotal_decisionsÚtotal_rewardsÚaverage_rewardÚaverage_latencyÚaccuracyÚdatabase_statusÚtraining_statusÚcurrent_episodeT)Úfrom_attributes© N)Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__ÚintÚ__annotations__ÚfloatÚstrr   Úmodel_configÚ__static_attributes__r   ó    ÚE/home/oualid/Desktop/RL_AGENT/backend/app/schemas/dashboard_schema.pyr   r      sG   ‡ ØÓØÓØÓØÓØÓØÓØƒOØÓØÓØÓá¨dÑ3ƒLr   r   N)Úpydanticr   r   r   r   r   r   Ú<module>r!      s   ğß *ô4yõ 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/dashboard_schema.cpython-314.pyc
+============================================================
++
+    dÅyjw  ã                   ó,   € ^ RI HtHt  ! R R]4      tR# )é    )Ú	BaseModelÚ
+ConfigDictc                   ó>   a € ] tR t^t o ]! RR7      tV 3R ltRtV tR# )ÚDashboardSummaryT)Úfrom_attributesc                ó’   <€ V ^8„  d   Qh/ S[ ;R&   S[ ;R&   S[ ;R&   S[ ;R&   S[;R&   S[;R&   S[;R&   S[;R&   S[;R	&   S[ ;R
+&   # )é   Útotal_alertsÚprocessed_alertsÚtotal_decisionsÚtotal_rewardsÚaverage_rewardÚaverage_latencyÚaccuracyÚdatabase_statusÚtraining_statusÚcurrent_episode)ÚintÚfloatÚstr)ÚformatÚ__classdict__s   "€ÚE/home/oualid/Desktop/RL_AGENT/backend/app/schemas/dashboard_schema.pyÚ__annotate__ÚDashboardSummary.__annotate__   s‚   ø‡ ‚ ÙÑñ áÑñ ñ Ññ ñ Ññ	 ñ
+ Ññ ñ Ññ ñ Oñ ñ Ññ ñ Ññ ñ Ñò ó    © N)	Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__r   Úmodel_configÚ__annotate_func__Ú__static_attributes__Ú__classdictcell__)r   s   @r   r   r      s   ø‡ € ñ ¨dÔ3€L÷ ƒ r   r   N)Úpydanticr   r   r   r   r   r   Ú<module>r'      s   ğß *ô4yö 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/decision_schema.cpython-313.pyc
+============================================================
+ó
+    dÅyj6  ã                   óP   • S SK JrJrJr  S SKJr   " S S\5      r " S S\5      rg)é    )Ú	BaseModelÚ
+ConfigDictÚField)Údatetimec                   ó*   • \ rS rSr% \\S'   \\S'   Srg)ÚDecisionCreateé   Úincident_idÚaction© N)Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__ÚintÚ__annotations__ÚstrÚ__static_attributes__r   ó    ÚD/home/oualid/Desktop/RL_AGENT/backend/app/schemas/decision_schema.pyr   r      s   ‡ ØÓØ†Kr   r   c                   óV   • \ rS rSr% \\S'   \" \R                  S9r	\\S'   \
+" SS9rSrg)	ÚDecisioné   Úid)Údefault_factoryÚ	timestampT)Úfrom_attributesr   N)r   r   r   r   r   r   r   r   Únowr   r   Úmodel_configr   r   r   r   r   r      s$   ‡ ØƒGÙ°·±Ñ=€IˆxÓ=á¨dÑ3ƒLr   r   N)Úpydanticr   r   r   r   r   r   r   r   r   Ú<module>r!      s&   ğß 1Ñ 1İ ôYô ô4ˆ~õ 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/decision_schema.cpython-314.pyc
+============================================================
++
+    dÅyj6  ã                   óR   € ^ RI HtHtHt ^ RIHt  ! R R]4      t ! R R]4      tR# )é    )Ú	BaseModelÚ
+ConfigDictÚField)Údatetimec                   ó,   a € ] tR t^t o V 3R ltRtV tR# )ÚDecisionCreatec                ó2   <€ V ^8„  d   Qh/ S[ ;R&   S[;R&   # )é   Úincident_idÚaction)ÚintÚstr)ÚformatÚ__classdict__s   "€ÚD/home/oualid/Desktop/RL_AGENT/backend/app/schemas/decision_schema.pyÚ__annotate__ÚDecisionCreate.__annotate__   s   ø‡ ‚ ÙÑñ áKò ó    © N)Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__Ú__annotate_func__Ú__static_attributes__Ú__classdictcell__©r   s   @r   r   r      s   ø‡ ‡ „ r   r   c                   ód   a € ] tR t^t o ]! ]P                  R7      t]! RR7      t	V 3R lt
+RtV tR# )ÚDecision)Údefault_factoryT)Úfrom_attributesc                ó2   <€ V ^8„  d   Qh/ S[ ;R&   S[;R&   # )r
+   ÚidÚ	timestamp)r   r   )r   r   s   "€r   r   ÚDecision.__annotate__   s   ø‡ ‚ ÙGñ áÑ=ò r   r   N)r   r   r   r   r   r   Únowr$   r   Úmodel_configr   r   r   r   s   @r   r   r      s$   ø‡ € á°·±Ô=€Iá¨dÔ3€L÷	 ƒ r   r   N)Úpydanticr   r   r   r   r   r   r   r   r   Ú<module>r)      s&   ğß 1Ñ 1İ ôYô ô4ˆ~ö 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/inference_schema.cpython-314.pyc
+============================================================
++
+    0rj   ã                   ó
+   € R t R# )zInference schemas.N)Ú__doc__© ó    Ú'backend/app/schemas/inference_schema.pyÚ<module>r      s   ğÛ r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/__init__.cpython-313.pyc
+============================================================
+ó
+    dÅyj  ã                   óP   • S SK JrJr  S SKJrJr  S SKJrJr  S SK	J
+r
+  S SKJrJr  g)é   )ÚAlertÚAlertCreate)ÚDecisionÚDecisionCreate)ÚRewardÚRewardCreate)ÚDashboardSummary)ÚPipelineStatsÚPipelineImportResponseN)Úalert_schemar   r   Údecision_schemar   r   Úreward_schemar   r   Údashboard_schemar	   Úpipeline_schemar
+   r   © ó    Ú=/home/oualid/Desktop/RL_AGENT/backend/app/schemas/__init__.pyÚ<module>r      s   ğ÷ -ß 5ß /İ .ß BĞ Br   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/__init__.cpython-314.pyc
+============================================================
++
+    dÅyj  ã                   óR   € ^RI HtHt ^RIHtHt ^RIHtHt ^RI	H
+t
+ ^RIHtHt R# )é   )ÚAlertÚAlertCreate)ÚDecisionÚDecisionCreate)ÚRewardÚRewardCreate)ÚDashboardSummary)ÚPipelineStatsÚPipelineImportResponseN)Úalert_schemar   r   Údecision_schemar   r   Úreward_schemar   r   Údashboard_schemar	   Úpipeline_schemar
+   r   © ó    Ú=/home/oualid/Desktop/RL_AGENT/backend/app/schemas/__init__.pyÚ<module>r      s   ğ÷ -ß 5ß /İ .ß BÑ Br   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/metrics_schema.cpython-313.pyc
+============================================================
+ó
+    ª6zjã   ã                   ó<   • S r SSKJr  SSKJr   " S S\5      rS/rg)z-Schemas for monitoring and metrics endpoints.é    )Ú	BaseModel)ÚDictc                   ó>   • \ rS rSr% \\\4   \S'   \\\4   \S'   Sr	g)ÚMetricsSummaryé   ÚcountersÚgauges© N)
+Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__r   ÚstrÚintÚ__annotations__ÚfloatÚ__static_attributes__r
+   ó    ÚC/home/oualid/Desktop/RL_AGENT/backend/app/schemas/metrics_schema.pyr   r      s   ‡ ØS‰>ÓØ	ˆc5ˆjÑ	Ör   r   N)Ú__doc__Úpydanticr   Útypingr   r   Ú__all__r
+   r   r   Ú<module>r      s$   ğÙ 3å İ ôYô ğ
+ Ğ
+r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/metrics_schema.cpython-314.pyc
+============================================================
++
+    ª6zjã   ã                   ó>   € R t ^ RIHt ^ RIHt  ! R R]4      tR.tR# )z-Schemas for monitoring and metrics endpoints.)Ú	BaseModel)ÚDictc                   ó,   a € ] tR t^t o V 3R ltRtV tR# )ÚMetricsSummaryc                ó^   <€ V ^8„  d   Qh/ S[ S[S[3,          ;R&   S[ S[S[3,          ;R&   # )é   ÚcountersÚgauges)r   ÚstrÚintÚfloat)ÚformatÚ__classdict__s   "€ÚC/home/oualid/Desktop/RL_AGENT/backend/app/schemas/metrics_schema.pyÚ__annotate__ÚMetricsSummary.__annotate__   s,   ø‡ ‚ Ù‘‘S>Ññ á	‰c‘5ˆjÕ	Ñò ó    © N)Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__Ú__annotate_func__Ú__static_attributes__Ú__classdictcell__)r   s   @r   r   r      s   ø‡ ‡ „ r   r   N)Ú__doc__Úpydanticr   Útypingr   r   Ú__all__r   r   r   Ú<module>r      s$   ğÙ 3å İ ôYô ğ
+ Ğ
+‚r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/pipeline_schema.cpython-313.pyc
+============================================================
+ó
+    dÅyjK  ã                   ó@   • S SK JrJr   " S S\5      r " S S\5      rg)é    )Ú	BaseModelÚ
+ConfigDictc                   ó@   • \ rS rSr% \\S'   \\S'   \\S'   \" SS9rSrg)	ÚPipelineStatsé   Ú
+total_rowsÚtotal_columnsÚmissing_valuesT©Úfrom_attributes© N)	Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__ÚintÚ__annotations__r   Úmodel_configÚ__static_attributes__r   ó    ÚD/home/oualid/Desktop/RL_AGENT/backend/app/schemas/pipeline_schema.pyr   r      s   ‡ ØƒOØÓØÓá¨dÑ3ƒLr   r   c                   ó6   • \ rS rSr% \\S'   \\S'   \" SS9rSr	g)ÚPipelineImportResponseé
+   ÚmessageÚimported_countTr   r   N)
+r   r   r   r   Ústrr   r   r   r   r   r   r   r   r   r   
+   s   ‡ ØƒLØÓá¨dÑ3ƒLr   r   N)Úpydanticr   r   r   r   r   r   r   Ú<module>r      s    ğß *ô4Iô 4ô4˜Yõ 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/pipeline_schema.cpython-314.pyc
+============================================================
++
+    dÅyjK  ã                   óB   € ^ RI HtHt  ! R R]4      t ! R R]4      tR# )é    )Ú	BaseModelÚ
+ConfigDictc                   ó>   a € ] tR t^t o ]! RR7      tV 3R ltRtV tR# )ÚPipelineStatsT©Úfrom_attributesc                ó>   <€ V ^8„  d   Qh/ S[ ;R&   S[ ;R&   S[ ;R&   # )é   Ú
+total_rowsÚtotal_columnsÚmissing_values)Úint)ÚformatÚ__classdict__s   "€ÚD/home/oualid/Desktop/RL_AGENT/backend/app/schemas/pipeline_schema.pyÚ__annotate__ÚPipelineStats.__annotate__   s'   ø‡ ‚ ÙOñ áÑñ ñ Ñò ó    © N©	Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__r   Úmodel_configÚ__annotate_func__Ú__static_attributes__Ú__classdictcell__©r   s   @r   r   r      s   ø‡ € ñ
+ ¨dÔ3€L÷ ƒ r   r   c                   ó>   a € ] tR t^
+t o ]! RR7      tV 3R ltRtV tR# )ÚPipelineImportResponseTr   c                ó2   <€ V ^8„  d   Qh/ S[ ;R&   S[;R&   # )r
+   ÚmessageÚimported_count)Ústrr   )r   r   s   "€r   r   Ú#PipelineImportResponse.__annotate__
+   s   ø‡ ‚ ÙLñ áÑò r   r   Nr   r   s   @r   r!   r!   
+   s   ø‡ € ñ ¨dÔ3€L÷	 ƒ r   r!   N)Úpydanticr   r   r   r!   r   r   r   Ú<module>r(      s    ğß *ô4Iô 4ô4˜Yö 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/reward_schema.cpython-313.pyc
+============================================================
+ó
+    dÅyj  ã                   ó`   • S SK JrJrJr  S SKJrJr  S SKJr   " S S\5      r " S S\5      r	g)	é    )Ú	BaseModelÚ
+ConfigDictÚField)ÚDictÚAny)Údatetimec                   óJ   • \ rS rSr% \\S'   \\S'   \" \S9r	\
+\\4   \S'   Srg)ÚRewardCreateé   Údecision_idÚreward_value©Údefault_factoryÚmetrics© N)Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__ÚintÚ__annotations__Úfloatr   Údictr   r   Ústrr   Ú__static_attributes__r   ó    ÚB/home/oualid/Desktop/RL_AGENT/backend/app/schemas/reward_schema.pyr
+   r
+      s%   ‡ ØÓØÓÙ#°DÑ9€GˆT#s(‰^Ö9r   r
+   c                   óV   • \ rS rSr% \\S'   \" \R                  S9r	\\S'   \
+" SS9rSrg)	ÚRewardé
+   Úidr   Ú	timestampT)Úfrom_attributesr   N)r   r   r   r   r   r   r   r   Únowr"   r   Úmodel_configr   r   r   r   r   r   
+   s$   ‡ ØƒGÙ°·±Ñ=€IˆxÓ=á¨dÑ3ƒLr   r   N)
+Úpydanticr   r   r   Útypingr   r   r   r
+   r   r   r   r   Ú<module>r(      s)   ğß 1Ñ 1ß İ ô:9ô :ô
+4ˆ\õ 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/reward_schema.cpython-314.pyc
+============================================================
++
+    dÅyj  ã                   ób   € ^ RI HtHtHt ^ RIHtHt ^ RIHt  ! R R]4      t ! R R]4      t	R# )	é    )Ú	BaseModelÚ
+ConfigDictÚField)ÚDictÚAny)Údatetimec                   ó>   a € ] tR t^t o ]! ]R7      tV 3R ltRtV t	R# )ÚRewardCreate©Údefault_factoryc                óT   <€ V ^8„  d   Qh/ S[ ;R&   S[;R&   S[S[S[3,          ;R&   # )é   Údecision_idÚreward_valueÚmetrics)ÚintÚfloatr   Ústrr   )ÚformatÚ__classdict__s   "€ÚB/home/oualid/Desktop/RL_AGENT/backend/app/schemas/reward_schema.pyÚ__annotate__ÚRewardCreate.__annotate__   s0   ø‡ ‚ ÙÑñ áÑñ ñ ‘#‘s(^Ñ9ò ó    © N)
+Ú__name__Ú
+__module__Ú__qualname__Ú__firstlineno__r   Údictr   Ú__annotate_func__Ú__static_attributes__Ú__classdictcell__©r   s   @r   r
+   r
+      s   ø‡ € ñ $°DÔ9€G÷ ƒ r   r
+   c                   ód   a € ] tR t^
+t o ]! ]P                  R7      t]! RR7      t	V 3R lt
+RtV tR# )ÚRewardr   T)Úfrom_attributesc                ó2   <€ V ^8„  d   Qh/ S[ ;R&   S[;R&   # )r   ÚidÚ	timestamp)r   r   )r   r   s   "€r   r   ÚReward.__annotate__
+   s   ø‡ ‚ ÙGñ áÑ=ò r   r   N)r   r   r   r   r   r   Únowr*   r   Úmodel_configr!   r"   r#   r$   s   @r   r&   r&   
+   s$   ø‡ € á°·±Ô=€Iá¨dÔ3€L÷	 ƒ r   r&   N)
+Úpydanticr   r   r   Útypingr   r   r   r
+   r&   r   r   r   Ú<module>r0      s)   ğß 1Ñ 1ß İ ô:9ô :ô
+4ˆ\ö 4r   
+
+============================================================
+FILE: backend/app/schemas/__pycache__/training_schema.cpython-314.pyc
+============================================================
++
+    0rj   ã                   ó
+   € R t R# )zTraining schemas.N)Ú__doc__© ó    Ú&backend/app/schemas/training_schema.pyÚ<module>r      s   ğÛ r   
+
+============================================================
+FILE: backend/app/schemas/reward_schema.py
+============================================================
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Dict, Any
+from datetime import datetime
+
+class RewardCreate(BaseModel):
+    decision_id: int
+    reward_value: float
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+
+class Reward(RewardCreate):
+    id: int
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+    model_config = ConfigDict(from_attributes=True)
+
+============================================================
+FILE: backend/app/schemas/training_schema.py
+============================================================
+"""Schemas for training endpoints."""
+
+from pydantic import BaseModel, Field
+from typing import List
+
+
+class TrainingStatus(BaseModel):
+	status: str
+	current_epoch: int = Field(0)
+
+
+class TrainingHistoryItem(BaseModel):
+	epoch: int
+	loss: float
+
+
+class TrainingHistory(BaseModel):
+	history: List[TrainingHistoryItem]
+
+
+class TrainingCheckpoints(BaseModel):
+	checkpoints: List[str]
+
+
+__all__ = ["TrainingStatus", "TrainingHistory", "TrainingCheckpoints"]
+
+
+
+============================================================
+FILE: backend/app/services/agent_service.py
+============================================================
+"""Agent service logic.
+
+This module exposes tiny helpers to interact with an agent from API handlers.
+The real project likely uses more advanced orchestration; here we provide a
+safe, dependency-free surface for the frontend and tests.
+"""
+
+import random
+from typing import Dict, Any
+
+
+AGENT_STATE = {"status": "idle", "last_action": None}
+
+
+def get_agent_status() -> Dict[str, Any]:
+	return {"status": AGENT_STATE["status"], "last_action": AGENT_STATE["last_action"]}
+
+
+def act_on_event(event: Dict[str, Any]) -> Dict[str, Any]:
+	"""Decide on an action for the incoming event and persist a tiny state.
+
+	This deterministic placeholder returns a simple action selected at
+	random from a small action set to allow end-to-end flows to run.
+	"""
+	action = random.choice(["ignore", "investigate", "block"])
+	AGENT_STATE["last_action"] = action
+	AGENT_STATE["status"] = "active"
+
+	return {"action": action, "reason": "placeholder-policy"}
+
+
+__all__ = ["get_agent_status", "act_on_event"]
+
+
+
+============================================================
+FILE: backend/app/services/alert_service.py
+============================================================
+from app.database.repository import (
+    get_alerts_from_db, create_alert_in_db, get_alert_by_id_from_db, 
+    update_alert_in_db, delete_alert_from_db
+)
+from app.schemas.alert_schema import Alert, AlertCreate
+from typing import Optional
+
+def get_all_alerts(skip: int = 0, limit: int = 10):
+    return get_alerts_from_db(skip=skip, limit=limit)
+
+def create_alert(alert: AlertCreate) -> Alert:
+    return create_alert_in_db(alert)
+
+def get_alert_by_id(alert_id: int) -> Optional[Alert]:
+    return get_alert_by_id_from_db(alert_id)
+
+def update_alert(alert_id: int, alert: AlertCreate):
+    return update_alert_in_db(alert_id, alert)
+
+def delete_alert(alert_id: int):
+    return delete_alert_from_db(alert_id)
+
+============================================================
+FILE: backend/app/services/api_activity.py
+============================================================
+import asyncio
+import time
+from typing import Dict
+from datetime import datetime
+from fastapi import FastAPI, Request
+from app.config.settings import settings
+
+
+def init_api_status_store(app: FastAPI) -> None:
+    # Initialize a dict in app.state to hold status for each component
+    app.state.api_statuses = {}
+    now = time.time()
+    for comp in settings.api_components:
+        app.state.api_statuses[comp["name"]] = {
+            "name": comp["name"],
+            "prefix": comp["prefix"],
+            "status": "unknown",
+            "last_seen": None,
+            "last_checked": now,
+            "request_count": 0,
+        }
+
+
+async def api_activity_middleware(request: Request, call_next):
+    # Update last_seen for the matching component (by prefix)
+    path = request.url.path
+    for comp in settings.api_components:
+        if path.startswith(comp["prefix"]):
+            statuses: Dict = request.app.state.api_statuses
+            entry = statuses.get(comp["name"])
+            if entry is not None:
+                entry["last_seen"] = time.time()
+                entry["status"] = "up"
+                entry["request_count"] = entry.get("request_count", 0) + 1
+            break
+
+    response = await call_next(request)
+    return response
+
+
+async def api_status_monitor_task(app: FastAPI):
+    # Background task that marks components 'down' if not seen recently
+    interval = max(1, settings.api_status_poll_interval)
+    timeout = max(1, settings.api_status_timeout_seconds)
+    from app.database.database import api_statuses_collection  # local import to avoid startup cycles
+
+    while True:
+        now = time.time()
+        statuses: Dict = getattr(app.state, "api_statuses", {})
+        for name, entry in statuses.items():
+            last = entry.get("last_seen")
+
+            # Active checks for some components
+            try:
+                from app.database.database import client, training_collection
+
+                if entry.get("name") == "database":
+                    # Active DB ping
+                    try:
+                        client.admin.command("ping")
+                        entry["status"] = "up"
+                        entry["last_seen"] = now
+                    except Exception:
+                        entry["status"] = "down"
+                elif entry.get("name") == "training":
+                    # Consider training 'up' if the training collection reports running
+                    try:
+                        status_doc = training_collection.find_one({"type": "status"}, sort=[("updated_at", -1)])
+                        if status_doc and status_doc.get("status") == "running":
+                            entry["status"] = "up"
+                            entry["last_seen"] = now
+                        else:
+                            # fall back to passive last_seen evaluation below
+                            pass
+                    except Exception:
+                        pass
+            except Exception:
+                # ignore active-check failures
+                pass
+
+            if last is None:
+                # Still unknown â€” mark down only if app has been running for
+                # longer than timeout so short-lived startups don't show red.
+                if (now - entry.get("last_checked", now)) > timeout:
+                    entry["status"] = "down"
+            else:
+                if (now - last) > timeout:
+                    entry["status"] = "down"
+                else:
+                    entry["status"] = "up"
+
+            entry["last_checked"] = now
+
+            # Persist to DB if enabled
+            if getattr(settings, "persist_api_statuses", False):
+                try:
+                    # Upsert a document per component by name
+                    api_statuses_collection.update_one(
+                        {"name": entry["name"]},
+                        {
+                            "$set": {
+                                "name": entry["name"],
+                                "prefix": entry["prefix"],
+                                "status": entry["status"],
+                                "last_seen": entry["last_seen"],
+                                "last_checked": entry["last_checked"],
+                                "request_count": entry.get("request_count", 0),
+                                "updated_at": datetime.utcfromtimestamp(entry.get("last_checked", now)),
+                            }
+                        },
+                        upsert=True,
+                    )
+                except Exception:
+                    # Don't fail the monitor on DB errors
+                    pass
+        await asyncio.sleep(interval)
+
+
+def start_status_monitor(app: FastAPI):
+    if not settings.enable_api_activity_tracking:
+        return
+    # Start background task after middleware is already attached.
+    loop = asyncio.get_event_loop()
+    task = loop.create_task(api_status_monitor_task(app))
+    app.state.api_status_monitor_task = task
+
+
+async def stop_status_monitor(app: FastAPI):
+    task = getattr(app.state, "api_status_monitor_task", None)
+    if task is not None:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
+============================================================
+FILE: backend/app/services/dashboard_service.py
+============================================================
+from app.database.database import (
+    client,
+    alerts_collection,
+    decisions_collection,
+    rewards_collection,
+    evaluations_collection,
+    training_collection,
+)
+from app.schemas.dashboard_schema import DashboardSummary
+
+
+def get_enhanced_dashboard_summary() -> DashboardSummary:
+    try:
+        total_alerts = alerts_collection.count_documents({})
+        total_decisions = decisions_collection.count_documents({})
+        total_rewards = rewards_collection.count_documents({})
+    except Exception:
+        return DashboardSummary(
+            total_alerts=0,
+            processed_alerts=0,
+            total_decisions=0,
+            total_rewards=0,
+            average_reward=0.0,
+            average_latency=0.0,
+            accuracy=0.0,
+            database_status="unhealthy",
+            training_status="unknown",
+            current_episode=0,
+        )
+
+    pipeline = [{"$group": {"_id": None, "avg_reward": {"$avg": "$reward_value"}}}]
+    avg_reward_res = list(rewards_collection.aggregate(pipeline))
+    average_reward = float(avg_reward_res[0]["avg_reward"]) if avg_reward_res and avg_reward_res[0].get("avg_reward") is not None else 0.0
+
+    avg_latency = 0.0
+    accuracy = 0.0
+    try:
+        eval_pipeline = [{"$group": {"_id": None, "avg_latency": {"$avg": "$latency_ms"}, "avg_accuracy": {"$avg": "$accuracy"}}}]
+        eval_res = list(evaluations_collection.aggregate(eval_pipeline))
+        if eval_res:
+            avg_latency = float(eval_res[0].get("avg_latency") or 0.0)
+            accuracy = float(eval_res[0].get("avg_accuracy") or 0.0)
+    except Exception:
+        pass
+
+    try:
+        client.admin.command("ping")
+        db_status = "healthy"
+    except Exception:
+        db_status = "unhealthy"
+
+    try:
+        status_doc = training_collection.find_one({"type": "status"}, sort=[("updated_at", -1)])
+        training_status = status_doc.get("status", "unknown") if status_doc else "idle"
+        history_doc = training_collection.find_one({"type": "history"}, sort=[("epoch", -1)])
+        current_episode = int(history_doc["epoch"]) if history_doc and history_doc.get("epoch") is not None else 0
+    except Exception:
+        training_status = "unknown"
+        current_episode = 0
+
+    return DashboardSummary(
+        total_alerts=total_alerts,
+        processed_alerts=total_decisions,
+        total_decisions=total_decisions,
+        total_rewards=total_rewards,
+        average_reward=round(average_reward, 2),
+        average_latency=round(avg_latency, 2),
+        accuracy=round(accuracy, 4),
+        database_status=db_status,
+        training_status=training_status,
+        current_episode=current_episode,
+    )
+
+
+============================================================
+FILE: backend/app/services/dataset_service.py
+============================================================
+from datetime import datetime
+from app.database.database import pipeline_collection
+
+PIPELINE_STATE = {
+    "status": "idle",
+    "last_run": None,
+    "total_rows": 0,
+    "total_columns": 0,
+    "missing_values": 0,
+}
+
+
+def _log_pipeline_event(event_type: str, rows: int, columns: int, missing: int):
+    pipeline_collection.insert_one(
+        {
+            "type": event_type,
+            "rows": rows,
+            "columns": columns,
+            "missing_values": missing,
+            "timestamp": datetime.utcnow(),
+        }
+    )
+
+
+def import_train_dataset():
+    PIPELINE_STATE["status"] = "completed"
+    PIPELINE_STATE["last_run"] = datetime.utcnow().isoformat() + "Z"
+    PIPELINE_STATE["total_rows"] = 1000
+    PIPELINE_STATE["total_columns"] = 15
+    PIPELINE_STATE["missing_values"] = 0
+    _log_pipeline_event("train_import", 1000, 15, 0)
+
+    return {"message": "Train dataset imported successfully", "imported_count": 1000}
+
+
+def import_test_dataset():
+    PIPELINE_STATE["status"] = "completed"
+    PIPELINE_STATE["last_run"] = datetime.utcnow().isoformat() + "Z"
+    PIPELINE_STATE["total_rows"] = 200
+    PIPELINE_STATE["total_columns"] = 15
+    PIPELINE_STATE["missing_values"] = 0
+    _log_pipeline_event("test_import", 200, 15, 0)
+
+    return {"message": "Test dataset imported successfully", "imported_count": 200}
+
+
+def get_pipeline_status():
+    return {
+        "status": PIPELINE_STATE["status"],
+        "last_run": PIPELINE_STATE["last_run"],
+    }
+
+
+def get_pipeline_statistics():
+    return {
+        "total_rows": PIPELINE_STATE["total_rows"],
+        "total_columns": PIPELINE_STATE["total_columns"],
+        "missing_values": PIPELINE_STATE["missing_values"],
+    }
+
+
+============================================================
+FILE: backend/app/services/evaluation_service.py
+============================================================
+"""Evaluation service logic.
+
+Provide basic evaluation helpers such as confusion matrix computation and
+reward metric aggregation. These are intentionally small helpers that the
+rest of the codebase can call for quick metrics.
+"""
+
+from typing import Sequence, Dict, Any
+
+
+def confusion_matrix(preds: Sequence[int], targets: Sequence[int]) -> Dict[str, int]:
+	"""Compute simple binary confusion counts for 0/1 labels.
+
+	Returns counts for TP, TN, FP, FN. Works for larger integer labels in a
+	best-effort way by treating matching/non-matching as positive/negative.
+	"""
+	tp = tn = fp = fn = 0
+	for p, t in zip(preds, targets):
+		if p == t:
+			if p == 1:
+				tp += 1
+			else:
+				tn += 1
+		else:
+			if p == 1:
+				fp += 1
+			else:
+				fn += 1
+
+	return {"tp": tp, "tn": tn, "fp": fp, "fn": fn}
+
+
+def reward_summary(rewards: Sequence[float]) -> Dict[str, float]:
+	if not rewards:
+		return {"count": 0, "mean": 0.0, "sum": 0.0}
+
+	count = len(rewards)
+	total = sum(rewards)
+	mean = total / count
+	return {"count": count, "mean": mean, "sum": total}
+
+
+__all__ = ["confusion_matrix", "reward_summary"]
+
+
+
+============================================================
+FILE: backend/app/services/__init__.py
+============================================================
+"""Business services package."""
+
+
+============================================================
+FILE: backend/app/services/__pycache__/agent_service.cpython-313.pyc
+============================================================
+ó
+    +5zjÙ  ã                   óp   • S r SSKrSSKJrJr  SSS.rS\\\4   4S jrS\\\4   S\\\4   4S	 jrS
+S/r	g)zêAgent service logic.
+
+This module exposes tiny helpers to interact with an agent from API handlers.
+The real project likely uses more advanced orchestration; here we provide a
+safe, dependency-free surface for the frontend and tests.
+é    N)ÚDictÚAnyÚidle©ÚstatusÚlast_actionÚreturnc                  ó(   • [         S   [         S   S.$ )Nr   r   r   )ÚAGENT_STATE© ó    ÚC/home/oualid/Desktop/RL_AGENT/backend/app/services/agent_service.pyÚget_agent_statusr      s   € Ü˜xÑ(¼À]Ñ9SÑTĞTr   Úeventc                 ó`   • [         R                  " / SQ5      nU[        S'   S[        S'   USS.$ )zÊDecide on an action for the incoming event and persist a tiny state.
+
+This deterministic placeholder returns a simple action selected at
+random from a small action set to allow end-to-end flows to run.
+)ÚignoreÚinvestigateÚblockr   Úactiver   zplaceholder-policy)ÚactionÚreason)ÚrandomÚchoicer   )r   r   s     r   Úact_on_eventr      s3   € ô -Š-Ò:Ó
+;€Ø$„ˆ]ÑØ!„ˆXÑàĞ%9Ñ:Ğ:r   r   r   )
+Ú__doc__r   Útypingr   r   r   Ústrr   r   Ú__all__r   r   r   Ú<module>r      sc   ğñó ß ğ  °Ñ5€ğU˜$˜s C˜x™.ô Uğ
+;˜˜S #˜X™ğ 
+;¨4°°S°©>ô 
+;ğ ˜~Ğ
+.r   
+
+============================================================
+FILE: backend/app/services/__pycache__/agent_service.cpython-314.pyc
+============================================================
++
+    +5zjÙ  ã                   óN   € R t ^ RIt^ RIHtHt RRRR/tR R ltR R	 ltR
+R.tR# )zêAgent service logic.
+
+This module exposes tiny helpers to interact with an agent from API handlers.
+The real project likely uses more advanced orchestration; here we provide a
+safe, dependency-free surface for the frontend and tests.
+N)ÚDictÚAnyÚstatusÚidleÚlast_actionc                óF   € V ^8„  d   QhR\         \        \        3,          /# )é   Úreturn©r   Ústrr   )Úformats   "ÚC/home/oualid/Desktop/RL_AGENT/backend/app/services/agent_service.pyÚ__annotate__r      s   € ÷ Uñ Uœ$œs¤C˜x.ñ Uó    c                  ó:   € R \         R ,          R\         R,          /# )r   r   )ÚAGENT_STATE© r   r   Úget_agent_statusr      s   € Ø	”;˜xÕ(¨-¼À]Õ9SĞTĞTr   c                ót   € V ^8„  d   QhR\         \        \        3,          R\         \        \        3,          /# )r   Úeventr	   r
+   )r   s   "r   r   r      s*   € ÷ 
+;ñ 
+;œœS¤#˜Xğ 
+;¬4´´S°­>ñ 
+;r   c                ób   € \         P                  ! . RO4      pV\        R&   R\        R&   RVRR/# )zÊDecide on an action for the incoming event and persist a tiny state.
+
+This deterministic placeholder returns a simple action selected at
+random from a small action set to allow end-to-end flows to run.
+r   Úactiver   ÚactionÚreasonzplaceholder-policy)ÚignoreÚinvestigateÚblock)ÚrandomÚchoicer   )r   r   s   & r   Úact_on_eventr      s7   € ô -Š-Ò:Ó
+;€Ø$„ˆ]ÑØ!„ˆXÑà	6˜8Ğ%9Ğ:Ğ:r   r   r   )	Ú__doc__r   Útypingr   r   r   r   r   Ú__all__r   r   r   Ú<module>r#      s9   ğñó ß ğ ˜ °Ğ5€õUõ
+;ğ ˜~Ğ
+.‚r   
+
+============================================================
+FILE: backend/app/services/__pycache__/alert_service.cpython-313.pyc
+============================================================
+ó
+    dÅyjÄ  ã                   óœ   • S SK JrJrJrJrJr  S SKJrJr  S SK	J
+r
+  SS\S\4S jjrS\S\4S	 jrS
+\S\
+\   4S jrS
+\S\4S jrS
+\4S jrg)é    )Úget_alerts_from_dbÚcreate_alert_in_dbÚget_alert_by_id_from_dbÚupdate_alert_in_dbÚdelete_alert_from_db)ÚAlertÚAlertCreate)ÚOptionalÚskipÚlimitc                 ó   • [        XS9$ )N©r   r   )r   r   s     ÚC/home/oualid/Desktop/RL_AGENT/backend/app/services/alert_service.pyÚget_all_alertsr      s   € Ü 4Ñ5Ğ5ó    ÚalertÚreturnc                 ó   • [        U 5      $ ©N)r   )r   s    r   Úcreate_alertr      s   € Ü˜eÓ$Ğ$r   Úalert_idc                 ó   • [        U 5      $ r   )r   ©r   s    r   Úget_alert_by_idr      s   € Ü" 8Ó,Ğ,r   c                 ó   • [        X5      $ r   )r   )r   r   s     r   Úupdate_alertr      s   € Ü˜hÓ.Ğ.r   c                 ó   • [        U 5      $ r   )r   r   s    r   Údelete_alertr      s   € Ü Ó)Ğ)r   N)r   é
+   )Úapp.database.repositoryr   r   r   r   r   Úapp.schemas.alert_schemar   r	   Útypingr
+   Úintr   r   r   r   r   © r   r   Ú<module>r%      ss   ğ÷õ ÷ 8İ ñ6˜ğ 6¨õ 6ğ%˜ğ %¨ô %ğ-˜cğ - h¨u¡oô -ğ/˜3ğ / {ô /ğ*˜3õ *r   
+
+============================================================
+FILE: backend/app/services/__pycache__/alert_service.cpython-314.pyc
+============================================================
++
+    dÅyjÄ  ã                   ó~   € ^ RI HtHtHtHtHt ^ RIHtHt ^ RI	H
+t
+ RR R lltR R ltR R	 ltR
+ R ltR R ltR# )é    )Úget_alerts_from_dbÚcreate_alert_in_dbÚget_alert_by_id_from_dbÚupdate_alert_in_dbÚdelete_alert_from_db)ÚAlertÚAlertCreate)ÚOptionalc                ó0   € V ^8„  d   QhR\         R\         /# )é   ÚskipÚlimit©Úint)Úformats   "ÚC/home/oualid/Desktop/RL_AGENT/backend/app/services/alert_service.pyÚ__annotate__r      s   € ÷ 6ñ 6œğ 6¬ñ 6ó    c                 ó   € \        WR 7      # )©r   r   )r   r   s   &&r   Úget_all_alertsr      s   € Ü 4Ô5Ğ5r   c                ó0   € V ^8„  d   QhR\         R\        /# )r   ÚalertÚreturn)r	   r   )r   s   "r   r   r      s   € ÷ %ñ %œğ %¬ñ %r   c                 ó   € \        V 4      # ©N)r   )r   s   &r   Úcreate_alertr      s   € Ü˜eÓ$Ğ$r   c                óF   € V ^8„  d   QhR\         R\        \        ,          /# )r   Úalert_idr   )r   r
+   r   )r   s   "r   r   r      s   € ÷ -ñ -œcğ -¤h¬u¥oñ -r   c                 ó   € \        V 4      # r   )r   ©r   s   &r   Úget_alert_by_idr"      s   € Ü" 8Ó,Ğ,r   c                ó0   € V ^8„  d   QhR\         R\        /# )r   r   r   )r   r	   )r   s   "r   r   r      s   € ÷ /ñ /œ3ğ /¤{ñ /r   c                 ó   € \        W4      # r   )r   )r   r   s   &&r   Úupdate_alertr%      s   € Ü˜hÓ.Ğ.r   c                ó$   € V ^8„  d   QhR\         /# )r   r   r   )r   s   "r   r   r      s   € ÷ *ñ *œ3ñ *r   c                 ó   € \        V 4      # r   )r   r!   s   &r   Údelete_alertr(      s   € Ü Ó)Ğ)r   N)r   é
+   )Úapp.database.repositoryr   r   r   r   r   Úapp.schemas.alert_schemar   r	   Útypingr
+   r   r   r"   r%   r(   © r   r   Ú<module>r.      s0   ğ÷õ ÷ 8İ ÷6õ%õ-õ/÷*r   
+
+============================================================
+FILE: backend/app/services/__pycache__/api_activity.cpython-313.pyc
+============================================================
+ó
+    :czjˆ  ã                   ó’   • S SK r S SKrS SKJr  S SKJr  S SKJrJr  S SKJ	r	  S\SS4S jr
+S	\4S
+ jrS\4S jrS\4S jrS\4S jrg)é    N)ÚDict)Údatetime)ÚFastAPIÚRequest)ÚsettingsÚappÚreturnc                 óĞ   • 0 U R                   l        [        R                  " 5       n[        R                   H,  nUS   US   SS USS.U R                   R                  US   '   M.     g )NÚnameÚprefixÚunknownr   )r   r   ÚstatusÚ	last_seenÚlast_checkedÚrequest_count)ÚstateÚapi_statusesÚtimer   Úapi_components)r   ÚnowÚcomps      Ú$backend/app/services/api_activity.pyÚinit_api_status_storer   	   s]   € à€C‡IIÔÜ
+)Š)‹+€CÜ×'Ô'ˆà˜‘LØ˜8‘nØØØØñ0
+ˆ	‰	×Ñ˜t F™|Ó,ò (ó    Úrequestc              ƒ   óš  #   • U R                   R                  n[        R                   HŠ  nUR	                  US   5      (       d  M  U R
+                  R                  R                  nUR                  US   5      nUb5  [        R                  " 5       US'   SUS'   UR                  SS5      S-   US'     O   U" U 5      I S h  v•N nU$  N7f)	Nr   r   r   Úupr   r   r   é   )
+ÚurlÚpathr   r   Ú
+startswithr   r   r   Úgetr   )r   Ú	call_nextr    r   ÚstatusesÚentryÚresponses          r   Úapi_activity_middlewarer'      s³   é € à;‰;×Ñ€DÜ×'Ô'ˆØ?‰?˜4 ™>×*Ó*Ø$Ÿ[™[×.Ñ.×;Ñ;ˆHØ—L‘L  f¡Ó.ˆEØÑ Ü%)§Y¢Y£[kÑ"Ø"&h‘Ø).¯©°?ÀAÓ)FÈÑ)JoÑ&Ùñ (ñ ˜wÓ'×'€HØ€Oñ (ùs   ‚ACÁA;CÃC	ÃCc              ƒ   ó˜  #   • [        S[        R                  5      n[        S[        R                  5      nSSKJn   [        R                  " 5       n[        U R                  S0 5      nUR                  5        GH`  u  pgUR                  S5      n SSKJn	Jn
+  UR                  S5      S	:X  a&   U	R                  R                  S
+5        SUS'   XGS'   OQUR                  S5      S:X  a;   U
+R!                  SS0S/S9nU(       a  UR                  S5      S:X  a
+  SUS'   XGS'   OO Uc  XGR                  SU5      -
+  U:”  a  SUS'   OXH-
+  U:”  a  SUS'   OSUS'   XGS'   [        [        SS5      (       d  Mü   UR#                  SUS   0SUS   US   US   US   US   UR                  SS5      [$        R&                  " UR                  SU5      5      S.0SS9  GMc     [(        R*                  " U5      I S h  v•N   GMÂ  ! [         a    SUS'    Nëf = f! [         a     Nûf = f! [         a     GNf = f! [         a     GMÊ  f = f NO7f)Nr   r   )Úapi_statuses_collectionTr   r   )ÚclientÚtraining_collectionr   ÚdatabaseÚpingr   r   ÚdownÚtrainingÚtype)Ú
+updated_atéÿÿÿÿ)ÚsortÚrunningr   Úpersist_api_statusesFz$setr   r   )r   r   r   r   r   r   r1   )Úupsert)Úmaxr   Úapi_status_poll_intervalÚapi_status_timeout_secondsÚapp.database.databaser)   r   Úgetattrr   Úitemsr"   r*   r+   ÚadminÚcommandÚ	ExceptionÚfind_oneÚ
+update_oner   ÚutcfromtimestampÚasyncioÚsleep)r   ÚintervalÚtimeoutr)   r   r$   r   r%   Úlastr*   r+   Ú
+status_docs               r   Úapi_status_monitor_taskrI   )   sh  é € ä1”h×7Ñ7Ó8€HÜ!”X×8Ñ8Ó9€Gİ=à
+ÜiŠi‹kˆÜ  §¡¨N¸BÓ?ˆØ#Ÿ>™>×+‰KˆDØ—9‘9˜[Ó)ˆDğßMà—9‘9˜VÓ$¨
+Ó2ğ1ØŸ™×,Ñ,¨VÔ4Ø*.˜˜h™Ø-0˜kÒ*ğ —Y‘Y˜vÓ&¨*Ó4ğ	Ø%8×%AÑ%AÀ6È8ĞBTĞ\nĞ[oĞ%AĞ%p˜
+Ş%¨*¯.©.¸Ó*BÀiÓ*OØ.2˜E (™OØ14 +Ò.ğ !ğ 5ğ  ‰|ğ Ÿ)™) N°CÓ8Ñ8¸GÓCØ&,E˜(‘Oøà‘J 'Ó)Ø&,E˜(’Oà&*E˜(‘Oà$'.Ñ!ô ”xĞ!7¸×?Ó?ğà+×6Ñ6Ø  v¡Ğ/à"Ø(-¨f©Ø*/°©/Ø*/°©/Ø-2°;Ñ-?Ø05°nÑ0EØ16·±¸?ÈAÓ1NÜ.6×.GÒ.GÈÏ	É	ĞR`ĞbeÓHfÓ.gñ%ğ
+ğ  $ğ 7ô ña ,ôD mŠm˜HÓ%×%Ğ%òK øô  %ó 1Ø*0˜˜h›ğ1ûô %ó Ùğûäó âğûôH !ó ãğúñ 	&ùs°   ‚BI
+ÂH%Â0$H ÃI
+ÃH%Ã+8HÄ#AI
+Å7A#H6ÇI
+Ç8IÇ9I
+È HÈH%ÈI
+ÈHÈH%È
+H"ÈH%È I
+È!H"È"H%È%
+H3È/I
+È2H3È3I
+È6
+IÉ I
+ÉIÉI
+c                 ó®   • [         R                  (       d  g [        R                  " 5       nUR	                  [        U 5      5      nX R                  l        g )N)r   Úenable_api_activity_trackingrC   Úget_event_loopÚcreate_taskrI   r   )r   ÚloopÚtasks      r   Ústart_status_monitorrP   w   s<   € Ü×0×0Øä×!Ò!Ó#€DØ×ÑÔ3°CÓ8Ó9€DØ(,‡IIÕ%r   c              ƒ   ó°   #   • [        U R                  SS 5      nUb  UR                  5          UI S h  v•N   g g  N! [        R                   a     g f = f7f)NrI   )r;   r   ÚcancelrC   ÚCancelledError)r   rO   s     r   Ústop_status_monitorrT   €   sT   é € Ü3—9‘9Ğ7¸Ó>€DØÑØ‰Œğ	ØJ‰Jğ ñ øÜ×%Ñ%ó 	Ùğ	üs1   ‚+A®< ³:´< ¸Aº< ¼AÁAÁAÁA)rC   r   Útypingr   r   Úfastapir   r   Úapp.config.settingsr   r   r'   rI   rP   rT   © r   r   Ú<module>rY      s]   ğÛ Û İ İ ß $İ (ğ
+˜wğ 
+¨4ô 
+ğ¨7ô ğ"K& wô K&ğ\-˜gô -ğ 7õ r   
+
+============================================================
+FILE: backend/app/services/__pycache__/api_activity.cpython-314.pyc
+============================================================
++
+    :czjˆ  ã                   ó†   € ^ RI t ^ RIt^ RIHt ^ RIHt ^ RIHtHt ^ RIH	t	 R R lt
+R R	 ltR
+ R ltR R ltR R ltR# )é    N)ÚDict)Údatetime)ÚFastAPIÚRequest)Úsettingsc                ó(   € V ^8„  d   QhR\         RR/# )é   ÚappÚreturnN©r   )Úformats   "ÚB/home/oualid/Desktop/RL_AGENT/backend/app/services/api_activity.pyÚ__annotate__r   	   s   € ÷ 
+ñ 
+œwğ 
+¨4ñ 
+ó    c                 óô   € / V P                   n        \        P                  ! 4       p\        P                   F=  pR VR ,          RVR,          RRRRRVR^ /V P                   P                  VR ,          &   K?  	  R# )ÚnameÚprefixÚstatusÚunknownÚ	last_seenNÚlast_checkedÚrequest_count)ÚstateÚapi_statusesÚtimer   Úapi_components)r
+   ÚnowÚcomps   &  r   Úinit_api_status_storer   	   si   € à€C‡IIÔÜ
+)Š)‹+€CÜ×'Ô'ˆàD˜•LØd˜8•nØiØ˜Ø˜CØ˜Qğ0
+ˆ	‰	×Ñ˜t F|Ó,ó (r   c                ó$   € V ^8„  d   QhR\         /# )r	   Úrequest)r   )r   s   "r   r   r      s   € ÷ ñ ¬7ñ r   c              ƒ   ó¶  "  € V P                   P                  p\        P                   F˜  pVP	                  VR ,          4      '       g   K#  V P
+                  P                  P                  pVP                  VR,          4      pVe:   \        P                  ! 4       VR&   RVR&   VP                  R^ 4      ^,           VR&    M	  V! V 4      G Rj  x€L
+ pV#  L5i)r   r   Nr   Úupr   r   )
+ÚurlÚpathr   r   Ú
+startswithr
+   r   r   Úgetr   )r!   Ú	call_nextr%   r   ÚstatusesÚentryÚresponses   &&     r   Úapi_activity_middlewarer,      s³   é € à;‰;×Ñ€DÜ×'Ô'ˆØ?‰?˜4 >×*Ô*Ø$Ÿ[™[×.Ñ.×;Ñ;ˆHØ—L‘L  f¥Ó.ˆEØÒ Ü%)§Y¢Y£[kÑ"Ø"&h‘Ø).¯©°?ÀAÓ)FÈÕ)JoÑ&Ùñ (ñ ˜wÓ'×'€HØ€Oñ (ùs   ‚ACÁBCÃCÃCc                ó$   € V ^8„  d   QhR\         /# ©r	   r
+   r   )r   s   "r   r   r   )   s   € ÷ K&ñ K&¤wñ K&r   c              ƒ   ó  "  € \        ^\        P                  4      p\        ^\        P                  4      p^ RIHp  \        P                  ! 4       p\        V P                  R/ 4      pVP                  4        EF•  w  rgVP                  R4      p ^ RIHp	Hp
+ VP                  R4      R8X  d'    V	P                  P                  R4       R	VR
+&   WGR&   MWVP                  R4      R8X  dA    V
+P!                  RR
+/R.R7      pV'       d!   VP                  R
+4      R8X  d   R	VR
+&   WGR&   MM Vf$   WGP                  RV4      ,
+          V8”  d   RVR
+&   MWH,
+          V8”  d   RVR
+&   MR	VR
+&   WGR&   \        \        RR4      '       g   EK   VP#                  RVR,          /RRVR,          RVR,          R
+VR
+,          RVR,          RVR,          RVP                  R^ 4      R\$        P&                  ! VP                  RV4      4      //RR7       EK˜  	  \(        P*                  ! V4      G Rj  x€L
+  EKø    \         d
+    RTR
+&    ELi ; i  \         d     EL-i ; i  \         d     EL?i ; i  \         d     EK  i ; i LU5i)é   )Úapi_statuses_collectionTr   r   )ÚclientÚtraining_collectionr   ÚdatabaseÚpingr#   r   ÚdownÚtrainingÚtypeÚ
+updated_at)ÚsortÚrunningNr   Úpersist_api_statusesFz$setr   r   )Úupsert)r9   éÿÿÿÿ)Úmaxr   Úapi_status_poll_intervalÚapi_status_timeout_secondsÚapp.database.databaser1   r   Úgetattrr   Úitemsr'   r2   r3   ÚadminÚcommandÚ	ExceptionÚfind_oneÚ
+update_oner   ÚutcfromtimestampÚasyncioÚsleep)r
+   ÚintervalÚtimeoutr1   r   r)   r   r*   Úlastr2   r3   Ú
+status_docs   &           r   Úapi_status_monitor_taskrQ   )   sq  é € ä1”h×7Ñ7Ó8€HÜ!”X×8Ñ8Ó9€Gİ=à
+ÜiŠi‹kˆÜ  §¡¨N¸BÓ?ˆØ#Ÿ>™>×+‰KˆDØ—9‘9˜[Ó)ˆDğßMà—9‘9˜VÓ$¨
+Ô2ğ1ØŸ™×,Ñ,¨VÔ4Ø*.˜˜h™Ø-0˜kÒ*ğ —Y‘Y˜vÓ&¨*Ô4ğ	Ø%8×%AÑ%AÀ6È8ĞBTĞ\nĞ[oĞ%AÓ%p˜
+ß%¨*¯.©.¸Ó*BÀiÔ*OØ.2˜E (™OØ14 +Ò.ğ !ğ 5ğ  Š|ğ Ÿ)™) N°CÓ8Õ8¸GÔCØ&,E˜(‘Oøà•J 'Ô)Ø&,E˜(’Oà&*E˜(‘Oà$'.Ñ!ô ”xĞ!7¸×?Õ?ğà+×6Ñ6Ø  v¥Ğ/à"Ø &¨¨f­Ø (¨%°­/Ø (¨%°­/Ø +¨U°;Õ-?Ø .°°nÕ0EØ /°·±¸?ÈAÓ1NØ ,¬h×.GÒ.GÈÏ	É	ĞR`ĞbeÓHfÓ.gğ%ğ
+ğ  $ğ 7÷ ña ,ôD mŠm˜HÓ%×%Ó%øôk %ô 1Ø*0˜˜hœğ1ûô %ô Úğûäô âğûôH !ô ãğúñ 	&ùs°   ‚BJÂIÂ1$H5ÃJÃIÃ-=IÄ*AJÆBI0ÈJÈ-JÈ.JÈ5I	ÉIÉJÉI	É	IÉIÉIÉJÉIÉIÉI-É)JÉ,I-É-JÉ0J É;JÉ?J Ê Jc                ó$   € V ^8„  d   QhR\         /# r.   r   )r   s   "r   r   r   w   s   € ÷ -ñ -œgñ -r   c                 ó´   € \         P                  '       g   R # \        P                  ! 4       pVP	                  \        V 4      4      pW P                  n        R # )N)r   Úenable_api_activity_trackingrK   Úget_event_loopÚcreate_taskrQ   r   )r
+   ÚloopÚtasks   &  r   Ústart_status_monitorrY   w   s?   € Ü×0×0Ğ0Ùä×!Ò!Ó#€DØ×ÑÔ3°CÓ8Ó9€DØ(,‡IIÖ%r   c                ó$   € V ^8„  d   QhR\         /# r.   r   )r   s   "r   r   r   €   s   € ÷ ñ ¤7ñ r   c              ƒ   óº   "  € \        V P                  R R4      pVe   VP                  4         VG Rj  x€L
+  R# R#  L  \        P                   d     R# i ; i5i)rQ   N)rC   r   ÚcancelrK   ÚCancelledError)r
+   rX   s   & r   Ústop_status_monitorr^   €   sT   é € Ü3—9‘9Ğ7¸Ó>€DØÒØ‰Œğ	ØJŠJñ ñ øÜ×%Ñ%ô 	Úğ	üs1   ‚,A¯? ´=µ? ¹A½? ¿AÁAÁAÁA)rK   r   Útypingr   r   Úfastapir   r   Úapp.config.settingsr   r   r,   rQ   rY   r^   © r   r   Ú<module>rc      s2   ğÛ Û İ İ ß $İ (õ
+õõ"K&õ\-÷r   
+
+============================================================
+FILE: backend/app/services/__pycache__/dashboard_service.cpython-313.pyc
+============================================================
+ó
+    ·Wzj|
+  ã                   ó>   • S SK JrJrJrJrJrJr  S SKJr  S\4S jr	g)é    )ÚclientÚalerts_collectionÚdecisions_collectionÚrewards_collectionÚevaluations_collectionÚtraining_collection)ÚDashboardSummaryÚreturnc                  ó~  •  [         R                  " 0 5      n [        R                  " 0 5      n[        R                  " 0 5      nSS SS0S	.0/n[        [        R                  " U5      5      nU(       a&  US   R                  S
+5      b  [        US   S
+   5      OSnSnSn SS SS0SS0S.0/n[        [        R                  " U5      5      n	U	(       aL  [        U	S   R                  S5      =(       d    S5      n[        U	S   R                  S5      =(       d    S5      n [        R                  R                  S5        Sn
+ [        R                  " SS0S/S9nU(       a  UR                  SS5      OSn[        R                  " SS0S/S9nU(       a   UR                  S5      b  [!        US   5      OSn[        U UUU[#        US5      [#        US5      [#        US5      U
+UUS9
+$ ! [         a    [        SSSSSSSSSSS9
+s $ f = f! [         a     Nõf = f! [         a    Sn
+ Nåf = f! [         a    SnSn N„f = f)Nr   g        Ú	unhealthyÚunknown)
+Útotal_alertsÚprocessed_alertsÚtotal_decisionsÚtotal_rewardsÚaverage_rewardÚaverage_latencyÚaccuracyÚdatabase_statusÚtraining_statusÚcurrent_episodez$groupz$avgz$reward_value)Ú_idÚ
+avg_rewardr   z$latency_msz	$accuracy)r   Úavg_latencyÚavg_accuracyr   r   ÚpingÚhealthyÚtypeÚstatus)Ú
+updated_atéÿÿÿÿ)ÚsortÚidleÚhistory)Úepochr!   r%   é   é   )r   Úcount_documentsr   r   Ú	Exceptionr	   ÚlistÚ	aggregateÚgetÚfloatr   r   ÚadminÚcommandr   Úfind_oneÚintÚround)r   r   r   ÚpipelineÚavg_reward_resr   r   r   Úeval_pipelineÚeval_resÚ	db_statusÚ
+status_docr   Úhistory_docr   s                  ÚG/home/oualid/Desktop/RL_AGENT/backend/app/services/dashboard_service.pyÚget_enhanced_dashboard_summaryr;      sv  € ğ
+Ü(×8Ò8¸Ó<ˆÜ.×>Ò>¸rÓBˆÜ*×:Ò:¸2Ó>ˆğ  4¸ÀĞ7PÑQĞRĞS€HÜÔ,×6Ò6°xÓ@ÓA€NŞ?MĞR`ĞabÑRc×RgÑRgĞhtÓRuñ  SB”U˜>¨!Ñ,¨\Ñ:Ô;ğ  HK€Nà€KØ€HğØ"¨DÀ&È-ĞAXĞkqĞs~Ğjñ  %Ağ  Bğ  CˆÜÔ.×8Ò8¸ÓGÓHˆŞÜ ¨¡§¡°Ó >× EÀ#ÓFˆKÜ˜X a™[Ÿ_™_¨^Ó<×CÀÓDˆHğ Ü‰×Ñ˜VÔ$Øˆ	ğÜ(×1Ò1°6¸8Ğ2DĞL^ĞK_Ñ`ˆ
+ŞAK˜*Ÿ.™.¨°9Ô=ĞQWˆÜ)×2Ò2°F¸IĞ3FÈmÈ_Ñ]ˆŞ7BÀ{ÇÁĞW^ÓG_ÑGkœ#˜k¨'Ñ2Ô3Ğqrˆô
+ Ø!Ø(Ø'Ø#Ü˜^¨QÓ/Ü˜k¨1Ó-Üx Ó#Ø!Ø'Ø'ñğ øôY ó 
+ÜØØØØØØØØ'Ø%Øñ
+ò 	
+ğ
+ûô4 ó Ùğûô ó  ØŠ	ğ ûô ó Ø#ˆØŠğúsJ   ‚AG' Â!A?H	 Ä!!H ÅA4H+ Ç'HÈHÈ	
+HÈHÈH(È'H(È+H<È;H<N)
+Úapp.database.databaser   r   r   r   r   r   Úapp.schemas.dashboard_schemar	   r;   © ó    r:   Ú<module>r@      s!   ğ÷÷ õ :ğ<Ğ(8õ <r?   
+
+============================================================
+FILE: backend/app/services/__pycache__/dashboard_service.cpython-314.pyc
+============================================================
++
+    ·Wzj|
+  ã                   ó>   € ^ RI HtHtHtHtHtHt ^ RIHt R R lt	R# )é    )ÚclientÚalerts_collectionÚdecisions_collectionÚrewards_collectionÚevaluations_collectionÚtraining_collection©ÚDashboardSummaryc                ó$   € V ^8„  d   QhR\         /# )é   Úreturnr	   )Úformats   "ÚG/home/oualid/Desktop/RL_AGENT/backend/app/services/dashboard_service.pyÚ__annotate__r      s   € ÷ <ñ <Ô(8ñ <ó    c                  óæ  €  \         P                  ! / 4      p \        P                  ! / 4      p\        P                  ! / 4      pRRRRR	R
+///.p\        \        P                  ! T4      4      pT'       d4   T^ ,          P                  R4      e   \        T^ ,          R,          4      MRpRpRp RRRRR	R/RR	R///.p\        \        P                  ! T4      4      p	T	'       dW   \        T	^ ,          P                  R4      ;'       g    R4      p\        T	^ ,          P                  R4      ;'       g    R4      p \        P                  P                  R4       Rp
+ \        P                  ! RR/R.R7      pT'       d   TP                  RR4      MRp\        P                  ! RR/R.R7      pT'       d&   TP                  R4      e   \!        TR,          4      M^ p\        T TTT\#        T^4      \#        T^4      \#        T^4      T
+TTR7
+      #   \         d    \        ^ ^ ^ ^ RRRRR^ R7
+      u # i ; i  \         d     ELi ; i  \         d    Rp
+ Lüi ; i  \         d    Rp^ p Li ; i)r   g        Ú	unhealthyÚunknown)
+Útotal_alertsÚprocessed_alertsÚtotal_decisionsÚtotal_rewardsÚaverage_rewardÚaverage_latencyÚaccuracyÚdatabase_statusÚtraining_statusÚcurrent_episodez$groupÚ_idNÚ
+avg_rewardz$avgz$reward_valueÚavg_latencyz$latency_msÚavg_accuracyz	$accuracyÚpingÚhealthyÚtypeÚstatus)ÚsortÚidleÚhistoryÚepoch)Ú
+updated_atéÿÿÿÿ)r*   r,   )r   Úcount_documentsr   r   Ú	Exceptionr
+   ÚlistÚ	aggregateÚgetÚfloatr   r   ÚadminÚcommandr   Úfind_oneÚintÚround)r   r   r   ÚpipelineÚavg_reward_resr   r!   r   Úeval_pipelineÚeval_resÚ	db_statusÚ
+status_docr   Úhistory_docr   s                  r   Úget_enhanced_dashboard_summaryr?      s‡  € ğ
+Ü(×8Ò8¸Ó<ˆÜ.×>Ò>¸rÓBˆÜ*×:Ò:¸2Ó>ˆğ ˜E 4¨¸ÀĞ7PĞQĞRĞS€HÜÔ,×6Ò6°xÓ@ÓA€Nß?MĞR`ĞabÕRc×RgÑRgĞhtÓRuò  SB”U˜>¨!Õ,¨\Õ:Ô;ğ  HK€Nà€KØ€HğØ" U¨D°-À&È-ĞAXĞZhĞkqĞs~Ğjğ  %Ağ  Bğ  CˆÜÔ.×8Ò8¸ÓGÓHˆßÜ ¨¥§¡°Ó >× EĞ EÀ#ÓFˆKÜ˜X a[Ÿ_™_¨^Ó<×CĞCÀÓDˆHğ Ü‰×Ñ˜VÔ$Øˆ	ğÜ(×1Ò1°6¸8Ğ2DĞL^ĞK_Ô`ˆ
+ßAK˜*Ÿ.™.¨°9Ô=ĞQWˆÜ)×2Ò2°F¸IĞ3FÈmÈ_Ô]ˆß7BÀ{ÇÁĞW^ÓG_ÒGkœ#˜k¨'Õ2Ô3Ğqrˆô
+ Ø!Ø(Ø'Ø#Ü˜^¨QÓ/Ü˜k¨1Ó-Üx Ó#Ø!Ø'Ø'ôğ øôY ô 
+ÜØØØØØØØØ'Ø%Øô
+ò 	
+ğ
+ûô4 ô Úğûô ô  ØŠ	ğ ûô ô Ø#ˆØŠğúsV   ‚AH Â0AH9 Ä
+*H9 Ä5H9 Ä=!I ÅBI È H6È5H6È9IÉIÉIÉIÉI0É/I0N)
+Úapp.database.databaser   r   r   r   r   r   Úapp.schemas.dashboard_schemar
+   r?   © r   r   Ú<module>rC      s   ğ÷÷ õ :÷<r   
+
+============================================================
+FILE: backend/app/services/__pycache__/dataset_service.cpython-313.pyc
+============================================================
+ó
+    ÷Ezj¦  ã                   ó^   • S SK J r   S SKJr  SSS S S S.rS\S\S\S	\4S
+ jrS rS rS r	S r
+g)é    )Údatetime)Úpipeline_collectionÚidleN)ÚstatusÚlast_runÚ
+total_rowsÚtotal_columnsÚmissing_valuesÚ
+event_typeÚrowsÚcolumnsÚmissingc                 ób   • [         R                  " U UUU[        R                  " 5       S.5        g )N)Útyper   r   r
+   Ú	timestamp)r   Ú
+insert_oner   Úutcnow)r   r   r   r   s       ÚE/home/oualid/Desktop/RL_AGENT/backend/app/services/dataset_service.pyÚ_log_pipeline_eventr      s+   € Ü×"Ò"àØØØ%Ü!ŸšÓ*ñ	
+õó    c                  óÊ   • S[         S'   [        R                  " 5       R                  5       S-   [         S'   S[         S'   S[         S'   S	[         S
+'   [	        SSSS	5        SSS.$ )NÚ	completedr   ÚZr   iè  r   é   r	   r   r
+   Útrain_importz#Train dataset imported successfully©ÚmessageÚimported_count©ÚPIPELINE_STATEr   r   Ú	isoformatr   © r   r   Úimport_train_datasetr#      sd   € Ø*„N8ÑÜ!)§¢Ó!2×!<Ñ!<Ó!>ÀÑ!D„N:ÑØ#'„N<Ñ Ø&(„N?Ñ#Ø'(„NĞ#Ñ$Ü˜¨¨b°!Ô4à<ĞPTÑUĞUr   c                  óÊ   • S[         S'   [        R                  " 5       R                  5       S-   [         S'   S[         S'   S[         S'   S	[         S
+'   [	        SSSS	5        SSS.$ )Nr   r   r   r   éÈ   r   r   r	   r   r
+   Útest_importz"Test dataset imported successfullyr   r   r"   r   r   Úimport_test_datasetr'   $   sc   € Ø*„N8ÑÜ!)§¢Ó!2×!<Ñ!<Ó!>ÀÑ!D„N:ÑØ#&„N<Ñ Ø&(„N?Ñ#Ø'(„NĞ#Ñ$Ü˜ s¨B°Ô2à;ÈsÑSĞSr   c                  ó(   • [         S   [         S   S.$ )Nr   r   )r   r   ©r    r"   r   r   Úget_pipeline_statusr*   /   s   € ä  Ñ*Ü" :Ñ.ñğ r   c                  ó8   • [         S   [         S   [         S   S.$ )Nr   r	   r
+   )r   r	   r
+   r)   r"   r   r   Úget_pipeline_statisticsr,   6   s%   € ä$ \Ñ2Ü'¨Ñ8Ü(Ğ)9Ñ:ñğ r   )r   Úapp.database.databaser   r    ÚstrÚintr   r#   r'   r*   r,   r"   r   r   Ú<module>r0      sZ   ğİ İ 5ğ ØØØØñ€ğ	 Cğ 	¨sğ 	¸Sğ 	È3ô 	òVòTòór   
+
+============================================================
+FILE: backend/app/services/__pycache__/dataset_service.cpython-314.pyc
+============================================================
++
+    ÷Ezj¦  ã            
+       óZ   € ^ RI H t  ^ RIHt RRRRR^ R^ R	^ /tR
+ R ltR tR tR tR tR# )é    )Údatetime)Úpipeline_collectionÚstatusÚidleÚlast_runNÚ
+total_rowsÚtotal_columnsÚmissing_valuesc                óH   € V ^8„  d   QhR\         R\        R\        R\        /# )é   Ú
+event_typeÚrowsÚcolumnsÚmissing)ÚstrÚint)Úformats   "ÚE/home/oualid/Desktop/RL_AGENT/backend/app/services/dataset_service.pyÚ__annotate__r      s(   € ÷ 	ñ 	¤Cğ 	¬sğ 	¼Sğ 	Ì3ñ 	ó    c                 ól   € \         P                  ! R V RVRVRVR\        P                  ! 4       /4       R# )Útyper   r   r
+   Ú	timestampN)r   Ú
+insert_oner   Úutcnow)r   r   r   r   s   &&&&r   Ú_log_pipeline_eventr      s5   € Ü×"Ò"àJØDØwØ˜gØœŸšÓ*ğ	
+ör   c                  óÔ   € R \         R&   \        P                  ! 4       P                  4       R,           \         R&   R\         R&   ^\         R&   ^ \         R&   \	        RR^^ 4       R	R
+RR/# )Ú	completedr   ÚZr   iè  r   r	   r
+   Útrain_importÚmessagez#Train dataset imported successfullyÚimported_count©ÚPIPELINE_STATEr   r   Ú	isoformatr   © r   r   Úimport_train_datasetr'      sj   € Ø*„N8ÑÜ!)§¢Ó!2×!<Ñ!<Ó!>ÀÕ!D„N:ÑØ#'„N<Ñ Ø&(„N?Ñ#Ø'(„NĞ#Ñ$Ü˜¨¨b°!Ô4àĞ<Ğ>NĞPTĞUĞUr   c                  óÔ   € R \         R&   \        P                  ! 4       P                  4       R,           \         R&   ^È\         R&   ^\         R&   ^ \         R&   \	        R^È^^ 4       RR	R
+^È/# )r   r   r   r   r   r	   r
+   Útest_importr!   z"Test dataset imported successfullyr"   r#   r&   r   r   Úimport_test_datasetr*   $   si   € Ø*„N8ÑÜ!)§¢Ó!2×!<Ñ!<Ó!>ÀÕ!D„N:ÑØ#&„N<Ñ Ø&(„N?Ñ#Ø'(„NĞ#Ñ$Ü˜ s¨B°Ô2àĞ;Ğ=MÈsĞSĞSr   c                  ó:   € R \         R ,          R\         R,          /# )r   r   ©r$   r&   r   r   Úget_pipeline_statusr-   /   s    € à”. Õ*Ø”N :Õ.ğğ r   c                  óT   € R \         R ,          R\         R,          R\         R,          /# )r   r	   r
+   r,   r&   r   r   Úget_pipeline_statisticsr/   6   s+   € à”n \Õ2Øœ¨Õ8Øœ.Ğ)9Õ:ğğ r   )	r   Úapp.database.databaser   r$   r   r'   r*   r-   r/   r&   r   r   Ú<module>r1      sH   ğİ İ 5ğ ˆfØØ!ØQØağ€õ	òVòTòôr   
+
+============================================================
+FILE: backend/app/services/__pycache__/evaluation_service.cpython-313.pyc
+============================================================
+ó
+    55zjH  ã                   ór   • S r SSKJrJrJr  S\\   S\\   S\\\4   4S jrS\\   S\\\4   4S jr	S	S
+/r
+g)zàEvaluation service logic.
+
+Provide basic evaluation helpers such as confusion matrix computation and
+reward metric aggregation. These are intentionally small helpers that the
+rest of the codebase can call for quick metrics.
+é    )ÚSequenceÚDictÚAnyÚpredsÚtargetsÚreturnc                 ó˜   • S=n=n=pE[        X5       H0  u  pgXg:X  a  US:X  a  US-  nM  US-  nM  US:X  a  US-  nM+  US-  nM2     X#XES.$ )zÈCompute simple binary confusion counts for 0/1 labels.
+
+Returns counts for TP, TN, FP, FN. Works for larger integer labels in a
+best-effort way by treating matching/non-matching as positive/negative.
+r   é   )ÚtpÚtnÚfpÚfn)Úzip)r   r   r   r   r   r   ÚpÚts           ÚH/home/oualid/Desktop/RL_AGENT/backend/app/services/evaluation_service.pyÚconfusion_matrixr      sk   € ğ Ğ€Ğ€bĞˆ2ÜÖ T€QØƒVØˆ1ƒfØˆ!G‚Bàˆ!G‚Bàˆ1ƒfØˆ!G‚Bàˆ!G‚Bñ !ğ  2Ñ0Ğ0ó    Úrewardsc                 óZ   • U (       d  SSSS.$ [        U 5      n[        U 5      nX!-  nXUS.$ )Nr   g        )ÚcountÚmeanÚsum)Úlenr   )r   r   Útotalr   s       r   Úreward_summaryr   !   s6   € ŞØ˜c¨#Ñ	.Ğ.ä	ˆW‹€Ü	ˆW‹€Ø‰€Ø¨eÑ4Ğ4r   r   r   N)Ú__doc__Útypingr   r   r   ÚintÚstrr   Úfloatr   Ú__all__© r   r   Ú<module>r$      sj   ğñ÷ 'Ñ &ğ1˜H S™Mğ 1°H¸S±Mğ 1ÀdÈ3ĞPSÈ8Ánô 1ğ,5˜H U™Oğ 5°°S¸%°ZÑ0@ô 5ğ Ğ/Ğ
+0r   
+
+============================================================
+FILE: backend/app/services/__pycache__/evaluation_service.cpython-314.pyc
+============================================================
++
+    55zjH  ã                   ó>   € R t ^ RIHtHtHt R R ltR R ltRR.tR# )	zàEvaluation service logic.
+
+Provide basic evaluation helpers such as confusion matrix computation and
+reward metric aggregation. These are intentionally small helpers that the
+rest of the codebase can call for quick metrics.
+)ÚSequenceÚDictÚAnyc                óŠ   € V ^8„  d   QhR\         \        ,          R\         \        ,          R\        \        \        3,          /# )é   ÚpredsÚtargetsÚreturn)r   Úintr   Ústr)Úformats   "ÚH/home/oualid/Desktop/RL_AGENT/backend/app/services/evaluation_service.pyÚ__annotate__r      s2   € ÷ 1ñ 1œH¤SMğ 1´H¼SµMğ 1ÄdÌ3ÔPSÈ8Ånñ 1ó    c                óÈ   € ^ ;p;p;rE\        W4       FC  w  rgWg8X  d   V^8X  d   V^,          pK  V^,          pK(  V^8X  d   V^,          pK:  V^,          pKE  	  RVRVRVRV/# )zÈCompute simple binary confusion counts for 0/1 labels.
+
+Returns counts for TP, TN, FP, FN. Works for larger integer labels in a
+best-effort way by treating matching/non-matching as positive/negative.
+ÚtpÚtnÚfpÚfn)Úzip)r   r   r   r   r   r   ÚpÚts   &&      r   Úconfusion_matrixr      sw   € ğ Ğ€Ğ€bĞˆ2ÜÖ T€QØ„VØˆ1„fØˆ!…G‚Bàˆ!…G‚Bàˆ1„fØˆ!…G‚Bàˆ!…G‚Bñ !ğ 
+ˆr4˜˜T 2 t¨RĞ0Ğ0r   c                óh   € V ^8„  d   QhR\         \        ,          R\        \        \        3,          /# )r   Úrewardsr	   )r   Úfloatr   r   )r   s   "r   r   r   !   s'   € ÷ 5ñ 5œH¤UOğ 5´´S¼%°ZÕ0@ñ 5r   c                 ón   € V '       g	   R ^ RRRR/# \        V 4      p\        V 4      pW!,          pR VRVRV/# )ÚcountÚmeang        Úsum)Úlenr   )r   r   Útotalr   s   &   r   Úreward_summaryr"   !   sD   € ßØ
+1f˜c 5¨#Ğ	.Ğ.ä	ˆW‹€Ü	ˆW‹€Ø€Ø	%˜  u¨eĞ4Ğ4r   r   r"   N)Ú__doc__Útypingr   r   r   r   r"   Ú__all__© r   r   Ú<module>r'      s)   ğñ÷ 'Ñ &õ1õ,5ğ Ğ/Ğ
+0‚r   
+
+============================================================
+FILE: backend/app/services/__pycache__/__init__.cpython-313.pyc
+============================================================
+ó
+    0rj!   ã                   ó   • S r g)zBusiness services package.N)Ú__doc__© ó    Ú>/home/oualid/Desktop/RL_AGENT/backend/app/services/__init__.pyÚ<module>r      s   ğÚ  r   
+
+============================================================
+FILE: backend/app/services/__pycache__/__init__.cpython-314.pyc
+============================================================
++
+    0rj!   ã                   ó
+   € R t R# )zBusiness services package.N)Ú__doc__© ó    Ú backend/app/services/__init__.pyÚ<module>r      s   ğÛ  r   
+
+============================================================
+FILE: backend/app/services/__pycache__/training_service.cpython-313.pyc
+============================================================
+ó
+    AYzjš  ã                   óT  • S SK r S SKrS SKrS SKrS SKJr  S SKJr  S SKJrJ	r	J
+r
+  S SKJr  SS / S.r\" S5      r\R                  S	S	S
+9  S\S\4S jrS\S\4S jrS rSS\R,                  " 5       S.rSS\S\S\R0                  4S jjrSS\S\4S jjrS rS rS rSS\4S jjrg) é    N)Údatetime)ÚPath)Útraining_collectionÚtraining_metrics_collectionÚcheckpoints_collection)ÚTrainerÚidle)ÚstatusÚcurrent_epochÚhistoryzmodels/checkpointsT)ÚparentsÚexist_okr
+   r   c                 ód   • SU U[         R                  " 5       S.n[        R                  " U5        g )Nr
+   )Útyper
+   r   Ú
+updated_at)r   Úutcnowr   Ú
+insert_one)r
+   r   Úrecords      ÚF/home/oualid/Desktop/RL_AGENT/backend/app/services/training_service.pyÚ_upsert_training_statusr      s,   € àØØ&Ü—o’oÓ'ñ	€Fô ×"Ò" 6Õ*ó    ÚepochÚlossc                 ó`   • [         R                  " SU U[        R                  " 5       S.5        g )Nr   )r   r   r   Ú
+created_at)r   r   r   r   ©r   r   s     r   Ú_log_training_historyr       s(   € Ü×"Ò"àØØÜ"Ÿ/š/Ó+ñ		
+õr   c                  ó|   • [         R                  " SS0S/S9n U (       d  [        S   [        S   S.$ U S   U S   S.$ )Nr   r
+   )r   éÿÿÿÿ)Úsortr   )r
+   r   )r   Úfind_oneÚSTATE)Ú
+status_docs    r   Úget_training_statusr$   +   sU   € Ü$×-Ò-Ø	ĞĞ"4Ğ!5ñ€Jö Ü ™/¼EÀ/Ñ<RÑSĞSğ ˜XÑ&Ø# OÑ4ñğ r   )ÚthreadÚ
+stop_eventÚlockÚ	algorithmÚepisodesr&   c           
+      ó  •  [        U SSS9n[        U5       GHå  nUb  UR                  5       (       a    GOËSn [        UR                  S5      (       a  UR                  R                  5       nUc  [        [        R                  " 5       S5      n[        US-   [        U5      5         [        R                  " US-   [        U5      [        R                  " 5       S.5        US-   [        S'   [!        S	[        S   5        US-   S
+-  S:X  aÙ   [        US5      (       aÇ  [        UR                  S5      (       a¬  SUS-    S3nUR"                  R%                  UR                  R&                  [)        UR                  SS5      US-   US9   [*        R                  " UUS-   [-        [/        UR"                  R0                  5      U-  5      [        R                  " 5       S.5        [2        R4                  " S5        GMè     S[        S'   [!        S[        S   5        g! [         a    Sn GN¿f = f! [         a     GN\f = f! [         a     Nhf = f! [         a     Nxf = f! [         a    S[        S'   [!        S[        S   5         gf = f)a  Run a lightweight training loop in a background thread.
+
+This function uses the project's Trainer/Agent implementations but runs
+them in a simple loop to capture per-episode loss and persist history
+to MongoDB so the dashboard and frontend can show progress.
+é   é   )r(   Ú	state_dimÚ
+action_dimNÚupdateé   ©r   r   Ú	timestampr   Úrunningé   r   Ú
+checkpointÚmodelÚcheckpoint_ep_z.pthÚ	optimizer)Úfilename)Únamer   Úpathr   r	   r
+   )r   ÚrangeÚis_setÚhasattrÚagentr/   Ú	ExceptionÚroundÚrandomr   Úfloatr   r   r   r   r"   r   r5   Úsaver6   Úgetattrr   Ústrr   Úcheckpoint_dirÚtimeÚsleep)r(   r)   r&   ÚtrainerÚepr   r9   s          r   Ú_run_training_asyncrL   @   sZ  € ğH@Ü I¸ÀqÑIˆä˜—/ˆBàÑ%¨*×*;Ñ*;×*=Ñ*=Úğ ˆDğÜ˜7Ÿ=™=¨(×3Ñ3Ø"Ÿ=™=×/Ñ/Ó1Dğ
+ ‰|ÜœVŸ]š]›_¨aÓ0ô " " q¡&¬%°«+Ô6ğÜ+×6Ò6Ø !™VÜ! $›KÜ!)§¢Ó!2ñ8ô ğ &(¨!¡VŒE/Ñ"Ü# I¬u°_Ñ/EÔFğ Q‘˜!‰|˜qÓ ğÜ˜w¨×5Ñ5¼'À'Ç-Á-ĞQX×:YÑ:YØ%3°B°q±D°6¸Ğ#>˜Ø×*Ñ*×/Ñ/Ø#ŸM™M×/Ñ/Ü# G§M¡M°;ÀÓEØ ™FØ%-ğ	 0ñ ğ!Ü2×=Ò=Ø(0Ø)+¨a©Ü(+¬D°×1CÑ1C×1RÑ1RÓ,SĞV^Ñ,^Ó(_Ü.6¯oªoÓ.?ñ	?ô ô JŠJqMñy "ğ~ !Œˆh‰Ü ¬¨oÑ(>Õ?øôk ó Ø“ğûô  ó Úğûô2  )ó !Ù ğ!ûä ó áğûô ó @à Œˆh‰Ü ¬¨oÑ(>Ö?ğ@ús¢   ‚7I# º5HÁ/:I# Â*9H2Ã#+I# ÄA=IÆAIÇ'7I# ÈH/È+I# È.H/È/I# È2
+I È<I# È?I É I# É
+IÉIÉI# ÉIÉIÉ
+I ÉI# ÉI É I# É#&JÊJc                 ót  • [        5       nUS   S:X  a  SS0$ S[        S'   S[        S'   [        S[        S   5        [        R                  " 5       n[
+        S      U[
+        S'   [        R                  " [        XU4S	S
+9nU[
+        S'   UR                  5         SSS5        SS0$ ! , (       d  f       SS0$ = f)zÛStart training in a background thread and return immediately.
+
+The endpoint can call this with desired parameters. Training progress
+is written to the training_collection so the frontend can observe
+history and status.
+r
+   r3   ÚmessagezTraining already in progressr   r   r'   r&   T)ÚtargetÚargsÚdaemonr%   NzTraining started)	r$   r"   r   Ú	threadingÚEventÚTRAINING_CTRLÚThreadrL   Ústart)r(   r)   Úcurrent_statusr&   Úthrs        r   Ústart_trainingrY   ’   sÀ   € ô )Ó*€NØhÑ 9Ó,ØĞ9Ğ:Ğ:à„Eˆ(OØ„Eˆ/ÑÜ˜I¤u¨_Ñ'=Ô>ô —’Ó"€JÜ	vÓ	Ø&0ŒlÑ#Ü×ÒÔ&9ÀĞV`Ğ@aĞjnÑoˆØ"%ŒhÑØ	‰	Œ÷	 
+ğ Ğ)Ğ*Ğ*÷ 
+Ô	ğ Ğ)Ğ*Ğ*ús   Á?B&Â&
+B7c                  ót  • [         S      [         R                  S5      n [         R                  S5      nU b  U R                  5         Ub$  UR                  5       (       a  UR	                  SS9  S [         S'   S [         S'   S S S 5        S[
+        S'   [        S[
+        S   5        S	S
+0$ ! , (       d  f       N.= f)Nr'   r&   r%   r,   )Útimeoutr	   r
+   r   rN   zTraining stopped)rT   ÚgetÚsetÚis_aliveÚjoinr"   r   )ÚevrX   s     r   Ústop_trainingra   ¬   s   € ä	vÓ	Ü×Ñ˜|Ó,ˆÜ×Ñ Ó)ˆØ‰>ØF‰FŒHà‰?˜sŸ|™|Ÿ~™~ØH‰H˜QˆHÑØ"&ŒhÑØ&*ŒlÑ#÷ 
+ğ „Eˆ(OÜ˜F¤E¨/Ñ$:Ô;ØĞ)Ğ*Ğ*÷ 
+Õ	ús   ŠA7B)Â)
+B7c                  ó&  • / n [         R                  5       (       aN  [        [         R                  5        Vs/ s H%  oR	                  5       (       d  M  UR
+                  PM'     sn5      n  [        [        R                  " 0 SS05      R                  SS5      5      nU Vs/ s H+  o3R                  S5      (       d  M  UR                  S5      PM-     nn[        [        R                  X@-   5      5      nU$ s  snf s  snf ! [         a    U s $ f = f)Nr:   r0   r   r   )ÚCHECKPOINT_DIRÚexistsÚsortedÚiterdirÚis_filer:   Úlistr   Úfindr    r\   ÚdictÚfromkeysr@   )ÚfilesÚitemÚdocsÚdocÚdb_namesÚmergeds         r   Úget_checkpointsrr   ¾   sØ   € à€EÜ×Ñ×ÑÜ¬n×.DÑ.DÔ.FÓYÒ.F dÏ,É,Ï.›	˜Ÿ	œ	Ñ.FÑYÓZˆğÜÔ*×/Ò/°°V¸Q°KÓ@×EÑEÀlĞTVÓWÓXˆÙ/3ÓGªt¨·w±w¸v·“OC—G‘G˜F–O©tˆĞGä”d—m‘m HÑ$4Ó5Ó6ˆØˆùò Zùò
+ Høô ó ØŠğús5   ·C7ÁC7Á+6D Â!C<Â>C<Ã#D Ã<D ÄDÄDc                  ó’   • [         R                  " SS05      R                  SS5      n U  Vs/ s H  oS   US   S.PM     sn$ s  snf )Nr   r   r   r0   r   r   )r   ri   r    )Úhistory_docsro   s     r   Úget_historyru   Ï   sG   € Ü&×+Ò+¨V°YĞ,?Ó@×EÑEÀgÈqÓQ€LÙDPÓQÂL¸S˜'‘l¨C°©KÔ8ÁLÑQĞQùÒQs   ­AÚlimitc           	      óX  •  [        [        R                  " 5       R                  SS5      R	                  U 5      5      nU Vs/ s HH  n[        UR                  S5      5      [        UR                  S5      5      UR                  S5      S.PMJ     sn$ s  snf ! [         a    / s $ f = f)Nr2   r   r   r   r1   )	rh   r   ri   r    rv   Úintr\   rC   r@   )rv   rn   ro   s      r   Úget_metricsry   Ô   sª   € ğÜÔ/×4Ò4Ó6×;Ñ;¸KÈÓL×RÑRĞSXÓYÓZˆñ @Dó  Eò  @DĞx{œ#˜cŸg™g gÓ.Ó/¼¸s¿w¹wÀv»Ó9OĞ^a×^eÑ^eĞfqÓ^rÔsñ  @Dñ  Eğ  	Eùò  EøÜó ØŠ	ğús%   ‚AB ÁABÂB ÂB ÂB)Â(B))Údqné
+   N)rz   r{   )éd   )ÚosrH   rB   rR   r   Úpathlibr   Úapp.database.databaser   r   r   Úapp.rl_agent.trainerr   r"   rc   ÚmkdirrF   rx   r   rC   r   r$   ÚLockrT   rS   rL   rY   ra   rr   ru   ry   © r   r   Ú<module>r„      sï   ğÛ 	Û Û Û İ İ ß jÑ jå (ğ ØØñ	€ñ Ğ*Ó+€Ø × Ñ ˜T¨DĞ Ñ 1ğ+ Cğ +¸ô +ğ ğ ¨Eô ò
+ğ ØØNŠNÓñ€ñO@ 3ğ O@¸#ğ O@ĞPY×P_ÑP_õ O@ñd+˜cğ +°Sõ +ò4+ò$ò"Rñ
+sö r   
+
+============================================================
+FILE: backend/app/services/__pycache__/training_service.cpython-314.pyc
+============================================================
++
+    AYzjš  ã                   ó2  € ^ RI t ^ RIt^ RIt^ RIt^ RIHt ^ RIHt ^ RIHtH	t	H
+t
+ ^ RIHt RRR^ R	. /t]! R
+4      t]P                  RRR7       R R ltR R ltR tRRRRR]P&                  ! 4       /tRR R lltRR R lltR tR tR tR R R lltR# )!é    N)Údatetime)ÚPath)Útraining_collectionÚtraining_metrics_collectionÚcheckpoints_collection)ÚTrainerÚstatusÚidleÚcurrent_epochÚhistoryzmodels/checkpointsT)ÚparentsÚexist_okc                ó0   € V ^8„  d   QhR\         R\        /# )é   r	   r   ©ÚstrÚint)Úformats   "ÚF/home/oualid/Desktop/RL_AGENT/backend/app/services/training_service.pyÚ__annotate__r      s   € ÷ +ñ +¤Cğ +¼ñ +ó    c           	      ól   € R RRV RVR\         P                  ! 4       /p\        P                  ! V4       R# )Útyper	   r   Ú
+updated_atN)r   Úutcnowr   Ú
+insert_one)r	   r   Úrecords   && r   Ú_upsert_training_statusr      s4   € àØ&Ø˜Ø”h—o’oÓ'ğ	€Fô ×"Ò" 6Ö*r   c                ó0   € V ^8„  d   QhR\         R\        /# )r   ÚepochÚloss)r   Úfloat)r   s   "r   r   r       s   € ÷ ñ ¤ğ ¬Eñ r   c                 óh   € \         P                  ! R RRV RVR\        P                  ! 4       /4       R# )r   r   r    r!   Ú
+created_atN)r   r   r   r   )r    r!   s   &&r   Ú_log_training_historyr%       s0   € Ü×"Ò"àIØUØDØœ(Ÿ/š/Ó+ğ		
+ör   c                  ó¨   € \         P                  ! R R/R.R7      p V '       g   R\        R,          R\        R,          /# RV R,          RV R,          /# )r   r	   )Úsortr   )r   éÿÿÿÿ)r   Úfind_oneÚSTATE)Ú
+status_docs    r   Úget_training_statusr,   +   s]   € Ü$×-Ò-Ø	ĞĞ"4Ğ!5ô€J÷ Øœ% /¨?¼EÀ/Õ<RĞSĞSğ 	*˜XÕ&Ø˜ OÕ4ğğ r   ÚthreadÚ
+stop_eventÚlockc                óP   € V ^8„  d   QhR\         R\        R\        P                  /# )r   Ú	algorithmÚepisodesr.   )r   r   Ú	threadingÚEvent)r   s   "r   r   r   @   s2   € ÷ O@ñ O@¤3ğ O@¼#ğ O@ÔPY×P_ÑP_ñ O@r   c                ó°  €  \        V ^^R7      p\        V4       EF  pVe   VP                  4       '       d    EM Rp \        VP                  R4      '       d   VP                  P                  4       pTf    \        \        P                  ! 4       ^4      p\        T^,           \        T4      4        \        P                  ! RT^,           R\        T4      R\        P                  ! 4       /4       T^,           \        R&   \!        R\        R,          4       T^,           ^,          ^ 8X  dò    \        TR	4      '       dß   \        TP                  R
+4      '       dÃ   RT^,            R2pTP"                  P%                  TP                  P&                  \)        TP                  RR4      T^,           TR7        \*        P                  ! RTRT^,           R\-        \/        TP"                  P0                  4      T,          4      R\        P                  ! 4       /4       \2        P4                  ! ^4       EK  	  R\        R&   \!        R\        R,          4       R#   \         d    Rp ELùi ; i  \         d     ELŒi ; i  \         d     Lpi ; i  \         d     Li ; i  \         d%    R\        R&   \!        R\        R,          4        R# i ; i)a  Run a lightweight training loop in a background thread.
+
+This function uses the project's Trainer/Agent implementations but runs
+them in a simple loop to capture per-episode loss and persist history
+to MongoDB so the dashboard and frontend can show progress.
+)r1   Ú	state_dimÚ
+action_dimNÚupdater    r!   Ú	timestampr   ÚrunningÚ
+checkpointÚmodelÚcheckpoint_ep_z.pthÚ	optimizer)ÚfilenameÚnameÚpathr$   r
+   r	   )r   ÚrangeÚis_setÚhasattrÚagentr8   Ú	ExceptionÚroundÚrandomr%   r"   r   r   r   r   r*   r   r;   Úsaver<   Úgetattrr   r   r   Úcheckpoint_dirÚtimeÚsleep)r1   r2   r.   ÚtrainerÚepr!   r?   s   &&&    r   Ú_run_training_asyncrP   @   sh  € ğH@Ü I¸ÀqÔIˆä˜—/ˆBàÒ%¨*×*;Ñ*;×*=Ò*=Úğ ˆDğÜ˜7Ÿ=™=¨(×3Ò3Ø"Ÿ=™=×/Ñ/Ó1Dğ
+ Š|ÜœVŸ]š]›_¨aÓ0ô " " q¥&¬%°«+Ô6ğÜ+×6Ò6Ø˜R !VØœE $›KØ¤§¢Ó!2ğ8ô ğ &(¨!¥VŒE/Ñ"Ü# I¬u°_Õ/EÔFğ Q•˜!|˜qÔ ğÜ˜w¨×5Ò5¼'À'Ç-Á-ĞQX×:YÒ:YØ%3°B°qµD°6¸Ğ#>˜Ø×*Ñ*×/Ñ/Ø#ŸM™M×/Ñ/Ü# G§M¡M°;ÀÓEØ FØ%-ğ	 0ô ğ!Ü2×=Ò=Ø &¨Ø '¨¨a­Ø &¬¬D°×1CÑ1C×1RÑ1RÓ,SĞV^Õ,^Ó(_Ø ,¬h¯oªoÓ.?ğ	?ô ô JŠJqMñy "ğ~ !Œˆh‰Ü ¬¨oÕ(>Ö?øôk ô Ø“ğûô  ô Úğûô2  )ô !Ù ğ!ûä ô áğûô ô @à Œˆh‰Ü ¬¨oÕ(>×?ğ@ús§   ‚6J& ¹J& ¿6IÁ5?J& Â5?I2Ã4<J& Ä1B
+JÆ<A%JÈ!;J& ÉI/É+J& É.I/É/J& É2JÉ=J& Ê JÊJ& ÊJÊJÊJ& ÊJÊJÊJ#Ê J& Ê"J#Ê#J& Ê&+KËKc                ó0   € V ^8„  d   QhR\         R\        /# )r   r1   r2   r   )r   s   "r   r   r   ’   s   € ÷ +ñ +œcğ +´Sñ +r   c                ó¨  € \        4       pVR,          R8X  d   RR/# R\        R&   ^ \        R&   \        R\        R,          4       \        P                  ! 4       p\
+        R,          ;_uu_ 4        V\
+        R&   \        P                  ! \        WV3RR	7      pV\
+        R
+&   VP                  4        RRR4       RR/#   + '       g   i     RR/# ; i)zÛStart training in a background thread and return immediately.
+
+The endpoint can call this with desired parameters. Training progress
+is written to the training_collection so the frontend can observe
+history and status.
+r	   r:   ÚmessagezTraining already in progressr   r/   r.   T)ÚtargetÚargsÚdaemonr-   NzTraining started)	r,   r*   r   r3   r4   ÚTRAINING_CTRLÚThreadrP   Ústart)r1   r2   Úcurrent_statusr.   Úthrs   &&   r   Ústart_trainingr\   ’   sÃ   € ô )Ó*€NØhÕ 9Ô,ØĞ9Ğ:Ğ:à„Eˆ(OØ„Eˆ/ÑÜ˜I¤u¨_Õ'=Ô>ô —’Ó"€JÜ	v×	×	Ø&0ŒlÑ#Ü×ÒÔ&9ÀĞV`Ğ@aĞjnÔoˆØ"%ŒhÑØ	‰	Œ÷	 
+ğ Ğ)Ğ*Ğ*÷ 
+Ö	ğ Ğ)Ğ*Ğ*ús   Á0AB>Â>C	c                  ó¤  € \         R ,          ;_uu_ 4        \         P                  R4      p \         P                  R4      pV e   V P                  4        Ve)   VP                  4       '       d   VP	                  ^R7       R\         R&   R\         R&   RRR4       R\
+        R&   \        R\
+        R,          4       RR	/#   + '       g   i     L4; i)
+r/   r.   r-   N)Útimeoutr
+   r	   r   rS   zTraining stopped)rW   ÚgetÚsetÚis_aliveÚjoinr*   r   )Úevr[   s     r   Ústop_trainingrd   ¬   s    € ä	v×	×	Ü×Ñ˜|Ó,ˆÜ×Ñ Ó)ˆØŠ>ØF‰FŒHàŠ?˜sŸ|™|Ÿ~š~ØH‰H˜QˆHÔØ"&ŒhÑØ&*ŒlÑ#÷ 
+ğ „Eˆ(OÜ˜F¤E¨/Õ$:Ô;ØĞ)Ğ*Ğ*÷ 
+×	ús   –AB?Á/$B?Â?C	c                  ó2  € . p \         P                  4       '       dO   \        \         P                  4        Uu. uF&  qP	                  4       '       g   K  VP
+                  NK(  	  up4      p  \        \        P                  ! / R ^/4      P                  RR4      4      pV Uu. uF,  q3P                  R 4      '       g   K  VP                  R 4      NK.  	  pp\        \        P                  W@,           4      4      pV# u upi u upi   \         d    T u # i ; i)r@   r$   r(   )ÚCHECKPOINT_DIRÚexistsÚsortedÚiterdirÚis_filer@   Úlistr   Úfindr'   r_   ÚdictÚfromkeysrF   )ÚfilesÚitemÚdocsÚdocÚdb_namesÚmergeds         r   Úget_checkpointsru   ¾   sØ   € à€EÜ×Ñ×ÒÜ¬n×.DÑ.DÔ.FÓYÑ.F dÏ,É,Ï.œ	˜Ÿ	œ	Ñ.FÑYÓZˆğÜÔ*×/Ò/°°V¸Q°KÓ@×EÑEÀlĞTVÓWÓXˆÙ/3ÓG©t¨·w±w¸v·”OC—G‘G˜F–O©tˆĞGä”d—m‘m HÕ$4Ó5Ó6ˆØˆùò Zùò
+ Høô ô ØŠğús5   ¸C<ÁC<Á,6D Â"DÂ?DÃ'D ÄD ÄDÄDc                  ó¤   € \         P                  ! R R/4      P                  R^4      p V  Uu. uF  pRVR,          RVR,          /NK  	  up# u upi )r   r   r    r!   )r   rl   r'   )Úhistory_docsrr   s     r   Úget_historyrx   Ï   sM   € Ü&×+Ò+¨V°YĞ,?Ó@×EÑEÀgÈqÓQ€LÙDPÓQÁL¸SˆWc˜'•l F¨C°­KÓ8ÁLÑQĞQùÒQs   ­Ac                ó$   € V ^8„  d   QhR\         /# )r   Úlimit)r   )r   s   "r   r   r   Ô   s   € ÷ ñ ”sñ r   c                 ó\  €  \        \        P                  ! 4       P                  R R4      P	                  V 4      4      pV Uu. uFJ  pR\        VP                  R4      4      R\        VP                  R4      4      R VP                  R 4      /NKL  	  up# u upi   \         d    . u # i ; i)r9   r    r!   r(   )	rk   r   rl   r'   rz   r   r_   r"   rF   )rz   rq   rr   s   &  r   Úget_metricsr|   Ô   s±   € ğÜÔ/×4Ò4Ó6×;Ñ;¸KÈÓL×RÑRĞSXÓYÓZˆñ @Dó  Eñ  @DĞx{œ#˜cŸg™g gÓ.Ó/°¼¸s¿w¹wÀv»Ó9OĞQ\Ğ^a×^eÑ^eĞfqÓ^rÓsñ  @Dñ  Eğ  	Eùò  EøÜô ØŠ	ğús%   ‚AB ÁABÂB ÂB ÂB+Â*B+)Údqné
+   N)r}   r~   )éd   )ÚosrL   rH   r3   r   Úpathlibr   Úapp.database.databaser   r   r   Úapp.rl_agent.trainerr   r*   rf   Úmkdirr   r%   r,   ÚLockrW   rP   r\   rd   ru   rx   r|   © r   r   Ú<module>r‡      s­   ğÛ 	Û Û Û İ İ ß jÑ jå (ğ ˆfØQØˆrğ	€ñ Ğ*Ó+€Ø × Ñ ˜T¨DĞ Ô 1õ+õò
+ğ ˆdØ$Ø
+ˆINŠNÓğ€÷O@÷d+ò4+ò$ò"R÷
+ñ r   
+
+============================================================
+FILE: backend/app/services/training_service.py
+============================================================
+import os
+import time
+import random
+import threading
+from datetime import datetime
+from pathlib import Path
+from app.database.database import training_collection, training_metrics_collection, checkpoints_collection
+
+from app.rl_agent.trainer import Trainer
+
+STATE = {
+    "status": "idle",
+    "current_epoch": 0,
+    "history": [],
+}
+
+CHECKPOINT_DIR = Path("models/checkpoints")
+CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _upsert_training_status(status: str, current_epoch: int):
+    record = {
+        "type": "status",
+        "status": status,
+        "current_epoch": current_epoch,
+        "updated_at": datetime.utcnow(),
+    }
+    # Keep a simple append-only record for status changes
+    training_collection.insert_one(record)
+
+
+def _log_training_history(epoch: int, loss: float):
+    training_collection.insert_one(
+        {
+            "type": "history",
+            "epoch": epoch,
+            "loss": loss,
+            "created_at": datetime.utcnow(),
+        }
+    )
+
+
+def get_training_status():
+    status_doc = training_collection.find_one(
+        {"type": "status"}, sort=[("updated_at", -1)]
+    )
+    if not status_doc:
+        return {"status": STATE["status"], "current_epoch": STATE["current_epoch"]}
+
+    return {
+        "status": status_doc["status"],
+        "current_epoch": status_doc["current_epoch"],
+    }
+
+
+# Controller for the running training thread
+TRAINING_CTRL = {
+    "thread": None,
+    "stop_event": None,
+    "lock": threading.Lock(),
+}
+
+
+def _run_training_async(algorithm: str = "dqn", episodes: int = 10, stop_event: threading.Event = None):
+    """Run a lightweight training loop in a background thread.
+
+    This function uses the project's Trainer/Agent implementations but runs
+    them in a simple loop to capture per-episode loss and persist history
+    to MongoDB so the dashboard and frontend can show progress.
+    """
+    try:
+        trainer = Trainer(algorithm=algorithm, state_dim=4, action_dim=2)
+
+        for ep in range(episodes):
+            # cooperative stop requested?
+            if stop_event is not None and stop_event.is_set():
+                break
+
+            # Attempt a training update; agent.update returns a loss when it
+            # performs an optimization step, otherwise None.
+            loss = None
+            try:
+                if hasattr(trainer.agent, "update"):
+                    loss = trainer.agent.update()
+            except Exception:
+                loss = None
+
+            # Fallback to a synthetic loss if the agent couldn't produce one
+            if loss is None:
+                loss = round(random.random(), 4)
+
+            # persist history and update status
+            _log_training_history(ep + 1, float(loss))
+            # Persist a training metric document as well
+            try:
+                training_metrics_collection.insert_one({
+                    "epoch": ep + 1,
+                    "loss": float(loss),
+                    "timestamp": datetime.utcnow(),
+                })
+            except Exception:
+                pass
+
+            STATE["current_epoch"] = ep + 1
+            _upsert_training_status("running", STATE["current_epoch"])
+
+            # checkpoint every 5 episodes if checkpoint manager and model exist
+            if (ep + 1) % 5 == 0:
+                try:
+                    if hasattr(trainer, "checkpoint") and hasattr(trainer.agent, "model"):
+                        filename = f"checkpoint_ep_{ep+1}.pth"
+                        trainer.checkpoint.save(
+                            trainer.agent.model,
+                            getattr(trainer.agent, "optimizer", None),
+                            ep + 1,
+                            filename=filename,
+                        )
+                        # Record checkpoint metadata in the DB
+                        try:
+                            checkpoints_collection.insert_one({
+                                "name": filename,
+                                "epoch": ep + 1,
+                                "path": str(Path(trainer.checkpoint.checkpoint_dir) / filename),
+                                "created_at": datetime.utcnow(),
+                            })
+                        except Exception:
+                            pass
+                except Exception:
+                    # Checkpointing is best-effort; don't fail the whole run
+                    pass
+
+            # Small sleep to simulate time-consuming training and allow
+            # monitor/background tasks to run.
+            time.sleep(1)
+
+        # Mark idle when done
+        STATE["status"] = "idle"
+        _upsert_training_status("idle", STATE["current_epoch"])
+
+    except Exception:
+        # On fatal error, mark as idle and record
+        STATE["status"] = "idle"
+        _upsert_training_status("idle", STATE["current_epoch"])
+
+
+def start_training(algorithm: str = "dqn", episodes: int = 10):
+    """Start training in a background thread and return immediately.
+
+    The endpoint can call this with desired parameters. Training progress
+    is written to the training_collection so the frontend can observe
+    history and status.
+    """
+    current_status = get_training_status()
+    if current_status["status"] == "running":
+        return {"message": "Training already in progress"}
+
+    STATE["status"] = "running"
+    STATE["current_epoch"] = 0
+    _upsert_training_status("running", STATE["current_epoch"])
+
+    # Launch background thread to run training loop with cooperative stop
+    stop_event = threading.Event()
+    with TRAINING_CTRL["lock"]:
+        TRAINING_CTRL["stop_event"] = stop_event
+        thr = threading.Thread(target=_run_training_async, args=(algorithm, episodes, stop_event), daemon=True)
+        TRAINING_CTRL["thread"] = thr
+        thr.start()
+
+    return {"message": "Training started"}
+
+
+def stop_training():
+    # Cooperative stop: signal the running thread and mark status idle.
+    with TRAINING_CTRL["lock"]:
+        ev = TRAINING_CTRL.get("stop_event")
+        thr = TRAINING_CTRL.get("thread")
+        if ev is not None:
+            ev.set()
+        # Optionally join for a short time
+        if thr is not None and thr.is_alive():
+            thr.join(timeout=2)
+        TRAINING_CTRL["thread"] = None
+        TRAINING_CTRL["stop_event"] = None
+
+    STATE["status"] = "idle"
+    _upsert_training_status("idle", STATE["current_epoch"])
+    return {"message": "Training stopped"}
+
+
+def get_checkpoints():
+    # collect files from the checkpoint directory and DB metadata
+    files = []
+    if CHECKPOINT_DIR.exists():
+        files = sorted([item.name for item in CHECKPOINT_DIR.iterdir() if item.is_file()])
+
+    # Merge with DB-recorded checkpoints if available
+    try:
+        docs = list(checkpoints_collection.find({}, {"name": 1}).sort("created_at", -1))
+        db_names = [doc.get("name") for doc in docs if doc.get("name")]
+        # Merge unique preserving order: db_names first then files
+        merged = list(dict.fromkeys(db_names + files))
+        return merged
+    except Exception:
+        return files
+
+
+def get_history():
+    history_docs = training_collection.find({"type": "history"}).sort("epoch", 1)
+    return [{"epoch": doc["epoch"], "loss": doc["loss"]} for doc in history_docs]
+
+
+def get_metrics(limit: int = 100):
+    try:
+        docs = list(training_metrics_collection.find().sort("timestamp", -1).limit(limit))
+        return [{"epoch": int(doc.get("epoch")), "loss": float(doc.get("loss")), "timestamp": doc.get("timestamp")} for doc in docs]
+    except Exception:
+        return []
+

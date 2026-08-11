@@ -1,5 +1,5 @@
 import os
-import torch
+import pickle
 
 
 class CheckpointManager:
@@ -31,14 +31,22 @@ class CheckpointManager:
             filename,
         )
 
-        torch.save(
-            {
-                "episode": episode,
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-            },
-            path,
-        )
+        data = {
+            "episode": episode,
+        }
+
+        if hasattr(model, "state_dict"):
+            data["model_state_dict"] = model.state_dict()
+        else:
+            data["model"] = model
+
+        if optimizer is not None and hasattr(optimizer, "state_dict"):
+            data["optimizer_state_dict"] = optimizer.state_dict()
+        else:
+            data["optimizer"] = optimizer
+
+        with open(path, "wb") as f:
+            pickle.dump(data, f)
 
         print(f"Checkpoint saved: {path}")
 
@@ -61,15 +69,14 @@ class CheckpointManager:
             print("No checkpoint found.")
             return 0
 
-        checkpoint = torch.load(path)
+        with open(path, "rb") as f:
+            checkpoint = pickle.load(f)
 
-        model.load_state_dict(
-            checkpoint["model_state_dict"]
-        )
+        if hasattr(model, "load_state_dict") and "model_state_dict" in checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
 
-        optimizer.load_state_dict(
-            checkpoint["optimizer_state_dict"]
-        )
+        if optimizer is not None and hasattr(optimizer, "load_state_dict") and "optimizer_state_dict" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
         print(f"Checkpoint loaded: {path}")
 
@@ -80,10 +87,12 @@ class CheckpointManager:
         Save the best performing model.
         """
 
-        torch.save(
-            model.state_dict(),
-            self.best_model_path,
-        )
+        if hasattr(model, "state_dict"):
+            with open(self.best_model_path, "wb") as f:
+                pickle.dump(model.state_dict(), f)
+        else:
+            with open(self.best_model_path, "wb") as f:
+                pickle.dump(model, f)
 
         print(
             f"Best model saved: {self.best_model_path}"
@@ -98,9 +107,13 @@ class CheckpointManager:
             print("No best model found.")
             return False
 
-        model.load_state_dict(
-            torch.load(self.best_model_path)
-        )
+        with open(self.best_model_path, "rb") as f:
+            best_state = pickle.load(f)
+
+        if hasattr(model, "load_state_dict"):
+            model.load_state_dict(best_state)
+        else:
+            return False
 
         print(
             f"Best model loaded: {self.best_model_path}"

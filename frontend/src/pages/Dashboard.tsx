@@ -35,7 +35,7 @@ export function DashboardPage() {
             <KpiCard label="Total decisions" value={formatNumber(data.total_decisions)} detail="Recorded agent decisions" icon="↗" />
             <KpiCard label="Average reward" value={formatDecimal(data.average_reward)} detail="Across recorded rewards" icon="✦" tone="success" />
             <KpiCard label="Processing time" value={`${formatDecimal(data.average_latency)} ms`} detail="Reported average latency" icon="◷" />
-            <KpiCard label="Accuracy" value={`${formatDecimal(data.accuracy * 100, 1)}%`} detail="Reported evaluation accuracy" icon="◎" />
+            <KpiCard label="Accuracy" value={data.accuracy === null ? "—" : `${formatDecimal(data.accuracy * 100, 1)}%`} detail="Reported evaluation accuracy" icon="◎" />
             <KpiCard label="Reward events" value={formatNumber(data.total_rewards)} detail="Persisted reward records" icon="◌" />
             <KpiCard label="Current episode" value={formatNumber(data.current_episode)} detail="Reported training episode" icon="⌁" tone="warning" />
           </section>

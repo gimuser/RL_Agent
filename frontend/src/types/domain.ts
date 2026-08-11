@@ -23,16 +23,16 @@ export interface Reward {
 }
 
 export interface DashboardSummary {
-  total_alerts: number;
-  processed_alerts: number;
-  total_decisions: number;
-  total_rewards: number;
-  average_reward: number;
-  average_latency: number;
-  accuracy: number;
+  total_alerts: number | null;
+  processed_alerts: number | null;
+  total_decisions: number | null;
+  total_rewards: number | null;
+  average_reward: number | null;
+  average_latency: number | null;
+  accuracy: number | null;
   database_status: string;
   training_status: string;
-  current_episode: number;
+  current_episode: number | null;
 }
 
 export interface SystemHealth {
@@ -50,6 +50,18 @@ export interface ApiComponent {
 export interface TrainingStatus {
   status: string;
   current_epoch: number;
+}
+
+export interface ExperimentStatus {
+  run_id?: string;
+  status?: string;
+  current_model?: string;
+  model_index?: number;
+  total_models?: number;
+  training?: Record<string, unknown>;
+  evaluation?: Record<string, unknown>;
+  checkpoint?: string;
+  best?: Record<string, unknown>;
 }
 
 export interface TrainingHistoryPoint {
@@ -73,7 +85,7 @@ export interface PipelineStats {
 
 export interface PipelineStatus {
   status: string;
-  last_run: string;
+  last_run: string | null;
 }
 
 export interface DatabaseHealth {
@@ -87,9 +99,9 @@ export interface DatabaseStatistics {
 }
 
 export interface RewardStatistics {
-  mean_reward: number;
-  max_reward: number;
-  min_reward: number;
+  mean_reward: number | null;
+  max_reward: number | null;
+  min_reward: number | null;
 }
 
 export interface ToastMessage {

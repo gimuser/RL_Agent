@@ -1,0 +1,846 @@
+============================================================
+HIBA - REWARD SYSTEM
+============================================================
+
+===== TREE =====
+backend/app/reward
+├── analyst_reward.py
+├── false_positive_reward.py
+├── __init__.py
+├── latency_reward.py
+├── __pycache__
+│   ├── analyst_reward.cpython-313.pyc
+│   ├── analyst_reward.cpython-314.pyc
+│   ├── false_positive_reward.cpython-313.pyc
+│   ├── false_positive_reward.cpython-314.pyc
+│   ├── __init__.cpython-313.pyc
+│   ├── __init__.cpython-314.pyc
+│   ├── latency_reward.cpython-313.pyc
+│   ├── latency_reward.cpython-314.pyc
+│   ├── reward_config.cpython-313.pyc
+│   ├── reward_config.cpython-314.pyc
+│   ├── reward_function.cpython-313.pyc
+│   ├── reward_function.cpython-314.pyc
+│   ├── severity_reward.cpython-313.pyc
+│   └── severity_reward.cpython-314.pyc
+├── reward_config.py
+├── reward_function.py
+└── severity_reward.py
+
+2 directories, 21 files
+
+===== FILE CONTENT =====
+
+============================================================
+FILE: backend/app/reward/analyst_reward.py
+============================================================
+"""Analyst workload reward logic."""
+"""
+backend/app/reward/analyst_reward.py
+
+Calcul de la récompense liée à la charge de travail
+des analystes SOC.
+
+Le module utilise directement les informations
+du dataset Microsoft Defender.
+"""
+
+from dataclasses import dataclass
+from typing import Any, Dict
+
+from .reward_config import reward_config
+
+
+@dataclass
+class AnalystReward:
+    """
+    Reward lié à la charge analyste.
+
+    Plus l'agent automatise correctement
+    les décisions, plus la récompense est élevée.
+    """
+
+    config = reward_config
+
+    def compute(
+        self,
+        incident: Dict[str, Any],
+        action: int
+    ) -> float:
+        """
+        Parameters
+        ----------
+        incident : dict
+
+            Ligne du dataset.
+
+        action : int
+
+            0 -> Close / Ignore
+
+            1 -> Escalate
+
+        Returns
+        -------
+        float
+
+            Reward Analyst.
+        """
+
+        action_group = str(
+            incident.get(
+                "ActionGrouped",
+                "Unknown"
+            )
+        ).strip()
+
+        action_granular = str(
+            incident.get(
+                "ActionGranular",
+                "Unknown"
+            )
+        ).strip()
+
+        suspicion = str(
+            incident.get(
+                "SuspicionLevel",
+                "Unknown"
+            )
+        ).strip()
+
+        reward = 0.0
+
+        # ---------------------------------------------------
+        # Faible suspicion
+        # Une fermeture automatique est préférable
+        # ---------------------------------------------------
+
+        if suspicion == "Low":
+
+            if action == 0:
+                reward += self.config.analyst_bonus
+
+            else:
+                reward += self.config.analyst_penalty
+
+        # ---------------------------------------------------
+        # Suspicion moyenne
+        # Impact faible
+        # ---------------------------------------------------
+
+        elif suspicion == "Medium":
+
+            if action == 0:
+                reward += self.config.analyst_bonus / 2
+
+            else:
+                reward += self.config.analyst_penalty / 2
+
+        # ---------------------------------------------------
+        # Suspicion élevée
+        # Une escalade est attendue
+        # ---------------------------------------------------
+
+        elif suspicion == "High":
+
+            if action == 1:
+                reward += self.config.analyst_bonus
+
+            else:
+                reward += self.config.analyst_penalty
+
+        # ---------------------------------------------------
+        # Analyse de ActionGrouped
+        # ---------------------------------------------------
+
+        if action_group != "Unknown":
+
+            # Si le dataset indique déjà une action
+            # proche de celle choisie,
+            # on ajoute un léger bonus.
+
+            if action == 1 and "Escal" in action_group:
+
+                reward += 2.0
+
+            elif action == 0 and (
+                "Close" in action_group
+                or "Ignore" in action_group
+            ):
+
+                reward += 2.0
+
+        # ---------------------------------------------------
+        # Analyse de ActionGranular
+        # ---------------------------------------------------
+
+        if action_granular != "Unknown":
+
+            if action == 1:
+
+                reward += 1.0
+
+            else:
+
+                reward += 0.5
+
+        return reward
+
+============================================================
+FILE: backend/app/reward/false_positive_reward.py
+============================================================
+"""False-positive reward logic."""
+"""
+backend/app/reward/false_positive_reward.py
+
+Calcul de la pénalité spécifique liée aux False Positives.
+
+Ce module ne regarde PAS IncidentGrade.
+Il se base uniquement sur :
+
+    - LastVerdict
+    - SuspicionLevel
+
+Son objectif est de modéliser le coût métier
+d'une escalade inutile vers un analyste SOC.
+"""
+
+from dataclasses import dataclass
+from typing import Any, Dict
+
+from .reward_config import reward_config
+
+
+@dataclass
+class FalsePositiveReward:
+    """
+    Calcule la pénalité supplémentaire
+    liée aux faux positifs.
+
+    Ce module est indépendant de SeverityReward.
+    """
+
+    config = reward_config
+
+    def compute(
+        self,
+        incident: Dict[str, Any],
+        action: int
+    ) -> float:
+        """
+        Parameters
+        ----------
+        incident : dict
+            Ligne du dataset.
+
+        action : int
+
+            0 -> Close / Ignore
+
+            1 -> Escalate
+
+        Returns
+        -------
+        float
+            Reward/Penalty.
+        """
+
+        verdict = str(
+            incident.get(
+                "LastVerdict",
+                "Unknown"
+            )
+        ).strip()
+
+        suspicion = str(
+            incident.get(
+                "SuspicionLevel",
+                "Unknown"
+            )
+        ).strip()
+
+        reward = 0.0
+
+        # ---------------------------------------------------
+        # Cas 1 :
+        # Verdict Benign
+        # Une escalade est inutile.
+        # ---------------------------------------------------
+
+        if verdict == "Benign":
+
+            if action == 1:
+
+                reward += self.config.false_positive_escalation_penalty
+
+            return reward
+
+        # ---------------------------------------------------
+        # Cas 2 :
+        # Verdict Unknown
+        # On pénalise légèrement
+        # une escalade.
+        # ---------------------------------------------------
+
+        if verdict == "Unknown":
+
+            if action == 1:
+
+                reward += self.config.unknown_penalty
+
+            return reward
+
+        # ---------------------------------------------------
+        # Cas 3 :
+        # Suspicion faible
+        # ---------------------------------------------------
+
+        if suspicion == "Low":
+
+            if action == 1:
+
+                reward -= 2.0
+
+            return reward
+
+        # ---------------------------------------------------
+        # Cas 4 :
+        # Suspicion moyenne
+        # ---------------------------------------------------
+
+        if suspicion == "Medium":
+
+            return 0.0
+
+        # ---------------------------------------------------
+        # Cas 5 :
+        # Suspicion élevée
+        # Une escalade est normale.
+        # ---------------------------------------------------
+
+        if suspicion == "High":
+
+            if action == 1:
+
+                reward += 1.0
+
+            return reward
+
+        return reward
+
+
+============================================================
+FILE: backend/app/reward/__init__.py
+============================================================
+"""Reward package."""
+"""
+backend/app/reward/__init__.py
+
+Exports du Reward System.
+"""
+
+from .reward_config import RewardConfig, reward_config
+
+from .severity_reward import SeverityReward
+from .false_positive_reward import FalsePositiveReward
+from .analyst_reward import AnalystReward
+from .latency_reward import LatencyReward
+
+from .reward_function import RewardFunction
+
+__all__ = [
+
+    "RewardConfig",
+
+    "reward_config",
+
+    "SeverityReward",
+
+    "FalsePositiveReward",
+
+    "AnalystReward",
+
+    "LatencyReward",
+
+    "RewardFunction"
+
+]
+
+============================================================
+FILE: backend/app/reward/latency_reward.py
+============================================================
+"""Latency reward logic."""
+"""
+backend/app/reward/latency_reward.py
+
+Calcul de la pénalité liée au temps de réponse (MTTR).
+
+Plus le temps de traitement est élevé,
+plus la récompense diminue.
+"""
+
+from dataclasses import dataclass
+
+from .reward_config import reward_config
+
+
+@dataclass
+class LatencyReward:
+    """
+    Calcule la pénalité de latence.
+    """
+
+    config = reward_config
+
+    def compute(self, processing_time: float) -> float:
+        """
+        Parameters
+        ----------
+        processing_time : float
+            Temps de traitement en secondes.
+
+        Returns
+        -------
+        float
+            Pénalité de latence.
+        """
+
+        # Si la pénalité est désactivée
+        if not self.config.enable_latency_reward:
+            return 0.0
+
+        # Validation
+        if processing_time is None:
+            return 0.0
+
+        if processing_time < 0:
+            raise ValueError(
+                "processing_time must be >= 0."
+            )
+
+        # -------------------------------------------
+        # Temps excellent (<2 sec)
+        # -------------------------------------------
+
+        if processing_time <= 2:
+
+            return 0.0
+
+        # -------------------------------------------
+        # Calcul linéaire
+        # -------------------------------------------
+
+        penalty = (
+            processing_time
+            * self.config.latency_weight
+        )
+
+        # -------------------------------------------
+        # Limitation de la pénalité maximale
+        # -------------------------------------------
+
+        penalty = min(
+            penalty,
+            self.config.max_latency_penalty
+        )
+
+        return -penalty
+
+============================================================
+FILE: backend/app/reward/reward_config.py
+============================================================
+"""Reward configuration helpers."""
+"""
+backend/app/reward/reward_config.py
+
+Configuration centrale du Reward System.
+
+Toutes les récompenses, pénalités et paramètres
+du Reward Shaping sont définis ici.
+"""
+
+from pydantic import BaseModel, Field
+
+
+class RewardConfig(BaseModel):
+    """
+    Hyperparamètres du Reward System.
+    """
+
+    # -----------------------------------------------------
+    # Incident Grade Reward
+    # -----------------------------------------------------
+
+    true_positive_reward: float = Field(
+        default=20.0,
+        description="Reward pour une vraie menace correctement traitée."
+    )
+
+    benign_positive_reward: float = Field(
+        default=8.0,
+        description="Reward pour une Benign Positive correctement fermée."
+    )
+
+    false_positive_reward: float = Field(
+        default=10.0,
+        description="Reward pour une False Positive correctement ignorée."
+    )
+
+    missed_true_positive_penalty: float = Field(
+        default=-40.0,
+        description="Pénalité si une vraie menace est ignorée."
+    )
+
+    false_positive_escalation_penalty: float = Field(
+        default=-15.0,
+        description="Pénalité pour une escalade inutile."
+    )
+
+    wrong_benign_penalty: float = Field(
+        default=-8.0,
+        description="Pénalité si une Benign Positive est escaladée."
+    )
+
+    # -----------------------------------------------------
+    # Last Verdict Reward
+    # -----------------------------------------------------
+
+    malicious_bonus: float = Field(
+        default=10.0
+    )
+
+    suspicious_bonus: float = Field(
+        default=5.0
+    )
+
+    unknown_penalty: float = Field(
+        default=-2.0
+    )
+
+    benign_penalty: float = Field(
+        default=-5.0
+    )
+
+    # -----------------------------------------------------
+    # Suspicion Level Reward
+    # -----------------------------------------------------
+
+    suspicion_high_bonus: float = Field(default=6.0)
+
+    suspicion_medium_bonus: float = Field(default=3.0)
+
+    suspicion_low_bonus: float = Field(default=1.0)
+
+    # -----------------------------------------------------
+    # Analyst Reward
+    # -----------------------------------------------------
+
+    analyst_bonus: float = Field(
+        default=4.0
+    )
+
+    analyst_penalty: float = Field(
+        default=-4.0
+    )
+
+    # -----------------------------------------------------
+    # Latency
+    # -----------------------------------------------------
+
+    latency_weight: float = Field(
+        default=0.10,
+        ge=0
+    )
+
+    max_latency_penalty: float = Field(
+        default=8.0,
+        ge=0
+    )
+
+    # -----------------------------------------------------
+    # Reward Clipping
+    # -----------------------------------------------------
+
+    min_reward: float = Field(default=-50.0)
+
+    max_reward: float = Field(default=50.0)
+
+    # -----------------------------------------------------
+    # Enable Modules
+    # -----------------------------------------------------
+
+    enable_latency_reward: bool = True
+
+    enable_analyst_reward: bool = True
+
+    enable_reward_clipping: bool = True
+
+    enable_verdict_reward: bool = True
+
+
+reward_config = RewardConfig()
+
+============================================================
+FILE: backend/app/reward/reward_function.py
+============================================================
+"""Core reward function logic."""
+"""
+backend/app/reward/reward_function.py
+
+Reward Engine principal.
+
+Ce module combine toutes les composantes du Reward System
+et retourne la récompense finale utilisée par
+l'environnement Gymnasium.
+"""
+
+from typing import Any, Dict
+
+from .reward_config import reward_config
+
+from .severity_reward import SeverityReward
+from .false_positive_reward import FalsePositiveReward
+from .analyst_reward import AnalystReward
+from .latency_reward import LatencyReward
+
+
+class RewardFunction:
+    """
+    Reward Engine principal.
+
+    Combine :
+
+        - Severity Reward
+
+        - False Positive Reward
+
+        - Analyst Reward
+
+        - Latency Reward
+
+    Puis applique un clipping.
+    """
+
+    def __init__(self):
+
+        self.config = reward_config
+
+        self.severity_reward = SeverityReward()
+
+        self.false_positive_reward = FalsePositiveReward()
+
+        self.analyst_reward = AnalystReward()
+
+        self.latency_reward = LatencyReward()
+
+    def compute_reward(
+        self,
+        incident: Dict[str, Any],
+        action: int,
+        processing_time: float
+    ) -> float:
+        """
+        Parameters
+        ----------
+        incident
+
+            Ligne du dataset Microsoft.
+
+        action
+
+            0 = Close / Ignore
+
+            1 = Escalate
+
+        processing_time
+
+            Temps de traitement (secondes).
+
+        Returns
+        -------
+        float
+
+            Reward final.
+        """
+
+        reward = 0.0
+
+        # -------------------------------------------
+        # Severity Reward
+        # -------------------------------------------
+
+        reward += self.severity_reward.compute(
+            incident=incident,
+            action=action
+        )
+
+        # -------------------------------------------
+        # False Positive Reward
+        # -------------------------------------------
+
+        reward += self.false_positive_reward.compute(
+            incident=incident,
+            action=action
+        )
+
+        # -------------------------------------------
+        # Analyst Reward
+        # -------------------------------------------
+
+        if self.config.enable_analyst_reward:
+
+            reward += self.analyst_reward.compute(
+                incident=incident,
+                action=action
+            )
+
+        # -------------------------------------------
+        # Latency Reward
+        # -------------------------------------------
+
+        reward += self.latency_reward.compute(
+            processing_time=processing_time
+        )
+
+        # -------------------------------------------
+        # Reward Clipping
+        # -------------------------------------------
+
+        if self.config.enable_reward_clipping:
+
+            reward = max(
+
+                self.config.min_reward,
+
+                min(
+                    reward,
+                    self.config.max_reward
+                )
+
+            )
+
+        return reward
+
+    def __call__(
+        self,
+        incident: Dict[str, Any],
+        action: int,
+        processing_time: float
+    ) -> float:
+        """
+        Permet d'utiliser directement
+        l'objet RewardFunction.
+
+        Exemple
+
+        reward = reward_engine(
+            incident,
+            action,
+            latency
+        )
+        """
+
+        return self.compute_reward(
+
+            incident=incident,
+
+            action=action,
+
+            processing_time=processing_time
+
+        )
+
+
+============================================================
+FILE: backend/app/reward/severity_reward.py
+============================================================
+"""Severity-based reward logic."""
+"""
+backend/app/reward/severity_reward.py
+
+Calcul de la récompense principale selon :
+
+- IncidentGrade
+- Action choisie par l'agent
+
+Action :
+    0 -> Close / Ignore
+    1 -> Escalate
+"""
+
+from dataclasses import dataclass
+from typing import Dict, Any
+
+from .reward_config import reward_config
+
+
+@dataclass
+class SeverityReward:
+    """
+    Reward basé sur la sévérité réelle
+    de l'incident.
+    """
+
+    config = reward_config
+
+    def compute(
+        self,
+        incident: Dict[str, Any],
+        action: int
+    ) -> float:
+
+        grade = str(
+            incident.get(
+                "IncidentGrade",
+                ""
+            )
+        ).strip()
+
+        # ---------------------------------------------------
+        # TRUE POSITIVE
+        # ---------------------------------------------------
+
+        if grade == "TruePositive":
+
+            # Bonne décision
+            if action == 1:
+
+                return self.config.true_positive_reward
+
+            # False Negative
+            return self.config.missed_true_positive_penalty
+
+        # ---------------------------------------------------
+        # FALSE POSITIVE
+        # ---------------------------------------------------
+
+        elif grade == "FalsePositive":
+
+            # Bonne décision
+            if action == 0:
+
+                return self.config.false_positive_reward
+
+            # Escalade inutile
+            return self.config.false_positive_escalation_penalty
+
+        # ---------------------------------------------------
+        # BENIGN POSITIVE
+        # ---------------------------------------------------
+
+        elif grade == "BenignPositive":
+
+            # Bonne décision
+            if action == 0:
+
+                return self.config.benign_positive_reward
+
+            # Escalade inutile
+            return self.config.wrong_benign_penalty
+
+        # ---------------------------------------------------
+        # UNKNOWN INCIDENT
+        # ---------------------------------------------------
+
+        return 0.0
+

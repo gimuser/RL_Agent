@@ -1,0 +1,1812 @@
+============================================================
+FILE: backend/app/config/settings.py
+============================================================
+
+"""Runtime settings for the backend.
+
+This simple settings object avoids importing pydantic.BaseSettings which may
+not be available in all test environments. Use environment variables or a
+proper settings management package in production.
+"""
+
+import os
+from pathlib import Path
+
+
+class Settings:
+    def __init__(self):
+        self.app_name: str = "SOAR-RL-Agent"
+        self.debug: bool = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
+        self.api_host: str = os.getenv("API_HOST", "0.0.0.0")
+        self.api_port: int = int(os.getenv("API_PORT", "8000"))
+        self.mongo_uri: str = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+        self.database_name: str = os.getenv("DATABASE_NAME", "soar_rl_agent")
+        self.mongo_timeout_ms: int = int(os.getenv("MONGO_TIMEOUT_MS", "1000"))
+        self.project_root: Path = Path(__file__).resolve().parents[3]
+        self.processed_data_dir: Path = Path(
+            os.getenv("PROCESSED_DATA_DIR", str(self.project_root / "data" / "processed"))
+        )
+        self.model_dir: Path = Path(os.getenv("MODEL_DIR", str(self.project_root / "models")))
+        self.model_path: Path = Path(os.getenv("MODEL_PATH", str(self.model_dir / "triage_dqn.pt")))
+        self.model_metadata_path: Path = Path(
+            os.getenv("MODEL_METADATA_PATH", str(self.model_dir / "triage_dqn.metadata.json"))
+        )
+        self.training_seed: int = int(os.getenv("TRAINING_SEED", "42"))
+        self.training_max_steps: int = int(os.getenv("TRAINING_MAX_STEPS", "500000"))
+        self.training_passes: int = int(os.getenv("TRAINING_PASSES", "3"))
+        self.training_episodes: int = int(os.getenv("TRAINING_EPISODES", "0"))
+        self.training_progress_interval: int = int(os.getenv("TRAINING_PROGRESS_INTERVAL", "1000"))
+        self.evaluation_max_steps: int = int(os.getenv("EVALUATION_MAX_STEPS", "500000"))
+        self.training_ram_limit_mb: int = int(os.getenv("TRAINING_RAM_LIMIT_MB", "2048"))
+        self.api_allowed_origins: list[str] = [
+            "http://localhost:8081",
+            "http://127.0.0.1:8081",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+        self.enable_api_activity_tracking: bool = True
+        self.api_status_poll_interval: int = 5
+        self.api_status_timeout_seconds: int = 15
+        self.persist_api_statuses: bool = True
+        self.api_components: list[dict] = [
+            {"name": "training", "prefix": "/api/training"},
+            {"name": "database", "prefix": "/api/database"},
+            {"name": "alerts", "prefix": "/api/alerts"},
+            {"name": "decisions", "prefix": "/api/decisions"},
+            {"name": "rewards", "prefix": "/api/rewards"},
+            {"name": "dashboard", "prefix": "/api/dashboard"},
+            {"name": "agent", "prefix": "/api/agent"},
+            {"name": "evaluation", "prefix": "/api/evaluation"},
+        ]
+        self.siem_base_url: str | None = os.getenv("SIEM_BASE_URL") or None
+        self.siem_api_key: str | None = os.getenv("SIEM_API_KEY") or None
+        self.soar_base_url: str | None = os.getenv("SOAR_BASE_URL") or None
+        self.soar_api_key: str | None = os.getenv("SOAR_API_KEY") or None
+        self.thehive_url: str | None = os.getenv("THEHIVE_URL") or None
+        self.thehive_api_key: str | None = os.getenv("THEHIVE_API_KEY") or None
+        self.cortex_url: str | None = os.getenv("CORTEX_URL") or None
+        self.cortex_api_key: str | None = os.getenv("CORTEX_API_KEY") or None
+        self.integration_timeout_seconds: float = float(os.getenv("INTEGRATION_TIMEOUT_SECONDS", "5"))
+
+
+settings = Settings()
+
+
+============================================================
+FILE: backend/app/reward/outcomes.py
+============================================================
+
+"""Canonical action IDs, names, and reward logic for the processed dataset."""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+CLOSE = 0
+ESCALATE = 1
+HUMAN_REVIEW = 2
+ACTION_NAMES = {
+    CLOSE: "close_recommendation",
+    ESCALATE: "escalate_for_human_review",
+    HUMAN_REVIEW: "request_human_validation",
+}
+
+# The processed dataset encodes the target as numeric IncidentGrade values.
+# We map those grades to the canonical action IDs defined above.
+EXPECTED_ACTION_BY_GRADE = {0: CLOSE, 1: CLOSE, 2: ESCALATE, 3: HUMAN_REVIEW}
+
+
+def validate_action_mapping(action_dim: int | None = None) -> None:
+    expected_dim = len(ACTION_NAMES)
+    if action_dim is not None and action_dim != expected_dim:
+        raise ValueError(f"Action space mismatch: expected {expected_dim} actions, got {action_dim}")
+
+
+def expected_action(incident_grade: int) -> int:
+    try:
+        return EXPECTED_ACTION_BY_GRADE[int(incident_grade)]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"Unsupported IncidentGrade value: {incident_grade!r}") from exc
+
+
+def historical_outcome_reward(incident_grade: int, action: int) -> float:
+    """Reward the agent using the numeric processed outcome labels."""
+    if action not in ACTION_NAMES:
+        raise ValueError(f"Unsupported action id: {action!r}")
+    target = expected_action(incident_grade)
+    if action == target:
+        return {CLOSE: 8.0, ESCALATE: 20.0, HUMAN_REVIEW: 3.0}[target]
+    if int(incident_grade) == 2 and action == CLOSE:
+        return -40.0
+    if int(incident_grade) in (0, 1) and action == ESCALATE:
+        return -15.0
+    if int(incident_grade) == 3 and action != HUMAN_REVIEW:
+        return -8.0
+    return -12.0
+
+
+def feedback_reward(
+    *,
+    outcome: str,
+    decision_correct: bool | None,
+    processing_time_seconds: float | None,
+) -> tuple[float, dict[str, Any]]:
+    """Calculate a persisted reward from a real human/executor result."""
+    if outcome == "failed":
+        base = -20.0
+    elif decision_correct is True:
+        base = 10.0
+    elif decision_correct is False:
+        base = -15.0
+    elif outcome == "approved":
+        base = 2.0
+    elif outcome in {"rejected", "cancelled"}:
+        base = -5.0
+    elif outcome == "executed":
+        base = 1.0
+    else:
+        raise ValueError(f"Unsupported feedback outcome: {outcome!r}")
+
+    latency_penalty = 0.0
+    if processing_time_seconds is not None:
+        if processing_time_seconds < 0:
+            raise ValueError("processing_time_seconds must be >= 0")
+        latency_penalty = min(float(processing_time_seconds) * 0.1, 8.0)
+    reward = max(-50.0, min(50.0, base - latency_penalty))
+    return reward, {
+        "outcome": outcome,
+        "decision_correct": decision_correct,
+        "processing_time_seconds": processing_time_seconds,
+        "base_reward": base,
+        "latency_penalty": latency_penalty,
+    }
+
+
+
+============================================================
+FILE: backend/app/environment/triage_env.py
+============================================================
+
+"""Dataset-backed Gymnasium environment for offline triage training."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import gymnasium as gym
+import numpy as np
+from gymnasium import spaces
+
+from app.data_pipeline.contract import FEATURE_COLUMNS, observations_for_split
+from app.reward.outcomes import ACTION_NAMES, historical_outcome_reward, validate_action_mapping
+
+
+class AlertTriageEnv(gym.Env[np.ndarray, int]):
+    """Sequential environment over existing processed incidents.
+
+    This is an offline, dataset-backed RL environment. Each transition uses a
+    real row from the processed CSV, and the next state is the next processed
+    row in the split. No synthetic alerts are generated.
+    """
+
+    metadata = {"render_modes": []}
+
+    def __init__(self, split: str = "train", max_steps: int = 1_000, start_index: int = 0):
+        if split not in {"train", "test"}:
+            raise ValueError("split must be 'train' or 'test'")
+        if max_steps < 1:
+            raise ValueError("max_steps must be >= 1")
+        self.split = split
+        self.observations, self.labels = observations_for_split(split)  # type: ignore[arg-type]
+        if self.observations.shape[1] != len(FEATURE_COLUMNS):
+            raise ValueError(f"State dimension mismatch: expected {len(FEATURE_COLUMNS)}, got {self.observations.shape[1]}")
+        validate_action_mapping(len(ACTION_NAMES))
+        self.max_steps = min(int(max_steps), len(self.observations))
+        self.default_start_index = start_index % len(self.observations)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.observations.shape[1],), dtype=np.float32)
+        self.action_space = spaces.Discrete(len(ACTION_NAMES))
+        self._index = self.default_start_index
+        self._steps = 0
+        self._episode_reward = 0.0
+        self._episode_actions: list[int] = []
+
+    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
+        super().reset(seed=seed)
+        start = self.default_start_index
+        if options and "start_index" in options:
+            start = int(options["start_index"]) % len(self.observations)
+        self._index = start
+        self._steps = 0
+        self._episode_reward = 0.0
+        self._episode_actions = []
+        return self.observations[self._index].copy(), {"split": self.split, "index": self._index, "feature_columns": list(FEATURE_COLUMNS)}
+
+    def step(self, action: int):
+        if not self.action_space.contains(action):
+            raise ValueError(f"Invalid action: {action}")
+        grade = int(self.labels[self._index])
+        reward = historical_outcome_reward(grade, int(action))
+        info = {
+            "split": self.split,
+            "index": self._index,
+            "incident_grade": grade,
+            "action_name": ACTION_NAMES[int(action)],
+        }
+        self._steps += 1
+        self._episode_reward += float(reward)
+        self._episode_actions.append(int(action))
+        self._index += 1
+        terminated = self._index >= len(self.observations)
+        truncated = self._steps >= self.max_steps and not terminated
+        next_index = min(self._index, len(self.observations) - 1)
+        next_state = self.observations[next_index].copy()
+        return next_state, float(reward), terminated, truncated, info
+
+
+
+============================================================
+FILE: backend/app/rl_agent/dqn.py
+============================================================
+
+import random
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from .networks import QNetwork, DuelingQNetwork
+from .memory import ReplayBuffer
+from .policy import EpsilonGreedyPolicy
+
+
+class DQNAgent:
+    """
+    Deep Q-Network (DQN) Agent.
+
+    This agent interacts with the environment by selecting actions
+    using an epsilon-greedy policy. It stores experiences in a replay
+    buffer and learns by minimizing the temporal-difference (TD) loss.
+
+    Attributes:
+        state_dim (int): Dimension of the input state.
+        action_dim (int): Number of possible actions.
+        gamma (float): Discount factor.
+        epsilon (float): Exploration rate.
+        batch_size (int): Number of samples used during training.
+    """
+
+    def __init__(
+        self,
+        state_dim,
+        action_dim,
+        learning_rate=1e-3,
+        gamma=0.99,
+        batch_size=64,
+        memory_size=10000,
+        target_update=100,
+        architecture: str = "standard",
+        dqn_type: str = "standard",
+    ):
+
+        self.device = torch.device("cpu")
+
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+
+        self.gamma = gamma
+        self.batch_size = batch_size
+        self.target_update = target_update
+        self.dqn_type = dqn_type  # 'standard' or 'double'
+
+        if architecture == "dueling":
+            self.model = DuelingQNetwork(state_dim, action_dim).to(self.device)
+            self.target_model = DuelingQNetwork(state_dim, action_dim).to(self.device)
+        else:
+            self.model = QNetwork(state_dim, action_dim).to(self.device)
+            self.target_model = QNetwork(state_dim, action_dim).to(self.device)
+
+        self.target_model.load_state_dict(
+            self.model.state_dict()
+        )
+
+        self.optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=learning_rate,
+        )
+
+        self.criterion = nn.MSELoss()
+
+        self.memory = ReplayBuffer(
+            capacity=memory_size
+        )
+
+        self.policy = EpsilonGreedyPolicy()
+
+        self.steps = 0
+
+    def act(self, state):
+        """
+        Select an action for the given state.
+
+        Args:
+            state: Current environment state.
+
+        Returns:
+            int: Selected action index.
+        """
+
+        if not isinstance(state, torch.Tensor):
+            state = torch.FloatTensor(state)
+
+        state = state.unsqueeze(0)
+
+        if random.random() < self.policy.epsilon:
+            return random.randint(
+                0,
+                self.action_dim - 1,
+            )
+
+        with torch.no_grad():
+
+            q_values = self.model(state)
+
+            return torch.argmax(
+                q_values,
+                dim=1,
+            ).item()
+
+    def remember(
+        self,
+        state,
+        action,
+        reward,
+        next_state,
+        done,
+    ):
+        """
+        Store one transition inside the replay buffer.
+
+        Args:
+            state: Current state.
+            action: Executed action.
+            reward: Received reward.
+            next_state: Next environment state.
+            done: Episode termination flag.
+        """
+
+        self.memory.add(
+            state,
+            action,
+            reward,
+            next_state,
+            done,
+        )
+
+    def update(self):
+        """
+        Perform one optimization step using a mini-batch sampled
+        from the replay buffer.
+
+        Returns:
+            float | None:
+                Training loss if an update was performed,
+                otherwise None.
+        """
+
+        if len(self.memory) < self.batch_size:
+            return None
+
+        batch = self.memory.sample(self.batch_size)
+
+        states, actions, rewards, next_states, dones = zip(*batch)
+
+        states = torch.FloatTensor(states)
+        actions = torch.LongTensor(actions).unsqueeze(1)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1)
+        next_states = torch.FloatTensor(next_states)
+        dones = torch.FloatTensor(dones).unsqueeze(1)
+
+        current_q = self.model(states).gather(1, actions)
+
+        with torch.no_grad():
+            if self.dqn_type == "double":
+                # Double DQN: action selected by online network, value from target network
+                next_actions = self.model(next_states).argmax(dim=1, keepdim=True)
+                next_q = self.target_model(next_states).gather(1, next_actions)
+            else:
+                # Standard DQN: use target network max over actions
+                next_q = self.target_model(next_states).max(dim=1, keepdim=True).values
+            target_q = rewards + self.gamma * next_q * (1 - dones)
+
+        loss = self.criterion(
+            current_q,
+            target_q,
+        )
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        self.policy.decay()
+
+        self.steps += 1
+
+        if self.steps % self.target_update == 0:
+            self.target_model.load_state_dict(
+                self.model.state_dict()
+            )
+
+        return loss.item()
+
+    def save(self, path):
+        """
+        Save the trained model.
+
+        Args:
+            path (str): Destination file path.
+        """
+
+        torch.save(
+            self.model.state_dict(),
+            path,
+        )
+
+    def load(self, path):
+        """
+        Load a previously trained model.
+
+        Args:
+            path (str): Model file path.
+        """
+
+        self.model.load_state_dict(
+            torch.load(
+                path,
+                map_location=self.device,
+            )
+        )
+
+        self.target_model.load_state_dict(
+            self.model.state_dict()
+        )
+
+
+if __name__ == "__main__":
+
+    import numpy as np
+
+    agent = DQNAgent(
+        state_dim=4,
+        action_dim=2,
+    )
+
+    state = np.random.rand(4)
+    next_state = np.random.rand(4)
+
+    action = agent.act(state)
+
+    agent.remember(
+        state,
+        action,
+        1.0,
+        next_state,
+        False,
+    )
+
+    print("Selected Action:", action)
+    print("DQN Agent initialized successfully.")
+
+============================================================
+FILE: backend/app/rl_agent/networks.py
+============================================================
+
+import torch
+import torch.nn as nn
+
+
+class QNetwork(nn.Module):
+    """
+    Deep Q-Network (DQN)
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, action_size)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class DuelingQNetwork(nn.Module):
+    """
+    Dueling DQN network: separate value and advantage streams.
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+        self.feature = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+        )
+        self.value_stream = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
+        self.advantage_stream = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, action_size))
+
+    def forward(self, x):
+        features = self.feature(x)
+        value = self.value_stream(features)
+        adv = self.advantage_stream(features)
+        q = value + adv - adv.mean(dim=1, keepdim=True)
+        return q
+
+
+class ActorNetwork(nn.Module):
+    """
+    PPO Actor Network
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, action_size),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class CriticNetwork(nn.Module):
+    """
+    PPO Critic Network
+    """
+
+    def __init__(self, state_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+============================================================
+FILE: backend/app/rl_agent/memory.py
+============================================================
+
+from collections import deque
+import random
+
+
+class ReplayBuffer:
+    """
+    Replay Buffer for storing agent experiences.
+    """
+
+    def __init__(self, capacity: int = 10000):
+        self.buffer = deque(maxlen=capacity)
+
+    def add(self, state, action, reward, next_state, done):
+        self.buffer.append(
+            (state, action, reward, next_state, done)
+        )
+
+    def sample(self, batch_size: int):
+        return random.sample(self.buffer, batch_size)
+
+    def __len__(self):
+        return len(self.buffer)
+    
+
+============================================================
+FILE: backend/app/rl_agent/trainer.py
+============================================================
+
+"""Dataset-backed DQN trainer for the processed CSV contract."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from threading import Event
+from time import perf_counter
+
+import torch
+
+from app.config.settings import settings
+from app.data_pipeline.contract import FEATURE_COLUMNS
+from app.environment.triage_env import AlertTriageEnv
+from app.reward.outcomes import ACTION_NAMES, expected_action, validate_action_mapping
+from app.rl_agent.dqn import DQNAgent
+from app.rl_agent.utils import set_seed
+
+
+class Trainer:
+    """Reinforcement Learning Trainer."""
+
+    def __init__(self, algorithm="dqn", state_dim: int | None = None, action_dim: int | None = None, agent_config: dict | None = None):
+        self.algorithm = algorithm.lower()
+        if self.algorithm != "dqn":
+            raise ValueError("Only the validated DQN training path is currently supported")
+        self.agent_config = agent_config or {}
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.agent: DQNAgent | None = None
+
+    def _resolve_dimensions(self, env: AlertTriageEnv) -> tuple[int, int]:
+        state_dim = int(env.observation_space.shape[0])
+        action_dim = int(env.action_space.n)
+        if self.state_dim is None:
+            self.state_dim = state_dim
+        if self.action_dim is None:
+            self.action_dim = action_dim
+        if self.state_dim != state_dim:
+            raise ValueError(f"Configured state_dim {self.state_dim} does not match environment state_dim {state_dim}")
+        if self.action_dim != action_dim:
+            raise ValueError(f"Configured action_dim {self.action_dim} does not match environment action_dim {action_dim}")
+        validate_action_mapping(action_dim)
+        return self.state_dim, self.action_dim
+
+    def train(
+        self,
+        *,
+        training_passes: int | None,
+        max_steps: int,
+        seed: int,
+        stop_event: Event | None = None,
+        on_episode: Callable[[dict], None] | None = None,
+        on_progress: Callable[[dict], None] | None = None,
+    ) -> dict:
+        """Train by traversing the real training split one pass at a time."""
+        if max_steps < 1:
+            raise ValueError("max_steps must be >= 1")
+        set_seed(seed)
+        env = AlertTriageEnv(split="train", max_steps=10**9)
+        state_dim, action_dim = self._resolve_dimensions(env)
+        total_rows = int(len(env.observations))
+        effective_max_steps = min(total_rows, int(max_steps))
+        if training_passes is None:
+            training_passes = int(getattr(settings, "training_passes", 1))
+        training_passes = int(training_passes)
+        if training_passes < 1:
+            raise ValueError("training_passes must be >= 1")
+        self.agent = DQNAgent(state_dim=state_dim, action_dim=action_dim, **self.agent_config)
+        self.on_progress = on_progress
+        episode_records: list[dict] = []
+        stopped = False
+        environment_steps = 0
+        gradient_updates = 0
+        start_time = perf_counter()
+        progress_interval = max(1, int(getattr(settings, "training_progress_interval", 1000)))
+        for pass_idx in range(training_passes):
+            if stop_event and stop_event.is_set():
+                stopped = True
+                break
+            env_pass = AlertTriageEnv(split="train", max_steps=effective_max_steps)
+            state, _ = env_pass.reset(seed=seed, options={"start_index": 0})
+            total_reward = 0.0
+            losses: list[float] = []
+            steps = 0
+            while True:
+                if stop_event and stop_event.is_set():
+                    stopped = True
+                    break
+                action = self.agent.act(state)
+                next_state, reward, terminated, truncated, _ = env_pass.step(action)
+                self.agent.remember(state, action, reward, next_state, terminated or truncated)
+                loss = self.agent.update()
+                if loss is not None:
+                    losses.append(float(loss))
+                    gradient_updates += 1
+                total_reward += float(reward)
+                steps += 1
+                environment_steps += 1
+                if (environment_steps % progress_interval) == 0 and (on_progress or getattr(self, "on_progress", None)):
+                    prog = {
+                        "pass": pass_idx + 1,
+                        "environment_steps": int(environment_steps),
+                        "dataset_rows": int(total_rows),
+                        "gradient_updates": int(gradient_updates),
+                        "last_loss": float(losses[-1]) if losses else None,
+                        "last_reward": float(total_reward / steps) if steps else None,
+                        "replay_size": int(len(self.agent.memory)),
+                        "replay_capacity": int(self.agent.memory.buffer.maxlen),
+                        "epsilon": float(self.agent.policy.epsilon),
+                    }
+                    try:
+                        if callable(getattr(self, "on_progress", None)):
+                            self.on_progress(prog)
+                    except Exception:
+                        pass
+                state = next_state
+                if terminated or truncated:
+                    break
+            record = {
+                "pass": pass_idx + 1,
+                "steps": steps,
+                "total_reward": total_reward,
+                "average_reward": total_reward / steps if steps else None,
+                "loss": sum(losses) / len(losses) if losses else None,
+                "epsilon": float(self.agent.policy.epsilon),
+                "replay_buffer_size": len(self.agent.memory),
+                "replay_capacity": int(self.agent.memory.buffer.maxlen),
+            }
+            episode_records.append(record)
+            if on_episode:
+                on_episode(record)
+            if stopped:
+                break
+        elapsed = perf_counter() - start_time
+        return {
+            "training_passes": int(training_passes),
+            "episodes": len(episode_records),
+            "stopped": stopped,
+            "passes": episode_records,
+            "state_dim": int(state_dim),
+            "action_dim": int(action_dim),
+            "feature_columns": list(FEATURE_COLUMNS),
+            "dataset_rows": int(total_rows),
+            "environment_steps": int(environment_steps),
+            "gradient_updates": int(gradient_updates),
+            "elapsed_seconds": float(elapsed),
+            "action_names": ACTION_NAMES,
+        }
+
+    def evaluate(self, max_steps: int | None = None) -> dict:
+        if max_steps is None:
+            env = AlertTriageEnv(split="test", max_steps=10**9)
+        else:
+            env = AlertTriageEnv(split="test", max_steps=min(int(max_steps), len(AlertTriageEnv(split="test", max_steps=10**9).observations)))
+        state, _ = env.reset(options={"start_index": 0})
+        if self.agent is None:
+            raise RuntimeError("Trainer must be trained before evaluation")
+        predictions: list[int] = []
+        expected: list[int] = []
+        rewards: list[float] = []
+        latencies: list[float] = []
+        action_counts: dict[int, int] = {idx: 0 for idx in ACTION_NAMES}
+        correct = 0
+        total_reward = 0.0
+        samples = 0
+        with torch.no_grad():
+            while True:
+                q_values = self.agent.model(torch.as_tensor(state, dtype=torch.float32).unsqueeze(0))
+                start = perf_counter()
+                action = int(torch.argmax(q_values, dim=1).item())
+                latencies.append((perf_counter() - start) * 1000.0)
+                next_state, reward, terminated, truncated, info = env.step(action)
+                target_action = expected_action(int(info["incident_grade"]))
+                predictions.append(action)
+                expected.append(target_action)
+                rewards.append(float(reward))
+                action_counts[action] = action_counts.get(action, 0) + 1
+                correct += int(action == target_action)
+                total_reward += float(reward)
+                samples += 1
+                state = next_state
+                if terminated or truncated:
+                    break
+        confusion_matrix = {action: {target: 0 for target in ACTION_NAMES} for action in ACTION_NAMES}
+        for pred, target in zip(predictions, expected, strict=False):
+            confusion_matrix[pred][target] += 1
+        precision_values: list[float] = []
+        recall_values: list[float] = []
+        f1_values: list[float] = []
+        for label in ACTION_NAMES:
+            tp = confusion_matrix[label][label]
+            fp = sum(confusion_matrix[other][label] for other in ACTION_NAMES if other != label)
+            fn = sum(confusion_matrix[label][other] for other in ACTION_NAMES if other != label)
+            precision = tp / (tp + fp) if (tp + fp) else 0.0
+            recall = tp / (tp + fn) if (tp + fn) else 0.0
+            f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+            precision_values.append(precision)
+            recall_values.append(recall)
+            f1_values.append(f1)
+        return {
+            "split": "test",
+            "samples": int(samples),
+            "test_rows": int(len(env.observations)),
+            "policy_action_accuracy": correct / samples if samples else None,
+            "average_historical_reward": total_reward / samples if samples else None,
+            "total_historical_reward": total_reward,
+            "action_distribution": action_counts,
+            "confusion_matrix": confusion_matrix,
+            "precision": sum(precision_values) / len(precision_values) if precision_values else None,
+            "recall": sum(recall_values) / len(recall_values) if recall_values else None,
+            "f1": sum(f1_values) / len(f1_values) if f1_values else None,
+            "inference_latency_mean": float(sum(latencies) / len(latencies)) if latencies else None,
+            "inference_latency_p95": float(torch.tensor(latencies).quantile(0.95).item()) if latencies else None,
+        }
+
+
+============================================================
+FILE: backend/app/services/experiment_service.py
+============================================================
+
+"""Sequential multi-model experiment orchestration over the real processed data."""
+
+from __future__ import annotations
+
+import gc
+import json
+import logging
+import resource
+import threading
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import torch
+
+from app.config.settings import settings
+from app.data_pipeline.contract import FEATURE_COLUMNS, audit_processed_split, feature_schema
+from app.rl_agent.trainer import Trainer
+
+logger = logging.getLogger(__name__)
+
+EXPERIMENTS_DIR = settings.model_dir / "experiments"
+EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
+EXPERIMENTS: dict[str, dict] = {}
+
+
+def _model_path(name: str) -> Path:
+    return settings.model_dir / f"{name}.pt"
+
+
+def _metadata_path(name: str) -> Path:
+    return settings.model_dir / f"{name}.metadata.json"
+
+
+def _json_default(value: Any) -> Any:
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    raise TypeError()
+
+
+def _save_model_artifact(model: torch.nn.Module, name: str, training: dict, evaluation: dict) -> dict:
+    model_path = _model_path(name)
+    metadata_path = _metadata_path(name)
+    metadata = {
+        "model_name": name,
+        "algorithm": "dqn",
+        "architecture": training.get("architecture", "standard"),
+        "dqn_type": training.get("dqn_type", "standard"),
+        "state_dim": int(training.get("state_dim", len(FEATURE_COLUMNS))),
+        "action_dim": int(training.get("action_dim", 3)),
+        "feature_columns": list(FEATURE_COLUMNS),
+        "training_dataset": str(settings.processed_data_dir / "train_processed.csv"),
+        "training_rows": int(training.get("dataset_rows", 0)),
+        "training_passes": int(training.get("training_passes", 0)),
+        "environment_steps": int(training.get("environment_steps", 0)),
+        "gradient_updates": int(training.get("gradient_updates", 0)),
+        "test_dataset": str(settings.processed_data_dir / "test_processed.csv"),
+        "test_rows": int(evaluation.get("test_rows", 0)),
+        "evaluation": evaluation,
+        "training_duration_seconds": float(training.get("elapsed_seconds", 0.0)),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "feature_schema": feature_schema(),
+    }
+    tmp_model = model_path.with_suffix(model_path.suffix + ".tmp")
+    tmp_meta = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
+    try:
+        torch.save(model.state_dict(), tmp_model)
+        tmp_meta.write_text(json.dumps(metadata, indent=2, default=_json_default), encoding="utf-8")
+        tmp_model.replace(model_path)
+        tmp_meta.replace(metadata_path)
+    finally:
+        for path in (tmp_model, tmp_meta):
+            if path.exists():
+                path.unlink(missing_ok=True)
+    return {"model_path": str(model_path), "metadata_path": str(metadata_path), "metadata": metadata}
+
+
+def _release_memory() -> None:
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+def _current_ram_mb() -> float:
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+
+
+def start_experiment_background(models: list[dict[str, Any]]) -> dict[str, Any]:
+    run_id = uuid.uuid4().hex
+    stop_event = threading.Event()
+    state: dict[str, Any] = {
+        "run_id": run_id,
+        "status": "queued",
+        "models": [],
+        "created_at": datetime.now(UTC).isoformat(),
+        "training_dataset": str(settings.processed_data_dir / "train_processed.csv"),
+        "test_dataset": str(settings.processed_data_dir / "test_processed.csv"),
+        "stop_event": stop_event,
+    }
+    EXPERIMENTS[run_id] = state
+
+    def _worker() -> None:
+        state["status"] = "running"
+        train_audit = audit_processed_split("train")
+        test_audit = audit_processed_split("test")
+        state["training_rows"] = train_audit.rows
+        state["test_rows"] = test_audit.rows
+        state["total_models"] = len(models)
+        results: list[dict[str, Any]] = []
+        for idx, cfg in enumerate(models, start=1):
+            if stop_event.is_set():
+                state["status"] = "stopped"
+                break
+            model_entry = {
+                "name": cfg.get("name"),
+                "status": "training",
+                "index": idx,
+                "total": len(models),
+                "training_progress": {},
+            }
+            state["current_model"] = cfg.get("name")
+            state["model_index"] = idx
+            state["total_models"] = len(models)
+            state["models"].append(model_entry)
+            try:
+                training_passes = int(cfg.get("training_passes", getattr(settings, "training_passes", 1)))
+                trainer = Trainer(agent_config={
+                    "learning_rate": cfg.get("learning_rate", 1e-3),
+                    "gamma": cfg.get("gamma", 0.99),
+                    "batch_size": cfg.get("batch_size", 64),
+                    "memory_size": cfg.get("memory_size", 50000),
+                    "target_update": cfg.get("target_update", 1000),
+                    "architecture": cfg.get("architecture", "standard"),
+                    "dqn_type": cfg.get("dqn_type", "standard"),
+                })
+                def on_progress(prog: dict) -> None:
+                    model_entry["training_progress"].update({
+                        "environment_steps": prog.get("environment_steps"),
+                        "dataset_rows": prog.get("dataset_rows"),
+                        "gradient_updates": prog.get("gradient_updates"),
+                        "last_loss": prog.get("last_loss"),
+                        "last_reward": prog.get("last_reward"),
+                        "replay_size": prog.get("replay_size"),
+                        "replay_capacity": prog.get("replay_capacity"),
+                        "epsilon": prog.get("epsilon"),
+                    })
+                    state["training"] = {
+                        "dataset": "train_processed.csv",
+                        "rows": train_audit.rows,
+                        "environment_steps": prog.get("environment_steps"),
+                        "episodes": idx,
+                        "gradient_updates": prog.get("gradient_updates"),
+                        "epsilon": prog.get("epsilon"),
+                        "mean_reward": prog.get("last_reward"),
+                        "mean_loss": prog.get("last_loss"),
+                    }
+                    state["ram_usage_mb"] = _current_ram_mb()
+                    if _current_ram_mb() > settings.training_ram_limit_mb:
+                        stop_event.set()
+                        state["status"] = "stopped"
+                        state["stop_reason"] = "Training stopped because RAM safety threshold was reached."
+
+                training = trainer.train(
+                    training_passes=training_passes,
+                    max_steps=settings.training_max_steps,
+                    seed=settings.training_seed,
+                    stop_event=stop_event,
+                    on_progress=on_progress,
+                )
+                if stop_event.is_set():
+                    raise RuntimeError("Training stopped before completion")
+                evaluation = trainer.evaluate(max_steps=settings.evaluation_max_steps)
+                if trainer.agent is None:
+                    raise RuntimeError("Training did not initialize an agent")
+                artifact = _save_model_artifact(trainer.agent.model, str(cfg.get("name") or "dqn_model"), {**training, **cfg}, evaluation)
+                model_entry.update({
+                    "status": "completed",
+                    "training": training,
+                    "evaluation": evaluation,
+                    "artifact": artifact,
+                })
+                state["evaluation"] = evaluation
+                state["checkpoint"] = artifact["model_path"]
+                results.append(model_entry)
+                _release_memory()
+            except Exception as exc:
+                model_entry.update({"status": "failed", "error": str(exc)})
+                state["error"] = str(exc)
+                state["status"] = "failed"
+                _release_memory()
+                break
+        if state.get("status") != "failed" and state.get("status") != "stopped":
+            state["status"] = "completed"
+        if results:
+            best = None
+            for entry in results:
+                eval_metrics = entry.get("evaluation") or {}
+                score = eval_metrics.get("average_historical_reward", -1e9)
+                if best is None or score > best.get("evaluation", {}).get("average_historical_reward", -1e9):
+                    best = entry
+            state["best"] = best
+        state["results"] = results
+
+    thread = threading.Thread(target=_worker, daemon=True, name=f"experiment-{run_id}")
+    thread.start()
+    state["status"] = "started"
+    return {"run_id": run_id, "status": "started"}
+
+
+def stop_experiment(run_id: str) -> dict[str, Any]:
+    entry = EXPERIMENTS.get(run_id)
+    if not entry:
+        return {"status": "not_found"}
+    stop_event = entry.get("stop_event")
+    if stop_event is not None:
+        stop_event.set()
+        entry["status"] = "stopping"
+    return {"status": "stopping", "run_id": run_id}
+
+
+def get_experiment_status(run_id: str) -> dict:
+    return EXPERIMENTS.get(run_id, {"status": "not_found"})
+
+
+
+============================================================
+FILE: backend/app/api/training.py
+============================================================
+
+from fastapi import APIRouter
+from app.services.training_service import (
+    get_training_status,
+    start_training as start_training_service,
+    stop_training as stop_training_service,
+    get_checkpoints,
+    get_history,
+    get_metrics,
+)
+from app.services.experiment_service import get_experiment_status, start_experiment_background, stop_experiment
+
+router = APIRouter(prefix="/api/training", tags=["Training"])
+
+@router.get("/status")
+def training_status():
+    return get_training_status()
+
+@router.post("/start")
+def start_training():
+    return start_training_service()
+
+@router.post("/stop")
+def stop_training():
+    return stop_training_service()
+
+@router.get("/checkpoints")
+def api_get_checkpoints():
+    return {"checkpoints": get_checkpoints()}
+
+@router.get("/history")
+def api_get_history():
+    return {"history": get_history()}
+
+@router.get("/metrics")
+def api_get_metrics(limit: int = 100):
+    return {"metrics": get_metrics(limit)}
+
+
+@router.post("/experiment")
+def api_start_experiment(models: list[dict]):
+    return start_experiment_background(models)
+
+
+@router.post("/experiment/{run_id}/stop")
+def api_stop_experiment(run_id: str):
+    return stop_experiment(run_id)
+
+
+@router.get("/experiment/{run_id}/status")
+def api_experiment_status(run_id: str):
+    return get_experiment_status(run_id)
+
+
+============================================================
+FILE: backend/app/data_pipeline/contract.py
+============================================================
+
+"""The single data contract used by training, evaluation, and inference.
+
+The repository's processed CSV files are intentionally treated as immutable
+inputs.  Version 1 of their historic preprocessing fitted categorical encoders
+separately per split and scaled time values using train+test data.  This module
+keeps those files intact while providing a train-fitted runtime adapter for
+the operational model.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Iterable, Literal
+
+import numpy as np
+import pandas as pd
+
+from app.config.settings import settings
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROCESSED_DIR = settings.processed_data_dir
+RAW_DIR = PROJECT_ROOT / "data"
+SCHEMA_VERSION = "alert-observation-v2"
+TARGET_COLUMN = "IncidentGrade"
+
+# ActionGrouped and ActionGranular describe downstream handling and are not
+# available when a new alert is triaged. IncidentId is a row identifier and
+# LastVerdict may be an after-the-fact verdict, so neither is an observation.
+FEATURE_COLUMNS = (
+    "Category",
+    "MitreTechniques",
+    "EntityType",
+    "EvidenceRole",
+    "ThreatFamily",
+    "OSFamily",
+    "SuspicionLevel",
+    "hour",
+    "day",
+    "month",
+    "is_weekend",
+)
+CATEGORICAL_COLUMNS = FEATURE_COLUMNS[:7]
+TIME_COLUMNS = FEATURE_COLUMNS[7:]
+REQUIRED_PROCESSED_COLUMNS = (
+    "IncidentId",
+    "Timestamp",
+    "Category",
+    "MitreTechniques",
+    TARGET_COLUMN,
+    "ActionGrouped",
+    "ActionGranular",
+    "EntityType",
+    "EvidenceRole",
+    "ThreatFamily",
+    "OSFamily",
+    "SuspicionLevel",
+    "LastVerdict",
+    "hour",
+    "day",
+    "month",
+    "is_weekend",
+)
+
+ALERT_FIELD_TO_DATASET_COLUMN = {
+    "category": "Category",
+    "mitre_techniques": "MitreTechniques",
+    "entity_type": "EntityType",
+    "evidence_role": "EvidenceRole",
+    "threat_family": "ThreatFamily",
+    "os_family": "OSFamily",
+    "suspicion_level": "SuspicionLevel",
+}
+
+
+class DataContractError(ValueError):
+    """Raised when a dataset or incoming alert violates the observation contract."""
+
+
+@dataclass(frozen=True)
+class DatasetAudit:
+    split: str
+    rows: int
+    columns: int
+    missing_values: int
+    duplicate_rows: int
+    class_distribution: dict[str, int]
+
+
+def _processed_path(split: Literal["train", "test"]) -> Path:
+    return PROCESSED_DIR / f"{split}_processed.csv"
+
+
+@lru_cache(maxsize=2)
+def load_processed_split(split: Literal["train", "test"]) -> pd.DataFrame:
+    """Load and validate an existing processed split without rewriting it."""
+    path = _processed_path(split)
+    if not path.is_file():
+        raise DataContractError(f"Processed {split} dataset is missing: {path}")
+
+    frame = pd.read_csv(path)
+    missing = [column for column in REQUIRED_PROCESSED_COLUMNS if column not in frame.columns]
+    if missing:
+        raise DataContractError(f"Processed {split} dataset is missing columns: {', '.join(missing)}")
+    if frame.empty:
+        raise DataContractError(f"Processed {split} dataset is empty")
+    if frame[list(FEATURE_COLUMNS)].isna().any().any():
+        raise DataContractError(f"Processed {split} dataset contains missing observation values")
+    return frame
+
+
+@lru_cache(maxsize=2)
+def audit_processed_split(split: Literal["train", "test"]) -> DatasetAudit:
+    frame = load_processed_split(split)
+    distribution = frame[TARGET_COLUMN].value_counts(dropna=False).sort_index().to_dict()
+    return DatasetAudit(
+        split=split,
+        rows=len(frame),
+        columns=len(frame.columns),
+        missing_values=int(frame.isna().sum().sum()),
+        duplicate_rows=int(frame.duplicated().sum()),
+        class_distribution={str(key): int(value) for key, value in distribution.items()},
+    )
+
+
+@lru_cache(maxsize=1)
+def _train_feature_limits() -> tuple[dict[str, float], dict[str, tuple[float, float]]]:
+    train = load_processed_split("train")
+    # Reserve one normalized value for source categories first observed after
+    # training. This is an explicit UNKNOWN bucket, not a fabricated category.
+    categorical_maxima = {
+        column: max(1.0, float(pd.to_numeric(train[column], errors="raise").max()) + 1.0)
+        for column in CATEGORICAL_COLUMNS
+    }
+    timestamp = pd.to_datetime(train["Timestamp"], utc=True, errors="raise")
+    time_values = _extract_time_features(timestamp)
+    time_ranges = {
+        column: (float(time_values[column].min()), float(time_values[column].max()))
+        for column in TIME_COLUMNS
+    }
+    return categorical_maxima, time_ranges
+
+
+def _extract_time_features(timestamp: pd.Series) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "hour": timestamp.dt.hour.astype(float),
+            "day": timestamp.dt.day.astype(float),
+            "month": timestamp.dt.month.astype(float),
+            "is_weekend": (timestamp.dt.dayofweek >= 5).astype(float),
+        },
+        index=timestamp.index,
+    )
+
+
+def _scale(value: float, lower: float, upper: float) -> float:
+    if upper <= lower:
+        return 0.0
+    # Values outside the historical training range remain explicit rather than
+    # being clipped, so distribution shift is not silently hidden.
+    return (value - lower) / (upper - lower)
+
+
+def observations_for_split(split: Literal["train", "test"]) -> tuple[np.ndarray, np.ndarray]:
+    """Return observations and target labels using the train-fitted contract.
+
+    Train categorical codes come from the existing processed data. For test,
+    the raw split is aligned with the existing processed rows and translated
+    through the *training* codebook, fixing the historic split-local encoding
+    mismatch without creating replacement datasets.
+    """
+    frame = load_processed_split(split)
+    categorical_maxima, time_ranges = _train_feature_limits()
+    values: dict[str, np.ndarray] = {}
+
+    if split == "train":
+        for column in CATEGORICAL_COLUMNS:
+            raw_values = pd.to_numeric(frame[column], errors="raise").astype(float)
+            values[column] = (raw_values / categorical_maxima[column]).to_numpy(dtype=np.float32)
+    else:
+        raw = _aligned_raw_split("test")
+        mappings = _raw_to_train_codebook()
+        for column in CATEGORICAL_COLUMNS:
+            mapped = raw[column].astype(str).map(mappings[column])
+            # A category legitimately absent from train has no encoder ID in
+            # the historical file. Route it to the documented UNKNOWN bucket.
+            mapped = mapped.fillna(categorical_maxima[column])
+            values[column] = (mapped.astype(float) / categorical_maxima[column]).to_numpy(dtype=np.float32)
+
+    timestamp = pd.to_datetime(frame["Timestamp"], utc=True, errors="raise")
+    time_values = _extract_time_features(timestamp)
+    for column in TIME_COLUMNS:
+        lower, upper = time_ranges[column]
+        values[column] = np.asarray(
+            [_scale(float(item), lower, upper) for item in time_values[column]], dtype=np.float32
+        )
+
+    observations = np.column_stack([values[column] for column in FEATURE_COLUMNS]).astype(np.float32)
+    labels = pd.to_numeric(frame[TARGET_COLUMN], errors="raise").to_numpy(dtype=np.int64)
+    return observations, labels
+
+
+@lru_cache(maxsize=2)
+def _aligned_raw_split(split: Literal["train", "test"]) -> pd.DataFrame:
+    path = RAW_DIR / f"data_{split}.csv"
+    if not path.is_file():
+        raise DataContractError(f"Raw {split} data is required for encoder compatibility but missing: {path}")
+    raw = pd.read_csv(path).drop_duplicates().fillna("Unknown").reset_index(drop=True)
+    processed = load_processed_split(split)
+    if len(raw) != len(processed):
+        raise DataContractError(
+            f"Raw/processed {split} row counts differ ({len(raw)} != {len(processed)}); cannot safely align encodings"
+        )
+    # Timestamp is an immutable cross-check; do not rely only on row order.
+    raw_timestamp = pd.to_datetime(raw["Timestamp"], utc=True, errors="raise")
+    processed_timestamp = pd.to_datetime(processed["Timestamp"], utc=True, errors="raise")
+    if not raw_timestamp.equals(processed_timestamp):
+        raise DataContractError(f"Raw/processed {split} timestamps are not aligned")
+    return raw
+
+
+@lru_cache(maxsize=1)
+def _raw_to_train_codebook() -> dict[str, dict[str, float]]:
+    raw_train = _aligned_raw_split("train")
+    processed_train = load_processed_split("train")
+    mappings: dict[str, dict[str, float]] = {}
+    for column in CATEGORICAL_COLUMNS:
+        pairs = pd.DataFrame(
+            {
+                "raw": raw_train[column].astype(str),
+                "code": pd.to_numeric(processed_train[column], errors="raise").astype(float),
+            }
+        ).drop_duplicates()
+        if pairs["raw"].duplicated().any():
+            raise DataContractError(f"Training encoder for {column} is not a one-to-one mapping")
+        mappings[column] = dict(zip(pairs["raw"], pairs["code"], strict=True))
+    return mappings
+
+
+def observation_from_alert(alert: dict[str, Any]) -> np.ndarray:
+    """Transform one canonical external alert into the model observation.
+
+    Categorical fields may be supplied as the original source value or as a
+    numeric value already encoded with the training contract. Timestamp must
+    be present to produce the train-normalized time features.
+    """
+    mappings = _raw_to_train_codebook()
+    categorical_maxima, time_ranges = _train_feature_limits()
+    missing = [field for field in ALERT_FIELD_TO_DATASET_COLUMN if alert.get(field) is None]
+    if alert.get("timestamp") is None:
+        missing.append("timestamp")
+    if missing:
+        raise DataContractError("Alert lacks required state fields: " + ", ".join(missing))
+
+    vector: list[float] = []
+    for field, column in ALERT_FIELD_TO_DATASET_COLUMN.items():
+        value = alert[field]
+        if isinstance(value, bool):
+            raise DataContractError(f"{field} must be a source value or encoded numeric value")
+        if isinstance(value, (int, float)):
+            encoded = float(value)
+        else:
+            encoded = mappings[column].get(str(value), categorical_maxima[column])
+        vector.append(encoded / categorical_maxima[column])
+
+    timestamp = pd.to_datetime(pd.Series([alert["timestamp"]]), utc=True, errors="coerce")
+    if timestamp.isna().any():
+        raise DataContractError("timestamp must be a valid ISO-8601 datetime")
+    time_values = _extract_time_features(timestamp)
+    for column in TIME_COLUMNS:
+        lower, upper = time_ranges[column]
+        vector.append(_scale(float(time_values.iloc[0][column]), lower, upper))
+    return np.asarray(vector, dtype=np.float32)
+
+
+def feature_schema() -> dict[str, Any]:
+    """Serializable model-contract metadata."""
+    categorical_maxima, time_ranges = _train_feature_limits()
+    return {
+        "version": SCHEMA_VERSION,
+        "target_column": TARGET_COLUMN,
+        "feature_order": list(FEATURE_COLUMNS),
+        "excluded_columns": ["IncidentId", TARGET_COLUMN, "ActionGrouped", "ActionGranular", "LastVerdict"],
+        "categorical_maxima": categorical_maxima,
+        "time_ranges": {name: list(bounds) for name, bounds in time_ranges.items()},
+        "train_rows": audit_processed_split("train").rows,
+        "test_rows": audit_processed_split("test").rows,
+    }
+
+
+def clear_dataset_caches() -> None:
+    """Test helper for isolated dataset-contract tests."""
+    for func in (
+        load_processed_split,
+        audit_processed_split,
+        _train_feature_limits,
+        _aligned_raw_split,
+        _raw_to_train_codebook,
+    ):
+        func.cache_clear()
+
+
+============================================================
+FILE: backend/app/tests/test_environment.py
+============================================================
+
+"""Tests for the dataset-backed RL environment."""
+
+import numpy as np
+
+from app.environment.triage_env import AlertTriageEnv
+from app.data_pipeline.contract import FEATURE_COLUMNS, observations_for_split
+
+
+def test_environment_uses_processed_rows_and_real_dimensions():
+    env = AlertTriageEnv(split="train", max_steps=5)
+    obs, _ = env.reset(options={"start_index": 0})
+    assert obs.shape == (len(FEATURE_COLUMNS),)
+    assert env.observation_space.shape == (len(FEATURE_COLUMNS),)
+    assert env.action_space.n == 3
+    assert env.max_steps == 5
+
+
+def test_environment_step_uses_real_row_indices():
+    env = AlertTriageEnv(split="train", max_steps=3)
+    _, info = env.reset(options={"start_index": 0})
+    next_state, reward, terminated, truncated, info = env.step(0)
+    assert info["index"] == 0
+    assert next_state.shape == (len(FEATURE_COLUMNS),)
+    assert isinstance(reward, (int, float))
+    assert terminated is False
+    assert truncated is False
+    assert info["action_name"] in {"close_recommendation", "escalate_for_human_review", "request_human_validation"}
+
+
+def test_observations_match_processed_dataset_shape():
+    obs, labels = observations_for_split("train")
+    assert obs.shape[0] > 0
+    assert obs.shape[1] == len(FEATURE_COLUMNS)
+    assert labels.shape[0] == obs.shape[0]
+    assert np.isfinite(obs).all()
+
+
+============================================================
+FILE: backend/app/tests/test_reward.py
+============================================================
+
+"""Tests for reward semantics derived from the processed dataset."""
+
+import pytest
+
+from app.reward.outcomes import CLOSE, ESCALATE, HUMAN_REVIEW, expected_action, historical_outcome_reward
+
+
+@pytest.mark.parametrize(
+    ("incident_grade", "action", "expected"),
+    [
+        (0, CLOSE, 8.0),
+        (1, CLOSE, 8.0),
+        (2, ESCALATE, 20.0),
+        (3, HUMAN_REVIEW, 3.0),
+    ],
+)
+def test_historical_reward_matches_expected_action(incident_grade, action, expected):
+    assert historical_outcome_reward(incident_grade, action) == expected
+
+
+def test_expected_action_uses_dataset_target_encoding():
+    assert expected_action(2) == ESCALATE
+    assert expected_action(3) == HUMAN_REVIEW
+
+
+def test_invalid_action_is_rejected():
+    with pytest.raises(ValueError):
+        historical_outcome_reward(2, 99)
+
+
+============================================================
+FILE: backend/app/tests/test_pipeline.py
+============================================================
+
+"""Tests for the processed dataset contract and feature schema."""
+
+from app.data_pipeline.contract import FEATURE_COLUMNS, REQUIRED_PROCESSED_COLUMNS, audit_processed_split, load_processed_split
+
+
+def test_train_and_test_splits_have_expected_schema():
+    train = load_processed_split("train")
+    test = load_processed_split("test")
+    assert len(train.columns) == len(REQUIRED_PROCESSED_COLUMNS)
+    assert len(test.columns) == len(REQUIRED_PROCESSED_COLUMNS)
+    assert list(FEATURE_COLUMNS) == [
+        "Category",
+        "MitreTechniques",
+        "EntityType",
+        "EvidenceRole",
+        "ThreatFamily",
+        "OSFamily",
+        "SuspicionLevel",
+        "hour",
+        "day",
+        "month",
+        "is_weekend",
+    ]
+    assert audit_processed_split("train").rows > 0
+    assert audit_processed_split("test").rows > 0
+
+
+============================================================
+FILE: backend/app/tests/test_experiment_status.py
+============================================================
+
+"""Tests for experiment orchestration and status reporting."""
+
+from app.services.experiment_service import get_experiment_status, start_experiment_background
+
+
+def test_experiment_status_is_available_for_unknown_run():
+    status = get_experiment_status("does-not-exist")
+    assert status["status"] == "not_found"
+
+
+def test_experiment_background_starts_and_returns_run_id():
+    response = start_experiment_background([
+        {"name": "dqn_baseline", "learning_rate": 1e-3, "training_passes": 1},
+    ])
+    assert response["status"] == "started"
+    assert response["run_id"]
+
+
+============================================================
+FILE: frontend/src/pages/Training.tsx
+============================================================
+
+import { useCallback, useEffect, useState } from "react";
+import { LineChart } from "../components/charts/LineChart";
+import { KpiCard } from "../components/ui/KpiCard";
+import { PageHeader } from "../components/ui/PageHeader";
+import { QueryState } from "../components/ui/QueryState";
+import { StatusBadge } from "../components/ui/StatusBadge";
+import { useToast } from "../components/ui/ToastProvider";
+import { useApi } from "../hooks/useApi";
+import { trainingService } from "../services/training.service";
+import type { ExperimentStatus } from "../types/domain";
+
+export function TrainingPage() {
+  const status = useApi(trainingService.getStatus, { poll: true });
+  const history = useApi(trainingService.getHistory, { poll: true });
+  const checkpoints = useApi(trainingService.getCheckpoints);
+  const metrics = useApi(trainingService.getMetrics, { poll: true });
+  const { notify } = useToast();
+  const [experiment, setExperiment] = useState<ExperimentStatus | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!runId) return;
+    let cancelled = false;
+    const poll = async () => {
+      const current = await trainingService.getExperimentStatus(runId);
+      if (!cancelled) {
+        setExperiment(current);
+        if (current.status && !["completed", "failed", "stopped", "stopping"].includes(current.status)) {
+          window.setTimeout(() => { void poll(); }, 2000);
+        }
+      }
+    };
+    void poll();
+    return () => { cancelled = true; };
+  }, [runId]);
+
+  const startExperiment = useCallback(async () => {
+    if (!window.confirm("Start the real multi-model experiment with the processed dataset?")) return;
+    try {
+      const models = [
+        { name: "dqn_baseline", architecture: "standard", dqn_type: "standard", learning_rate: 1e-3, gamma: 0.99, batch_size: 64, memory_size: 50000, target_update: 1000, training_passes: 3 },
+        { name: "dqn_double", architecture: "standard", dqn_type: "double", learning_rate: 5e-4, gamma: 0.99, batch_size: 64, memory_size: 50000, target_update: 1000, training_passes: 3 },
+        { name: "dqn_dueling", architecture: "dueling", dqn_type: "standard", learning_rate: 1e-3, gamma: 0.98, batch_size: 64, memory_size: 50000, target_update: 1000, training_passes: 3 },
+      ];
+      notify({ tone: "info", title: "Experiment started" });
+      const res = await trainingService.startExperiment(models);
+      setRunId(res.run_id);
+      setExperiment({ status: "started", run_id: res.run_id } as ExperimentStatus);
+    } catch (err) {
+      notify({ tone: "error", title: "Experiment failed", description: err instanceof Error ? err.message : String(err) });
+    }
+  }, [notify]);
+
+  const runAction = useCallback(async (action: "start" | "stop") => {
+    const verb = action === "start" ? "start" : "stop";
+    if (!window.confirm(`Are you sure you want to ${verb} training?`)) return;
+    try {
+      const response = await trainingService[action]();
+      notify({ tone: "success", title: response.message });
+      await status.refresh();
+    } catch (error) {
+      notify({ tone: "error", title: "Training action failed", description: error instanceof Error ? error.message : "Unable to reach the API." });
+    }
+  }, [notify, status]);
+
+  const currentModel = experiment?.current_model ?? "—";
+  const totalModels = experiment?.total_models ?? 3;
+  const trainingProgress = (experiment?.training ?? {}) as Record<string, unknown>;
+  const evaluationProgress = (experiment?.evaluation ?? {}) as Record<string, unknown>;
+  const trainingEnvironmentSteps = typeof trainingProgress.environment_steps === "number" ? trainingProgress.environment_steps : "—";
+  const trainingGradientUpdates = typeof trainingProgress.gradient_updates === "number" ? trainingProgress.gradient_updates : "—";
+  const trainingEpisodes = typeof trainingProgress.episodes === "number" ? trainingProgress.episodes : "—";
+  const trainingMeanReward = typeof trainingProgress.mean_reward === "number" ? trainingProgress.mean_reward : "—";
+  const trainingMeanLoss = typeof trainingProgress.mean_loss === "number" ? trainingProgress.mean_loss : "—";
+  const evaluationSamples = typeof evaluationProgress.samples === "number" ? evaluationProgress.samples : "—";
+  return <>
+    <PageHeader eyebrow="MODEL TRAINING" title="Training control" description="The frontend now polls the real backend experiment status and displays live training and evaluation progress." actions={<div className="button-group"><button className="button button--primary" type="button" onClick={() => void runAction("start")}>Start training</button><button className="button button--danger" type="button" onClick={() => void runAction("stop")}>Stop training</button></div>} />
+    <QueryState state={status}>{(data) => <section className="kpi-grid kpi-grid--four"><KpiCard label="Training status" value={<StatusBadge value={data.status} />} detail="Reported by training API" icon="⌁" /><KpiCard label="Current model" value={currentModel} detail={`Model ${experiment?.model_index ?? 0}/${totalModels}`} icon="◷" /><KpiCard label="Environment steps" value={String(trainingEnvironmentSteps)} detail="Reported by trainer" icon="◎" /><KpiCard label="Gradient updates" value={String(trainingGradientUpdates)} detail="From live training state" icon="⚙" /></section>}</QueryState>
+    <section className="panel"><div className="panel__header"><div><p className="eyebrow">REAL EXPERIMENT</p><h2>Live experiment status</h2></div></div>
+      <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
+        <button className="button button--primary" onClick={() => void startExperiment()}>Start full experiment</button>
+      </div>
+      <div className="detail-list">
+        <div><dt>Status</dt><dd>{experiment?.status ?? "idle"}</dd></div>
+        <div><dt>Current model</dt><dd>{currentModel}</dd></div>
+        <div><dt>Dataset pass</dt><dd>{String(trainingEpisodes)}</dd></div>
+        <div><dt>Environment steps</dt><dd>{String(trainingEnvironmentSteps)}</dd></div>
+        <div><dt>Mean reward</dt><dd>{String(trainingMeanReward)}</dd></div>
+        <div><dt>Training loss</dt><dd>{String(trainingMeanLoss)}</dd></div>
+        <div><dt>Evaluation samples</dt><dd>{String(evaluationSamples)}</dd></div>
+        <div><dt>Checkpoint</dt><dd>{experiment?.checkpoint ?? '—'}</dd></div>
+      </div>
+    </section>
+    <section className="split-grid">
+      <article className="panel"><div className="panel__header"><div><p className="eyebrow">LOSS CURVE</p><h2>Training loss</h2></div></div><QueryState state={history} empty={(data) => data.history.length === 0}>{(data) => <LineChart label="Training loss by epoch" points={data.history.map((point) => ({ label: `Epoch ${point.epoch}`, value: point.loss }))} />}</QueryState></article>
+      <article className="panel"><div className="panel__header"><div><p className="eyebrow">CHECKPOINTS</p><h2>Available models</h2></div></div><QueryState state={checkpoints} empty={(data) => data.checkpoints.length === 0}>{(data) => <ul className="checkpoint-list">{data.checkpoints.map((checkpoint) => <li key={checkpoint}><span aria-hidden="true">▣</span>{checkpoint}</li>)}</ul>}</QueryState></article>
+    </section>
+    <section className="panel"><div className="panel__header"><div><p className="eyebrow">REWARD & PERFORMANCE</p><h2>Evaluation summary</h2></div></div>
+      <QueryState state={metrics} empty={(d) => d.metrics.length === 0}>
+        {(data) => <LineChart label="Training loss (metrics)" points={data.metrics.map((m) => ({ label: `Epoch ${m.epoch}`, value: m.loss }))} />}
+      </QueryState>
+    </section>
+  </>;
+}
+
+
+============================================================
+FILE: frontend/src/services/training.service.ts
+============================================================
+
+import { apiRequest } from "./api";
+import type { ExperimentStatus, TrainingCheckpoints, TrainingHistory, TrainingStatus } from "../types/domain";
+
+export const trainingService = {
+  getStatus: () => apiRequest<TrainingStatus>("/api/training/status"),
+  getHistory: () => apiRequest<TrainingHistory>("/api/training/history"),
+  getCheckpoints: () => apiRequest<TrainingCheckpoints>("/api/training/checkpoints"),
+  getMetrics: () => apiRequest<{ metrics: { epoch: number; loss: number; timestamp?: string }[] }> ("/api/training/metrics"),
+  start: () => apiRequest<{ message: string }> ("/api/training/start", { method: "POST" }),
+  stop: () => apiRequest<{ message: string }> ("/api/training/stop", { method: "POST" }),
+  startExperiment: (models: any) => apiRequest<any>("/api/training/experiment", { method: "POST", body: JSON.stringify(models) }),
+  stopExperiment: (runId: string) => apiRequest<any>(`/api/training/experiment/${runId}/stop`, { method: "POST" }),
+  getExperimentStatus: (runId: string) => apiRequest<ExperimentStatus>(`/api/training/experiment/${runId}/status`),
+};
+
+
+============================================================
+FILE: frontend/src/types/domain.ts
+============================================================
+
+export type ApiHealth = "online" | "offline" | "unknown";
+
+export interface Alert {
+  id: string | number;
+  title: string;
+  severity: string;
+  source: string;
+}
+
+export interface Decision {
+  id: number;
+  incident_id: number;
+  action: string;
+  timestamp: string;
+}
+
+export interface Reward {
+  id: number;
+  decision_id: number;
+  reward_value: number;
+  metrics: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface DashboardSummary {
+  total_alerts: number | null;
+  processed_alerts: number | null;
+  total_decisions: number | null;
+  total_rewards: number | null;
+  average_reward: number | null;
+  average_latency: number | null;
+  accuracy: number | null;
+  database_status: string;
+  training_status: string;
+  current_episode: number | null;
+}
+
+export interface SystemHealth {
+  status: string;
+}
+
+export interface ApiComponent {
+  name: string;
+  prefix: string;
+  status: string;
+  last_seen?: number | null;
+  request_count?: number;
+}
+
+export interface TrainingStatus {
+  status: string;
+  current_epoch: number;
+}
+
+export interface ExperimentStatus {
+  run_id?: string;
+  status?: string;
+  current_model?: string;
+  model_index?: number;
+  total_models?: number;
+  training?: Record<string, unknown>;
+  evaluation?: Record<string, unknown>;
+  checkpoint?: string;
+  best?: Record<string, unknown>;
+}
+
+export interface TrainingHistoryPoint {
+  epoch: number;
+  loss: number;
+}
+
+export interface TrainingHistory {
+  history: TrainingHistoryPoint[];
+}
+
+export interface TrainingCheckpoints {
+  checkpoints: string[];
+}
+
+export interface PipelineStats {
+  total_rows: number;
+  total_columns: number;
+  missing_values: number;
+}
+
+export interface PipelineStatus {
+  status: string;
+  last_run: string | null;
+}
+
+export interface DatabaseHealth {
+  status: string;
+  database: string;
+}
+
+export interface DatabaseStatistics {
+  collections_count: number;
+  total_objects: number;
+}
+
+export interface RewardStatistics {
+  mean_reward: number | null;
+  max_reward: number | null;
+  min_reward: number | null;
+}
+
+export interface ToastMessage {
+  id: number;
+  tone: "success" | "error" | "info";
+  title: string;
+  description?: string;
+}
+
+

@@ -7,6 +7,7 @@ from app.services.training_service import (
     get_history,
     get_metrics,
 )
+from app.services.experiment_service import get_experiment_status, start_experiment_background, stop_experiment
 
 router = APIRouter(prefix="/api/training", tags=["Training"])
 
@@ -33,3 +34,18 @@ def api_get_history():
 @router.get("/metrics")
 def api_get_metrics(limit: int = 100):
     return {"metrics": get_metrics(limit)}
+
+
+@router.post("/experiment")
+def api_start_experiment(models: list[dict]):
+    return start_experiment_background(models)
+
+
+@router.post("/experiment/{run_id}/stop")
+def api_stop_experiment(run_id: str):
+    return stop_experiment(run_id)
+
+
+@router.get("/experiment/{run_id}/status")
+def api_experiment_status(run_id: str):
+    return get_experiment_status(run_id)

@@ -89,3 +89,13 @@ Ouvrir une PR depuis votre branche de fonctionnalité vers develop sur GitHub.
 ```bash
 docker compose up --build
 ```
+
+## Exécution locale sans Docker
+
+Le frontend et le backend peuvent être lancés directement depuis le répertoire racine du projet.
+
+```bash
+./run_local.sh
+```
+
+Cela démarre le backend sur `http://127.0.0.1:8000` et le frontend sur `http://127.0.0.1:5173`.

@@ -1,217 +1,215 @@
-import os
-import time
-import random
+"""Background orchestration for the dataset-backed DQN trainer.
+
+Only metrics produced by :class:`Trainer` are retained.  MongoDB persistence is
+best-effort monitoring: a missing database does not manufacture history or
+prevent a local training run from producing its model artifact.
+"""
+
+from __future__ import annotations
+
 import threading
-from datetime import datetime
-from pathlib import Path
-from app.database.database import training_collection, training_metrics_collection, checkpoints_collection
+from datetime import UTC, datetime
+from typing import Any
 
+from app.config.settings import settings
+from app.database.database import checkpoints_collection, training_collection, training_metrics_collection
 from app.rl_agent.trainer import Trainer
+from app.services.model_service import save_trained_model
 
-STATE = {
-    "status": "idle",
+
+STATE: dict[str, Any] = {
+    "status": "IDLE",
     "current_epoch": 0,
     "history": [],
+    "last_error": None,
+    "model_version": None,
 }
-
-CHECKPOINT_DIR = Path("models/checkpoints")
-CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _upsert_training_status(status: str, current_epoch: int):
-    record = {
-        "type": "status",
-        "status": status,
-        "current_epoch": current_epoch,
-        "updated_at": datetime.utcnow(),
-    }
-    # Keep a simple append-only record for status changes
-    training_collection.insert_one(record)
-
-
-def _log_training_history(epoch: int, loss: float):
-    training_collection.insert_one(
-        {
-            "type": "history",
-            "epoch": epoch,
-            "loss": loss,
-            "created_at": datetime.utcnow(),
-        }
-    )
-
-
-def get_training_status():
-    status_doc = training_collection.find_one(
-        {"type": "status"}, sort=[("updated_at", -1)]
-    )
-    if not status_doc:
-        return {"status": STATE["status"], "current_epoch": STATE["current_epoch"]}
-
-    return {
-        "status": status_doc["status"],
-        "current_epoch": status_doc["current_epoch"],
-    }
-
-
-# Controller for the running training thread
-TRAINING_CTRL = {
+TRAINING_CTRL: dict[str, Any] = {
     "thread": None,
     "stop_event": None,
     "lock": threading.Lock(),
 }
+_PERSISTENCE_AVAILABLE: bool | None = None
 
 
-def _run_training_async(algorithm: str = "dqn", episodes: int = 10, stop_event: threading.Event = None):
-    """Run a lightweight training loop in a background thread.
-
-    This function uses the project's Trainer/Agent implementations but runs
-    them in a simple loop to capture per-episode loss and persist history
-    to MongoDB so the dashboard and frontend can show progress.
-    """
+def _persist(operation) -> bool:
+    """Persist one monitoring record, disabling repeated failures per process."""
+    global _PERSISTENCE_AVAILABLE
+    if _PERSISTENCE_AVAILABLE is False:
+        return False
     try:
-        trainer = Trainer(algorithm=algorithm, state_dim=4, action_dim=2)
-
-        for ep in range(episodes):
-            # cooperative stop requested?
-            if stop_event is not None and stop_event.is_set():
-                break
-
-            # Attempt a training update; agent.update returns a loss when it
-            # performs an optimization step, otherwise None.
-            loss = None
-            try:
-                if hasattr(trainer.agent, "update"):
-                    loss = trainer.agent.update()
-            except Exception:
-                loss = None
-
-            # Fallback to a synthetic loss if the agent couldn't produce one
-            if loss is None:
-                loss = round(random.random(), 4)
-
-            # persist history and update status
-            _log_training_history(ep + 1, float(loss))
-            # Persist a training metric document as well
-            try:
-                training_metrics_collection.insert_one({
-                    "epoch": ep + 1,
-                    "loss": float(loss),
-                    "timestamp": datetime.utcnow(),
-                })
-            except Exception:
-                pass
-
-            STATE["current_epoch"] = ep + 1
-            _upsert_training_status("running", STATE["current_epoch"])
-
-            # checkpoint every 5 episodes if checkpoint manager and model exist
-            if (ep + 1) % 5 == 0:
-                try:
-                    if hasattr(trainer, "checkpoint") and hasattr(trainer.agent, "model"):
-                        filename = f"checkpoint_ep_{ep+1}.pth"
-                        trainer.checkpoint.save(
-                            trainer.agent.model,
-                            getattr(trainer.agent, "optimizer", None),
-                            ep + 1,
-                            filename=filename,
-                        )
-                        # Record checkpoint metadata in the DB
-                        try:
-                            checkpoints_collection.insert_one({
-                                "name": filename,
-                                "epoch": ep + 1,
-                                "path": str(Path(trainer.checkpoint.checkpoint_dir) / filename),
-                                "created_at": datetime.utcnow(),
-                            })
-                        except Exception:
-                            pass
-                except Exception:
-                    # Checkpointing is best-effort; don't fail the whole run
-                    pass
-
-            # Small sleep to simulate time-consuming training and allow
-            # monitor/background tasks to run.
-            time.sleep(1)
-
-        # Mark idle when done
-        STATE["status"] = "idle"
-        _upsert_training_status("idle", STATE["current_epoch"])
-
+        operation()
     except Exception:
-        # On fatal error, mark as idle and record
-        STATE["status"] = "idle"
-        _upsert_training_status("idle", STATE["current_epoch"])
+        _PERSISTENCE_AVAILABLE = False
+        return False
+    _PERSISTENCE_AVAILABLE = True
+    return True
 
 
-def start_training(algorithm: str = "dqn", episodes: int = 10):
-    """Start training in a background thread and return immediately.
+def _upsert_training_status(status: str, current_epoch: int) -> None:
+    STATE["status"] = status
+    STATE["current_epoch"] = current_epoch
+    _persist(
+        lambda: training_collection.insert_one(
+            {
+                "type": "status",
+                "status": status,
+                "current_epoch": current_epoch,
+                "updated_at": datetime.now(UTC),
+            }
+        )
+    )
 
-    The endpoint can call this with desired parameters. Training progress
-    is written to the training_collection so the frontend can observe
-    history and status.
-    """
-    current_status = get_training_status()
-    if current_status["status"] == "running":
-        return {"message": "Training already in progress"}
 
-    STATE["status"] = "running"
-    STATE["current_epoch"] = 0
-    _upsert_training_status("running", STATE["current_epoch"])
+def _record_episode(record: dict[str, Any]) -> None:
+    """Record one completed training pass and any optimiser loss."""
+    # normalize record keys for backward compatibility
+    STATE["history"].append(record)
+    pass_number = int(record.get("pass", record.get("episode", 0)))
+    _upsert_training_status("RUNNING", pass_number)
+    if record.get("loss") is None:
+        return
+    metric = {
+        "pass": pass_number,
+        "loss": float(record["loss"]),
+        "average_reward": record.get("average_reward"),
+        "steps": int(record.get("steps", 0)),
+        "epsilon": float(record.get("epsilon", 0.0)),
+        "timestamp": datetime.now(UTC),
+    }
+    _persist(lambda: training_collection.insert_one({"type": "history", **metric}))
+    _persist(lambda: training_metrics_collection.insert_one(metric))
 
-    # Launch background thread to run training loop with cooperative stop
-    stop_event = threading.Event()
+
+def _run_training_async(algorithm: str, training_passes: int | None, stop_event: threading.Event) -> None:
+    try:
+        trainer = Trainer(algorithm=algorithm)
+        result = trainer.train(
+            training_passes=training_passes,
+            max_steps=settings.training_max_steps,
+            seed=settings.training_seed,
+            stop_event=stop_event,
+            on_episode=_record_episode,
+        )
+        if result.get("training_passes", 0) == 0:
+            _upsert_training_status("STOPPED" if result["stopped"] else "FAILED", 0)
+            return
+
+        evaluation = trainer.evaluate(max_steps=settings.evaluation_max_steps)
+        metadata = save_trained_model(
+            trainer.agent.model,
+            training_metadata=result,
+            evaluation=evaluation,
+        )
+        STATE["model_version"] = metadata["model_version"]
+        # Expose useful training counters for monitoring and the frontend.
+        for key in ("dataset_rows", "environment_steps", "gradient_updates", "elapsed_seconds"):
+            if key in result:
+                STATE[key] = result[key]
+        _persist(
+            lambda: checkpoints_collection.insert_one(
+                {
+                    "name": settings.model_path.name,
+                    "path": str(settings.model_path),
+                    "model_version": metadata["model_version"],
+                    "created_at": datetime.now(UTC),
+                }
+            )
+        )
+        _upsert_training_status(
+            "STOPPED" if result["stopped"] else "COMPLETED",
+            int(result.get("training_passes", 0)),
+        )
+    except Exception as exc:
+        STATE["last_error"] = str(exc)
+        _upsert_training_status("FAILED", STATE["current_epoch"])
+    finally:
+        with TRAINING_CTRL["lock"]:
+            TRAINING_CTRL["thread"] = None
+            TRAINING_CTRL["stop_event"] = None
+
+
+def get_training_status() -> dict[str, Any]:
+    base = {
+        "status": STATE["status"],
+        "current_epoch": STATE["current_epoch"],
+        "last_error": STATE["last_error"],
+        "model_version": STATE["model_version"],
+        "persistence": "AVAILABLE" if _PERSISTENCE_AVAILABLE else "UNAVAILABLE",
+    }
+    # Include optional counters when available
+    for optional in ("dataset_rows", "environment_steps", "gradient_updates", "elapsed_seconds"):
+        if optional in STATE:
+            base[optional] = STATE[optional]
+    return base
+
+
+def start_training(algorithm: str = "dqn", episodes: int | None = None) -> dict[str, str]:
+    """Start real train-split interaction in a background thread."""
     with TRAINING_CTRL["lock"]:
-        TRAINING_CTRL["stop_event"] = stop_event
-        thr = threading.Thread(target=_run_training_async, args=(algorithm, episodes, stop_event), daemon=True)
-        TRAINING_CTRL["thread"] = thr
-        thr.start()
+        thread = TRAINING_CTRL["thread"]
+        if thread is not None and thread.is_alive():
+            return {"message": "Training already in progress"}
 
+        selected_episodes = settings.training_episodes if episodes is None else episodes
+        # If configured training_episodes is <= 0, let the trainer compute
+        # the number of episodes needed to cover the full dataset.
+        if isinstance(selected_episodes, int) and selected_episodes < 1:
+            selected_episodes_arg = None
+        else:
+            selected_episodes_arg = selected_episodes
+        STATE.update({"current_epoch": 0, "history": [], "last_error": None, "model_version": None})
+        stop_event = threading.Event()
+        thread = threading.Thread(
+            target=_run_training_async,
+            args=(algorithm, selected_episodes_arg, stop_event),
+            daemon=True,
+            name="dataset-backed-dqn-training",
+        )
+        TRAINING_CTRL["thread"] = thread
+        TRAINING_CTRL["stop_event"] = stop_event
+        _upsert_training_status("RUNNING", 0)
+        thread.start()
     return {"message": "Training started"}
 
 
-def stop_training():
-    # Cooperative stop: signal the running thread and mark status idle.
+def stop_training() -> dict[str, str]:
+    """Request a cooperative stop; no fabricated final metric is written."""
     with TRAINING_CTRL["lock"]:
-        ev = TRAINING_CTRL.get("stop_event")
-        thr = TRAINING_CTRL.get("thread")
-        if ev is not None:
-            ev.set()
-        # Optionally join for a short time
-        if thr is not None and thr.is_alive():
-            thr.join(timeout=2)
-        TRAINING_CTRL["thread"] = None
-        TRAINING_CTRL["stop_event"] = None
-
-    STATE["status"] = "idle"
-    _upsert_training_status("idle", STATE["current_epoch"])
-    return {"message": "Training stopped"}
+        stop_event = TRAINING_CTRL["stop_event"]
+        thread = TRAINING_CTRL["thread"]
+        if stop_event is None or thread is None or not thread.is_alive():
+            return {"message": "No training run is active"}
+        stop_event.set()
+        _upsert_training_status("STOPPING", STATE["current_epoch"])
+    return {"message": "Training stop requested"}
 
 
-def get_checkpoints():
-    # collect files from the checkpoint directory and DB metadata
-    files = []
-    if CHECKPOINT_DIR.exists():
-        files = sorted([item.name for item in CHECKPOINT_DIR.iterdir() if item.is_file()])
-
-    # Merge with DB-recorded checkpoints if available
-    try:
-        docs = list(checkpoints_collection.find({}, {"name": 1}).sort("created_at", -1))
-        db_names = [doc.get("name") for doc in docs if doc.get("name")]
-        # Merge unique preserving order: db_names first then files
-        merged = list(dict.fromkeys(db_names + files))
-        return merged
-    except Exception:
-        return files
+def get_checkpoints() -> list[str]:
+    """Return only compatible model-service artifacts, never legacy pickle files."""
+    if settings.model_path.is_file() and settings.model_metadata_path.is_file():
+        return [settings.model_path.name]
+    return []
 
 
-def get_history():
-    history_docs = training_collection.find({"type": "history"}).sort("epoch", 1)
-    return [{"epoch": doc["epoch"], "loss": doc["loss"]} for doc in history_docs]
+def get_history() -> list[dict[str, Any]]:
+    """Expose episodes with optimiser losses; episodes before replay warmup omit loss."""
+    return [
+        {"epoch": item["episode"], "loss": item["loss"]}
+        for item in STATE["history"]
+        if item["loss"] is not None
+    ]
 
 
-def get_metrics(limit: int = 100):
-    try:
-        docs = list(training_metrics_collection.find().sort("timestamp", -1).limit(limit))
-        return [{"epoch": int(doc.get("epoch")), "loss": float(doc.get("loss")), "timestamp": doc.get("timestamp")} for doc in docs]
-    except Exception:
-        return []
+def get_metrics(limit: int = 100) -> list[dict[str, Any]]:
+    records = [item for item in STATE["history"] if item["loss"] is not None]
+    return [
+        {
+            "epoch": item["episode"],
+            "loss": item["loss"],
+            "average_reward": item["average_reward"],
+            "steps": item["steps"],
+            "epsilon": item["epsilon"],
+        }
+        for item in records[-max(0, limit) :]
+    ]

@@ -26,8 +26,8 @@ async def api_activity_middleware(request: Request, call_next):
     path = request.url.path
     for comp in settings.api_components:
         if path.startswith(comp["prefix"]):
-            statuses: Dict = request.app.state.api_statuses
-            entry = statuses.get(comp["name"])
+            statuses: Dict | None = getattr(request.app.state, "api_statuses", None)
+            entry = statuses.get(comp["name"]) if statuses is not None else None
             if entry is not None:
                 entry["last_seen"] = time.time()
                 entry["status"] = "up"
@@ -49,6 +49,39 @@ async def api_status_monitor_task(app: FastAPI):
         statuses: Dict = getattr(app.state, "api_statuses", {})
         for name, entry in statuses.items():
             last = entry.get("last_seen")
+
+            # Active checks for some components
+            try:
+                from app.database.database import client, training_collection
+
+                if entry.get("name") == "database":
+                    # Active DB ping
+                    try:
+                        await asyncio.to_thread(client.admin.command, "ping")
+                        entry["status"] = "up"
+                        entry["last_seen"] = now
+                    except Exception:
+                        entry["status"] = "down"
+                elif entry.get("name") == "training":
+                    # Consider training 'up' if the training collection reports running
+                    try:
+                        status_doc = await asyncio.to_thread(
+                            training_collection.find_one,
+                            {"type": "status"},
+                            sort=[("updated_at", -1)],
+                        )
+                        if status_doc and status_doc.get("status") == "running":
+                            entry["status"] = "up"
+                            entry["last_seen"] = now
+                        else:
+                            # fall back to passive last_seen evaluation below
+                            pass
+                    except Exception:
+                        pass
+            except Exception:
+                # ignore active-check failures
+                pass
+
             if last is None:
                 # Still unknown — mark down only if app has been running for
                 # longer than timeout so short-lived startups don't show red.
@@ -59,6 +92,7 @@ async def api_status_monitor_task(app: FastAPI):
                     entry["status"] = "down"
                 else:
                     entry["status"] = "up"
+
             entry["last_checked"] = now
 
             # Persist to DB if enabled
@@ -89,10 +123,7 @@ async def api_status_monitor_task(app: FastAPI):
 def start_status_monitor(app: FastAPI):
     if not settings.enable_api_activity_tracking:
         return
-    init_api_status_store(app)
-    # Attach middleware
-    app.middleware("http")(api_activity_middleware)
-    # Start background task
+    # Start background task after middleware is already attached.
     loop = asyncio.get_event_loop()
     task = loop.create_task(api_status_monitor_task(app))
     app.state.api_status_monitor_task = task

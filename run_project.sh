@@ -81,8 +81,16 @@ command -v docker >/dev/null 2>&1 || die "Docker is not installed."
 
 unset DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH || true
 
-docker info >/dev/null 2>&1 || \
-    die "Docker daemon is not running or current user cannot access Docker."
+# Prefer the system Docker socket when available, even if a user-level
+# Docker host or Podman socket is configured in the environment.
+if ! docker info >/dev/null 2>&1; then
+    if [[ -S /var/run/docker.sock ]]; then
+        export DOCKER_HOST="unix:///var/run/docker.sock"
+        info "Falling back to system Docker socket: $DOCKER_HOST"
+    else
+        die "Docker daemon is not running or current user cannot access Docker."
+    fi
+fi
 
 if docker compose version >/dev/null 2>&1; then
     COMPOSE=(docker compose)

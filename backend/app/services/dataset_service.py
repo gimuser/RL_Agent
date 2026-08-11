@@ -1,50 +1,82 @@
-from datetime import datetime
+"""Read-only access to the immutable processed dataset splits.
+
+The historical API called this operation an "import", but the authoritative
+CSV files are already part of the project.  These functions therefore validate
+and audit the requested split; they never create replacement data or invent
+statistics.
+"""
+
+from datetime import UTC, datetime
+
+from app.data_pipeline.contract import DatasetAudit, audit_processed_split
 from app.database.database import pipeline_collection
 
 PIPELINE_STATE = {
-    "status": "idle",
+    "status": "UNAVAILABLE",
     "last_run": None,
-    "total_rows": 0,
-    "total_columns": 0,
-    "missing_values": 0,
+    "total_rows": None,
+    "total_columns": None,
+    "missing_values": None,
+    "split": None,
 }
 
 
-def _log_pipeline_event(event_type: str, rows: int, columns: int, missing: int):
-    pipeline_collection.insert_one(
+def _log_pipeline_event(event_type: str, audit: DatasetAudit) -> None:
+    """Persist an audit when MongoDB is available without masking file results."""
+    try:
+        pipeline_collection.insert_one(
+            {
+                "type": event_type,
+                "rows": audit.rows,
+                "columns": audit.columns,
+                "missing_values": audit.missing_values,
+                "timestamp": datetime.now(UTC),
+            }
+        )
+    except Exception:
+        # The data result is still valid when optional monitoring storage is
+        # unavailable; callers can observe DB health through its own endpoint.
+        return None
+
+
+def _validate_split(split: str) -> DatasetAudit:
+    audit = audit_processed_split(split)  # type: ignore[arg-type]
+    PIPELINE_STATE.update(
         {
-            "type": event_type,
-            "rows": rows,
-            "columns": columns,
-            "missing_values": missing,
-            "timestamp": datetime.utcnow(),
+            "status": "READY",
+            "last_run": datetime.now(UTC).isoformat(),
+            "total_rows": audit.rows,
+            "total_columns": audit.columns,
+            "missing_values": audit.missing_values,
+            "split": split,
         }
     )
+    _log_pipeline_event(f"{split}_validated", audit)
+    return audit
 
 
 def import_train_dataset():
-    PIPELINE_STATE["status"] = "completed"
-    PIPELINE_STATE["last_run"] = datetime.utcnow().isoformat() + "Z"
-    PIPELINE_STATE["total_rows"] = 1000
-    PIPELINE_STATE["total_columns"] = 15
-    PIPELINE_STATE["missing_values"] = 0
-    _log_pipeline_event("train_import", 1000, 15, 0)
-
-    return {"message": "Train dataset imported successfully", "imported_count": 1000}
+    audit = _validate_split("train")
+    return {
+        "message": "Train processed dataset validated",
+        "imported_count": audit.rows,
+    }
 
 
 def import_test_dataset():
-    PIPELINE_STATE["status"] = "completed"
-    PIPELINE_STATE["last_run"] = datetime.utcnow().isoformat() + "Z"
-    PIPELINE_STATE["total_rows"] = 200
-    PIPELINE_STATE["total_columns"] = 15
-    PIPELINE_STATE["missing_values"] = 0
-    _log_pipeline_event("test_import", 200, 15, 0)
-
-    return {"message": "Test dataset imported successfully", "imported_count": 200}
+    audit = _validate_split("test")
+    return {
+        "message": "Test processed dataset validated",
+        "imported_count": audit.rows,
+    }
 
 
 def get_pipeline_status():
+    if PIPELINE_STATE["split"] is None:
+        try:
+            _validate_split("train")
+        except Exception:
+            return {"status": "UNAVAILABLE", "last_run": None}
     return {
         "status": PIPELINE_STATE["status"],
         "last_run": PIPELINE_STATE["last_run"],
@@ -52,6 +84,8 @@ def get_pipeline_status():
 
 
 def get_pipeline_statistics():
+    if PIPELINE_STATE["split"] is None:
+        _validate_split("train")
     return {
         "total_rows": PIPELINE_STATE["total_rows"],
         "total_columns": PIPELINE_STATE["total_columns"],

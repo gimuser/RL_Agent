@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r ./backend/requirements.txt
 
 # copy application code
 COPY backend ./backend
+COPY data ./data
 COPY README.md ./README.md
 
 EXPOSE 8000

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from .networks import QNetwork
+from .networks import QNetwork, DuelingQNetwork
 from .memory import ReplayBuffer
 from .policy import EpsilonGreedyPolicy
 
@@ -33,6 +33,8 @@ class DQNAgent:
         batch_size=64,
         memory_size=10000,
         target_update=100,
+        architecture: str = "standard",
+        dqn_type: str = "standard",
     ):
 
         self.device = torch.device("cpu")
@@ -43,16 +45,14 @@ class DQNAgent:
         self.gamma = gamma
         self.batch_size = batch_size
         self.target_update = target_update
+        self.dqn_type = dqn_type  # 'standard' or 'double'
 
-        self.model = QNetwork(
-            state_dim,
-            action_dim,
-        ).to(self.device)
-
-        self.target_model = QNetwork(
-            state_dim,
-            action_dim,
-        ).to(self.device)
+        if architecture == "dueling":
+            self.model = DuelingQNetwork(state_dim, action_dim).to(self.device)
+            self.target_model = DuelingQNetwork(state_dim, action_dim).to(self.device)
+        else:
+            self.model = QNetwork(state_dim, action_dim).to(self.device)
+            self.target_model = QNetwork(state_dim, action_dim).to(self.device)
 
         self.target_model.load_state_dict(
             self.model.state_dict()
@@ -158,17 +158,13 @@ class DQNAgent:
         current_q = self.model(states).gather(1, actions)
 
         with torch.no_grad():
-
-            next_actions = self.model(next_states).argmax(
-                dim=1,
-                keepdim=True,
-            )
-
-            next_q = self.target_model(next_states).gather(
-                1,
-                next_actions,
-            )
-
+            if self.dqn_type == "double":
+                # Double DQN: action selected by online network, value from target network
+                next_actions = self.model(next_states).argmax(dim=1, keepdim=True)
+                next_q = self.target_model(next_states).gather(1, next_actions)
+            else:
+                # Standard DQN: use target network max over actions
+                next_q = self.target_model(next_states).max(dim=1, keepdim=True).values
             target_q = rewards + self.gamma * next_q * (1 - dones)
 
         loss = self.criterion(

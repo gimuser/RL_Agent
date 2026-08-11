@@ -22,6 +22,30 @@ class QNetwork(nn.Module):
         return self.model(x)
 
 
+class DuelingQNetwork(nn.Module):
+    """
+    Dueling DQN network: separate value and advantage streams.
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+        self.feature = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+        )
+        self.value_stream = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
+        self.advantage_stream = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, action_size))
+
+    def forward(self, x):
+        features = self.feature(x)
+        value = self.value_stream(features)
+        adv = self.advantage_stream(features)
+        q = value + adv - adv.mean(dim=1, keepdim=True)
+        return q
+
+
 class ActorNetwork(nn.Module):
     """
     PPO Actor Network

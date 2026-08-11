@@ -1,0 +1,2752 @@
+============================================================
+PROJECT MODIFIED FILES
+============================================================
+
+Generated after the full RL training/evaluation implementation.
+
+Purpose:
+This file contains the complete final source code of all files
+modified or created by this implementation so another GPT/Codex
+agent can independently review the implementation.
+
+MODIFIED/CREATED FILES:
+1. backend/app/api/training.py
+2. backend/app/config/settings.py
+3. backend/app/rl_agent/trainer.py
+4. backend/app/rl_agent/dqn.py
+5. backend/app/rl_agent/networks.py
+6. backend/app/services/experiment_service.py
+7. backend/app/services/model_service.py
+8. backend/app/services/training_service.py
+9. backend/app/environment/gym_env.py
+10. backend/app/rl_agent/checkpoint.py
+11. backend/app/data_pipeline/contract.py
+12. backend/app/reward/outcomes.py
+13. frontend/src/pages/Training.tsx
+14. frontend/src/services/training.service.ts
+15. frontend/src/types/domain.ts
+16. backend/app/api/agent.py
+17. backend/app/api/router.py
+18. backend/main.py
+19. backend/app/services/dataset_service.py
+20. backend/app/services/agent_service.py
+21. backend/app/schemas/dashboard_schema.py
+22. backend/app/schemas/__init__.py
+23. frontend/src/pages/Agent.tsx
+24. frontend/src/pages/Dashboard.tsx
+25. frontend/src/pages/Metrics.tsx
+26. frontend/src/utils/format.ts
+
+============================================================
+FILE: backend/app/api/training.py
+============================================================
+
+from fastapi import APIRouter
+from app.services.training_service import (
+    get_training_status,
+    start_training as start_training_service,
+    stop_training as stop_training_service,
+    get_checkpoints,
+    get_history,
+    get_metrics,
+)
+from app.services.experiment_service import start_experiment_background, get_experiment_status
+
+router = APIRouter(prefix="/api/training", tags=["Training"])
+
+@router.get("/status")
+def training_status():
+    return get_training_status()
+
+@router.post("/start")
+def start_training():
+    return start_training_service()
+
+@router.post("/stop")
+def stop_training():
+    return stop_training_service()
+
+@router.get("/checkpoints")
+def api_get_checkpoints():
+    return {"checkpoints": get_checkpoints()}
+
+@router.get("/history")
+def api_get_history():
+    return {"history": get_history()}
+
+@router.get("/metrics")
+def api_get_metrics(limit: int = 100):
+    return {"metrics": get_metrics(limit)}
+
+
+@router.post("/experiment")
+def api_start_experiment(models: list[dict]):
+    return start_experiment_background(models)
+
+
+@router.get("/experiment/{run_id}/status")
+def api_experiment_status(run_id: str):
+    return get_experiment_status(run_id)
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/config/settings.py
+============================================================
+
+"""Runtime settings for the backend.
+
+This simple settings object avoids importing pydantic.BaseSettings which may
+not be available in all test environments. Use environment variables or a
+proper settings management package in production.
+"""
+
+import os
+from pathlib import Path
+
+
+class Settings:
+    def __init__(self):
+        self.app_name: str = "SOAR-RL-Agent"
+        self.debug: bool = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
+        self.api_host: str = os.getenv("API_HOST", "0.0.0.0")
+        self.api_port: int = int(os.getenv("API_PORT", "8000"))
+        self.mongo_uri: str = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+        self.database_name: str = os.getenv("DATABASE_NAME", "soar_rl_agent")
+        self.mongo_timeout_ms: int = int(os.getenv("MONGO_TIMEOUT_MS", "1000"))
+        self.project_root: Path = Path(__file__).resolve().parents[3]
+        self.processed_data_dir: Path = Path(
+            os.getenv("PROCESSED_DATA_DIR", str(self.project_root / "data" / "processed"))
+        )
+        self.model_dir: Path = Path(os.getenv("MODEL_DIR", str(self.project_root / "models")))
+        self.model_path: Path = Path(os.getenv("MODEL_PATH", str(self.model_dir / "triage_dqn.pt")))
+        self.model_metadata_path: Path = Path(
+            os.getenv("MODEL_METADATA_PATH", str(self.model_dir / "triage_dqn.metadata.json"))
+        )
+        self.training_seed: int = int(os.getenv("TRAINING_SEED", "42"))
+        self.training_max_steps: int = int(os.getenv("TRAINING_MAX_STEPS", "1000"))
+        # Number of full passes over the training dataset when running a full experiment.
+        # Each pass traverses all training rows once. Default is 5 passes; set to 1 for a single pass.
+        self.training_passes: int = int(os.getenv("TRAINING_PASSES", "5"))
+        # Deprecated compatibility: keep training_episodes but default to 0 to signal automatic behavior.
+        self.training_episodes: int = int(os.getenv("TRAINING_EPISODES", "0"))
+        # Progress update interval in environment steps for the frontend
+        self.training_progress_interval: int = int(os.getenv("TRAINING_PROGRESS_INTERVAL", "1000"))
+        self.evaluation_max_steps: int = int(os.getenv("EVALUATION_MAX_STEPS", "10000"))
+        # Origins allowed by the backend CORS policy (frontend dev servers)
+        self.api_allowed_origins: list[str] = [
+            "http://localhost:8081",
+            "http://127.0.0.1:8081",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+
+        # API activity tracking: define components to track by prefix and
+        # a timeout in seconds after which an API is considered 'down' if not
+        # observed.
+        self.enable_api_activity_tracking: bool = True
+        self.api_status_poll_interval: int = 5  # seconds
+        self.api_status_timeout_seconds: int = 15  # mark 'down' if not seen within this
+
+        # Whether to persist API statuses to the database
+        self.persist_api_statuses: bool = True
+
+        # Components to track. Each component is identified by a name and a
+        # request path prefix. Incoming requests that start with the prefix
+        # update the component's last-seen timestamp and status.
+        self.api_components: list[dict] = [
+            {"name": "training", "prefix": "/api/training"},
+            {"name": "database", "prefix": "/api/database"},
+            {"name": "alerts", "prefix": "/api/alerts"},
+            {"name": "decisions", "prefix": "/api/decisions"},
+            {"name": "rewards", "prefix": "/api/rewards"},
+            {"name": "dashboard", "prefix": "/api/dashboard"},
+            {"name": "agent", "prefix": "/api/agent"},
+            {"name": "evaluation", "prefix": "/api/evaluation"},
+        ]
+
+        # Optional external integrations. A configured integration needs both
+        # URL and credential fields; health is only reported CONNECTED after a
+        # live request succeeds.
+        self.siem_base_url: str | None = os.getenv("SIEM_BASE_URL") or None
+        self.siem_api_key: str | None = os.getenv("SIEM_API_KEY") or None
+        self.soar_base_url: str | None = os.getenv("SOAR_BASE_URL") or None
+        self.soar_api_key: str | None = os.getenv("SOAR_API_KEY") or None
+        self.thehive_url: str | None = os.getenv("THEHIVE_URL") or None
+        self.thehive_api_key: str | None = os.getenv("THEHIVE_API_KEY") or None
+        self.cortex_url: str | None = os.getenv("CORTEX_URL") or None
+        self.cortex_api_key: str | None = os.getenv("CORTEX_API_KEY") or None
+        self.integration_timeout_seconds: float = float(os.getenv("INTEGRATION_TIMEOUT_SECONDS", "5"))
+
+
+settings = Settings()
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/rl_agent/trainer.py
+============================================================
+
+"""Dataset-backed DQN trainer.
+
+There is intentionally no fallback/random model: without the real ML runtime,
+training fails loudly and inference remains unavailable.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from threading import Event
+
+import torch
+from time import perf_counter
+from math import ceil
+
+from app.environment.triage_env import AlertTriageEnv
+from app.reward.outcomes import expected_action
+from app.rl_agent.dqn import DQNAgent
+from app.rl_agent.utils import set_seed
+
+
+class Trainer:
+    """
+    Reinforcement Learning Trainer
+    """
+
+    def __init__(
+        self,
+        algorithm="dqn",
+        state_dim=11,
+        action_dim=3,
+        agent_config: dict | None = None,
+    ):
+
+        self.algorithm = algorithm.lower()
+
+        if self.algorithm != "dqn":
+            raise ValueError("Only the validated DQN training path is currently supported")
+        # agent_config may include architecture, learning_rate, gamma, batch_size, memory_size, target_update, dqn_type
+        self.agent_config = agent_config or {}
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        # Create an agent instance when needed per training run to ensure isolation
+        self.agent = None
+
+    def train(
+        self,
+        *,
+        training_passes: int | None,
+        max_steps: int,
+        seed: int,
+        stop_event: Event | None = None,
+        on_episode: Callable[[dict], None] | None = None,
+        on_progress: Callable[[dict], None] | None = None,
+    ) -> dict:
+        """Train by deterministically traversing the full training split.
+
+        Each pass walks every row in `train_processed.csv` once. `training_passes`
+        controls how many times the full dataset is processed. This avoids
+        ambiguous episode slicing and guarantees dataset coverage.
+        """
+        if max_steps < 1:
+            raise ValueError("max_steps must be >= 1")
+        set_seed(seed)
+        # Load full observations to determine exact dataset size
+        env = AlertTriageEnv(split="train", max_steps=10 ** 9)
+        total_rows = len(env.observations)
+        state_dim = int(env.observation_space.shape[0])
+        action_dim = int(env.action_space.n)
+        if self.state_dim != state_dim:
+            # Validate provided state_dim against environment
+            self.state_dim = state_dim
+        if self.action_dim != action_dim:
+            self.action_dim = action_dim
+
+        # Training passes default
+        if training_passes is None:
+            from app.config.settings import settings as _s
+
+            training_passes = int(getattr(_s, "training_passes", 1))
+
+        # Create fresh agent for this session
+        self.agent = DQNAgent(state_dim=self.state_dim, action_dim=self.action_dim, **self.agent_config)
+        # attach optional progress listener
+        self.on_progress = on_progress
+
+        episode_records: list[dict] = []
+        stopped = False
+        environment_steps = 0
+        gradient_updates = 0
+        start_time = perf_counter()
+
+        # Progress callback interval
+        from app.config.settings import settings as _settings
+        progress_interval = max(1, int(getattr(_settings, "training_progress_interval", 1000)))
+
+        for pass_idx in range(int(training_passes)):
+            if stop_event and stop_event.is_set():
+                stopped = True
+                break
+            # Create an environment limited to full dataset length to traverse it fully
+            env_pass = AlertTriageEnv(split="train", max_steps=total_rows)
+            state, _ = env_pass.reset(seed=seed, options={"start_index": 0})
+            total_reward = 0.0
+            losses: list[float] = []
+            steps = 0
+            while True:
+                if stop_event and stop_event.is_set():
+                    stopped = True
+                    break
+                action = self.agent.act(state)
+                next_state, reward, terminated, truncated, _ = env_pass.step(action)
+                self.agent.remember(state, action, reward, next_state, terminated or truncated)
+                loss = self.agent.update()
+                if loss is not None:
+                    losses.append(float(loss))
+                    gradient_updates += 1
+                total_reward += float(reward)
+                steps += 1
+                environment_steps += 1
+                # Periodic progress callback for frontend monitoring
+                if on_episode is None and (environment_steps % progress_interval) == 0:
+                    # supply a lightweight progress record
+                    prog = {
+                        "pass": pass_idx + 1,
+                        "environment_steps": int(environment_steps),
+                        "dataset_rows": int(total_rows),
+                        "gradient_updates": int(gradient_updates),
+                        "last_loss": float(losses[-1]) if losses else None,
+                        "last_reward": float(total_reward / steps) if steps else None,
+                        "current_row": int((steps - 1) % total_rows),
+                    }
+                    try:
+                        # allow external listeners to receive progress
+                        if hasattr(self, "on_progress") and callable(self.on_progress):
+                            self.on_progress(prog)
+                    except Exception:
+                        pass
+                state = next_state
+                if terminated or truncated:
+                    break
+
+            record = {
+                "pass": pass_idx + 1,
+                "steps": steps,
+                "total_reward": total_reward,
+                "average_reward": total_reward / steps if steps else None,
+                "loss": sum(losses) / len(losses) if losses else None,
+                "epsilon": float(self.agent.policy.epsilon),
+                "replay_buffer_size": len(self.agent.memory),
+            }
+            episode_records.append(record)
+            if on_episode:
+                on_episode(record)
+            if stopped:
+                break
+
+        elapsed = perf_counter() - start_time
+        return {
+            "training_passes": int(training_passes),
+            "stopped": stopped,
+            "passes": episode_records,
+            "state_dim": int(env.observation_space.shape[0]),
+            "action_dim": int(env.action_space.n),
+            "dataset_rows": int(total_rows),
+            "environment_steps": int(environment_steps),
+            "gradient_updates": int(gradient_updates),
+            "elapsed_seconds": float(elapsed),
+        }
+
+    def evaluate(self, max_steps: int | None = None) -> dict:
+        # If max_steps is None, allow the environment to step through the
+        # full test split by passing a max equal to the dataset length.
+        if max_steps is None:
+            env = AlertTriageEnv(split="test", max_steps=10**9)
+        else:
+            env = AlertTriageEnv(split="test", max_steps=max_steps)
+        state, _ = env.reset(options={"start_index": 0})
+        correct = 0
+        total_reward = 0.0
+        samples = 0
+        with torch.no_grad():
+            while True:
+                q_values = self.agent.model(torch.as_tensor(state, dtype=torch.float32).unsqueeze(0))
+                action = int(torch.argmax(q_values, dim=1).item())
+                next_state, reward, terminated, truncated, info = env.step(action)
+                correct += int(action == expected_action(info["incident_grade"]))
+                total_reward += float(reward)
+                samples += 1
+                state = next_state
+                if terminated or truncated:
+                    break
+        return {
+            "split": "test",
+            "samples": samples,
+            "policy_action_accuracy": correct / samples if samples else None,
+            "average_historical_reward": total_reward / samples if samples else None,
+            "total_historical_reward": total_reward,
+        }
+
+
+if __name__ == "__main__":
+    trainer = Trainer()
+    print(trainer.train(episodes=1, max_steps=100, seed=42))
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/rl_agent/dqn.py
+============================================================
+
+import random
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from .networks import QNetwork, DuelingQNetwork
+from .memory import ReplayBuffer
+from .policy import EpsilonGreedyPolicy
+
+
+class DQNAgent:
+    """
+    Deep Q-Network (DQN) Agent.
+
+    This agent interacts with the environment by selecting actions
+    using an epsilon-greedy policy. It stores experiences in a replay
+    buffer and learns by minimizing the temporal-difference (TD) loss.
+
+    Attributes:
+        state_dim (int): Dimension of the input state.
+        action_dim (int): Number of possible actions.
+        gamma (float): Discount factor.
+        epsilon (float): Exploration rate.
+        batch_size (int): Number of samples used during training.
+    """
+
+    def __init__(
+        self,
+        state_dim,
+        action_dim,
+        learning_rate=1e-3,
+        gamma=0.99,
+        batch_size=64,
+        memory_size=10000,
+        target_update=100,
+        architecture: str = "standard",
+        dqn_type: str = "standard",
+    ):
+
+        self.device = torch.device("cpu")
+
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+
+        self.gamma = gamma
+        self.batch_size = batch_size
+        self.target_update = target_update
+        self.dqn_type = dqn_type  # 'standard' or 'double'
+
+        if architecture == "dueling":
+            self.model = DuelingQNetwork(state_dim, action_dim).to(self.device)
+            self.target_model = DuelingQNetwork(state_dim, action_dim).to(self.device)
+        else:
+            self.model = QNetwork(state_dim, action_dim).to(self.device)
+            self.target_model = QNetwork(state_dim, action_dim).to(self.device)
+
+        self.target_model.load_state_dict(
+            self.model.state_dict()
+        )
+
+        self.optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=learning_rate,
+        )
+
+        self.criterion = nn.MSELoss()
+
+        self.memory = ReplayBuffer(
+            capacity=memory_size
+        )
+
+        self.policy = EpsilonGreedyPolicy()
+
+        self.steps = 0
+
+    def act(self, state):
+        """
+        Select an action for the given state.
+
+        Args:
+            state: Current environment state.
+
+        Returns:
+            int: Selected action index.
+        """
+
+        if not isinstance(state, torch.Tensor):
+            state = torch.FloatTensor(state)
+
+        state = state.unsqueeze(0)
+
+        if random.random() < self.policy.epsilon:
+            return random.randint(
+                0,
+                self.action_dim - 1,
+            )
+
+        with torch.no_grad():
+
+            q_values = self.model(state)
+
+            return torch.argmax(
+                q_values,
+                dim=1,
+            ).item()
+
+    def remember(
+        self,
+        state,
+        action,
+        reward,
+        next_state,
+        done,
+    ):
+        """
+        Store one transition inside the replay buffer.
+
+        Args:
+            state: Current state.
+            action: Executed action.
+            reward: Received reward.
+            next_state: Next environment state.
+            done: Episode termination flag.
+        """
+
+        self.memory.add(
+            state,
+            action,
+            reward,
+            next_state,
+            done,
+        )
+
+    def update(self):
+        """
+        Perform one optimization step using a mini-batch sampled
+        from the replay buffer.
+
+        Returns:
+            float | None:
+                Training loss if an update was performed,
+                otherwise None.
+        """
+
+        if len(self.memory) < self.batch_size:
+            return None
+
+        batch = self.memory.sample(self.batch_size)
+
+        states, actions, rewards, next_states, dones = zip(*batch)
+
+        states = torch.FloatTensor(states)
+        actions = torch.LongTensor(actions).unsqueeze(1)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1)
+        next_states = torch.FloatTensor(next_states)
+        dones = torch.FloatTensor(dones).unsqueeze(1)
+
+        current_q = self.model(states).gather(1, actions)
+
+        with torch.no_grad():
+            if self.dqn_type == "double":
+                # Double DQN: action selected by online network, value from target network
+                next_actions = self.model(next_states).argmax(dim=1, keepdim=True)
+                next_q = self.target_model(next_states).gather(1, next_actions)
+            else:
+                # Standard DQN: use target network max over actions
+                next_q = self.target_model(next_states).max(dim=1, keepdim=True).values
+            target_q = rewards + self.gamma * next_q * (1 - dones)
+
+        loss = self.criterion(
+            current_q,
+            target_q,
+        )
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        self.policy.decay()
+
+        self.steps += 1
+
+        if self.steps % self.target_update == 0:
+            self.target_model.load_state_dict(
+                self.model.state_dict()
+            )
+
+        return loss.item()
+
+    def save(self, path):
+        """
+        Save the trained model.
+
+        Args:
+            path (str): Destination file path.
+        """
+
+        torch.save(
+            self.model.state_dict(),
+            path,
+        )
+
+    def load(self, path):
+        """
+        Load a previously trained model.
+
+        Args:
+            path (str): Model file path.
+        """
+
+        self.model.load_state_dict(
+            torch.load(
+                path,
+                map_location=self.device,
+            )
+        )
+
+        self.target_model.load_state_dict(
+            self.model.state_dict()
+        )
+
+
+if __name__ == "__main__":
+
+    import numpy as np
+
+    agent = DQNAgent(
+        state_dim=4,
+        action_dim=2,
+    )
+
+    state = np.random.rand(4)
+    next_state = np.random.rand(4)
+
+    action = agent.act(state)
+
+    agent.remember(
+        state,
+        action,
+        1.0,
+        next_state,
+        False,
+    )
+
+    print("Selected Action:", action)
+    print("DQN Agent initialized successfully.")
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/rl_agent/networks.py
+============================================================
+
+import torch
+import torch.nn as nn
+
+
+class QNetwork(nn.Module):
+    """
+    Deep Q-Network (DQN)
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, action_size)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class DuelingQNetwork(nn.Module):
+    """
+    Dueling DQN network: separate value and advantage streams.
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+        self.feature = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+        )
+        self.value_stream = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
+        self.advantage_stream = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, action_size))
+
+    def forward(self, x):
+        features = self.feature(x)
+        value = self.value_stream(features)
+        adv = self.advantage_stream(features)
+        q = value + adv - adv.mean(dim=1, keepdim=True)
+        return q
+
+
+class ActorNetwork(nn.Module):
+    """
+    PPO Actor Network
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, action_size),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class CriticNetwork(nn.Module):
+    """
+    PPO Critic Network
+    """
+
+    def __init__(self, state_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/services/experiment_service.py
+============================================================
+
+"""Orchestrate sequential multi-model experiments over the full dataset.
+
+This service trains multiple model configurations sequentially to avoid
+resource exhaustion, evaluates each trained model on the full test split,
+persists checkpoints and per-model metrics, and selects the best model using
+mean evaluation reward as the primary criterion.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import threading
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from app.config.settings import settings
+from app.rl_agent.trainer import Trainer
+from app.services.model_service import save_trained_model
+
+logger = logging.getLogger(__name__)
+
+EXPERIMENTS_DIR = settings.model_dir / "experiments"
+EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# In-memory experiment registry
+EXPERIMENTS: dict[str, dict] = {}
+
+import uuid
+from math import ceil
+from app.data_pipeline.contract import audit_processed_split, FEATURE_COLUMNS, feature_schema
+import numpy as np
+import torch
+
+
+def _model_filename(name: str) -> Path:
+    return settings.model_dir / f"{name}.pt"
+
+
+def _metadata_filename(name: str) -> Path:
+    return settings.model_dir / f"{name}.metadata.json"
+
+
+def _save_model_artifact(model: torch.nn.Module, name: str, training: dict, evaluation: dict) -> dict:
+    model_path = settings.model_dir / f"{name}.pt"
+    metadata_path = settings.model_dir / f"{name}.metadata.json"
+    metadata = {
+        "model_name": name,
+        "model_version": datetime.now(UTC).strftime(f"{name}-%Y%m%dT%H%M%SZ"),
+        "trained_at": datetime.now(UTC).isoformat(),
+        "algorithm": "dqn",
+        "architecture": training.get("architecture", "standard"),
+        "training": training,
+        "evaluation": evaluation,
+        "feature_schema": feature_schema(),
+        "state_dim": len(FEATURE_COLUMNS),
+        "action_dim": len(__import__("app.reward.outcomes", fromlist=["ACTION_NAMES"]).ACTION_NAMES),
+    }
+    # atomic write
+    tmp_model = model_path.with_suffix(model_path.suffix + ".tmp")
+    tmp_meta = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
+    try:
+        torch.save(model.state_dict(), tmp_model)
+        tmp_meta.write_text(json.dumps(metadata, indent=2, default=_json_default), encoding="utf-8")
+        tmp_model.replace(model_path)
+        tmp_meta.replace(metadata_path)
+    finally:
+        for p in (tmp_model, tmp_meta):
+            if p.exists():
+                p.unlink(missing_ok=True)
+    return {"model_path": str(model_path), "metadata_path": str(metadata_path), "metadata": metadata}
+
+
+def _json_default(value: Any) -> Any:
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    raise TypeError()
+
+
+def start_experiment_background(models: list[dict[str, Any]]) -> dict[str, Any]:
+    run_id = uuid.uuid4().hex
+    EXPERIMENTS[run_id] = {
+        "status": "queued",
+        "models": [],
+        "created_at": datetime.now(UTC).isoformat(),
+        "training_dataset": str((settings.processed_data_dir / "train_processed.csv")),
+        "test_dataset": str((settings.processed_data_dir / "test_processed.csv")),
+    }
+
+    def _worker():
+        EXPERIMENTS[run_id]["status"] = "running"
+        train_audit = audit_processed_split("train")
+        test_audit = audit_processed_split("test")
+        EXPERIMENTS[run_id]["training_rows"] = train_audit.rows
+        EXPERIMENTS[run_id]["test_rows"] = test_audit.rows
+        total_models = len(models)
+        EXPERIMENTS[run_id]["total_models"] = total_models
+        results = []
+        for idx, cfg in enumerate(models, start=1):
+            model_entry = {"name": cfg.get("name"), "status": "training", "index": idx, "total": total_models}
+            EXPERIMENTS[run_id]["current_model"] = model_entry
+            EXPERIMENTS[run_id]["models"].append(model_entry)
+            try:
+                # Determine training passes: explicit config or project default
+                training_passes = int(cfg.get("training_passes", getattr(settings, "training_passes", 1)))
+                trainer = Trainer(agent_config={
+                    "learning_rate": cfg.get("learning_rate", 1e-3),
+                    "gamma": cfg.get("gamma", 0.99),
+                    "batch_size": cfg.get("batch_size", 64),
+                    "memory_size": cfg.get("memory_size", 100000),
+                    "target_update": cfg.get("target_update", 100),
+                    "architecture": cfg.get("architecture", "standard"),
+                    "dqn_type": cfg.get("dqn_type", "standard"),
+                })
+                # Prepare live progress updater
+                def on_episode(record: dict):
+                    # record contains pass, steps, total_reward, average_reward, loss, epsilon
+                    model_entry.setdefault("training_progress", {})
+                    pass_no = record.get("pass")
+                    model_entry["training_progress"][f"pass_{pass_no}"] = record
+                    # aggregate simple counters
+                    model_entry["training_progress"]["last_pass"] = pass_no
+                    model_entry["training_progress"]["last_steps"] = record.get("steps")
+                    model_entry["training_progress"]["last_loss"] = record.get("loss")
+                    model_entry["training_progress"]["last_reward"] = record.get("average_reward")
+
+                def on_progress(prog: dict):
+                    model_entry.setdefault("training_progress", {})
+                    model_entry["training_progress"]["environment_steps"] = prog.get("environment_steps")
+                    model_entry["training_progress"]["dataset_rows"] = prog.get("dataset_rows")
+                    model_entry["training_progress"]["gradient_updates"] = prog.get("gradient_updates")
+                    model_entry["training_progress"]["last_loss"] = prog.get("last_loss")
+                    model_entry["training_progress"]["last_reward"] = prog.get("last_reward")
+
+                # Train covering the full dataset deterministically for the requested number of passes
+                training = trainer.train(training_passes=training_passes, max_steps=settings.training_max_steps, seed=settings.training_seed, on_episode=on_episode, on_progress=on_progress)
+                evaluation = trainer.evaluate(max_steps=None)
+                saved = _save_model_artifact(trainer.agent.model, cfg.get("name"), {**training, **cfg}, evaluation)
+                model_entry.update({"status": "evaluating", "training": training, "evaluation": evaluation, "artifact": saved})
+                results.append(model_entry)
+                model_entry["status"] = "completed"
+            except Exception as exc:
+                model_entry.update({"status": "failed", "error": str(exc)})
+        # select best
+        best = None
+        for m in results:
+            evalm = m.get("evaluation") or {}
+            mr = evalm.get("average_historical_reward")
+            if mr is None:
+                continue
+            if best is None or mr > best.get("evaluation", {}).get("average_historical_reward", -1e9):
+                best = m
+        EXPERIMENTS[run_id]["status"] = "completed"
+        EXPERIMENTS[run_id]["results"] = results
+        EXPERIMENTS[run_id]["best"] = best
+
+    thread = threading.Thread(target=_worker, daemon=True, name=f"experiment-{run_id}")
+    thread.start()
+    EXPERIMENTS[run_id]["status"] = "started"
+    EXPERIMENTS[run_id]["run_id"] = run_id
+    return {"run_id": run_id, "status": "started"}
+
+
+def get_experiment_status(run_id: str) -> dict:
+    return EXPERIMENTS.get(run_id, {"status": "not_found"})
+
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/services/model_service.py
+============================================================
+
+"""Validated DQN model lifecycle and inference service."""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+from datetime import UTC, datetime
+from functools import lru_cache
+from pathlib import Path
+from time import perf_counter
+from typing import Any
+
+import numpy as np
+import torch
+
+from app.config.settings import settings
+from app.data_pipeline.contract import FEATURE_COLUMNS, SCHEMA_VERSION, feature_schema, observation_from_alert
+from app.reward.outcomes import ACTION_NAMES
+from app.rl_agent.networks import QNetwork
+
+
+logger = logging.getLogger(__name__)
+ALGORITHM = "dqn"
+ACTION_DIM = len(ACTION_NAMES)
+
+
+class ModelUnavailableError(RuntimeError):
+    """The model cannot safely serve an inference request."""
+
+
+def _json_default(value: Any) -> Any:
+    """Convert scalar values emitted by numerical libraries in model metadata."""
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    raise TypeError(f"Unsupported model metadata value: {type(value).__name__}")
+
+
+def _artifact_paths() -> tuple[Path, Path]:
+    return settings.model_path, settings.model_metadata_path
+
+
+def _read_metadata() -> dict[str, Any]:
+    _, metadata_path = _artifact_paths()
+    try:
+        with metadata_path.open(encoding="utf-8") as file:
+            metadata = json.load(file)
+    except FileNotFoundError as exc:
+        raise ModelUnavailableError("Model metadata is not available") from exc
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ModelUnavailableError(f"Model metadata cannot be read: {exc}") from exc
+
+    expected = {
+        "algorithm": ALGORITHM,
+        "feature_schema_version": SCHEMA_VERSION,
+        "state_dim": len(FEATURE_COLUMNS),
+        "action_dim": ACTION_DIM,
+    }
+    for key, value in expected.items():
+        if metadata.get(key) != value:
+            raise ModelUnavailableError(f"Model metadata has incompatible {key}: {metadata.get(key)!r}")
+    return metadata
+
+
+@lru_cache(maxsize=1)
+def _load_model_cached(model_mtime_ns: int, metadata_mtime_ns: int) -> tuple[QNetwork, dict[str, Any]]:
+    del model_mtime_ns, metadata_mtime_ns
+    model_path, _ = _artifact_paths()
+    metadata = _read_metadata()
+    if not model_path.is_file():
+        raise ModelUnavailableError("No trained model artifact is available")
+    try:
+        # `weights_only=True` avoids unsafe arbitrary-object deserialization.
+        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
+        model = QNetwork(len(FEATURE_COLUMNS), ACTION_DIM)
+        model.load_state_dict(state_dict)
+        model.eval()
+    except (OSError, RuntimeError, ValueError, TypeError) as exc:
+        raise ModelUnavailableError(f"Trained model cannot be loaded: {exc}") from exc
+    return model, metadata
+
+
+def load_model() -> tuple[QNetwork, dict[str, Any]]:
+    model_path, metadata_path = _artifact_paths()
+    if not model_path.is_file() or not metadata_path.is_file():
+        raise ModelUnavailableError("No trained model is loaded; run dataset-backed training first")
+    return _load_model_cached(model_path.stat().st_mtime_ns, metadata_path.stat().st_mtime_ns)
+
+
+def invalidate_model_cache() -> None:
+    _load_model_cached.cache_clear()
+
+
+def save_trained_model(
+    model: QNetwork,
+    *,
+    training_metadata: dict[str, Any],
+    evaluation: dict[str, Any],
+) -> dict[str, Any]:
+    """Persist a DQN artifact and compatible metadata as one lifecycle event."""
+    model_path, metadata_path = _artifact_paths()
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "model_version": datetime.now(UTC).strftime("dqn-%Y%m%dT%H%M%SZ"),
+        "trained_at": datetime.now(UTC).isoformat(),
+        "algorithm": ALGORITHM,
+        "feature_schema_version": SCHEMA_VERSION,
+        "feature_schema": feature_schema(),
+        "state_dim": len(FEATURE_COLUMNS),
+        "action_dim": ACTION_DIM,
+        "actions": ACTION_NAMES,
+        "training": training_metadata,
+        "evaluation": evaluation,
+    }
+    temporary_model = model_path.with_suffix(model_path.suffix + ".tmp")
+    temporary_metadata = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
+    try:
+        torch.save(model.state_dict(), temporary_model)
+        temporary_metadata.write_text(
+            json.dumps(metadata, indent=2, sort_keys=True, default=_json_default),
+            encoding="utf-8",
+        )
+        os.replace(temporary_model, model_path)
+        os.replace(temporary_metadata, metadata_path)
+    finally:
+        for path in (temporary_model, temporary_metadata):
+            if path.exists():
+                path.unlink(missing_ok=True)
+    invalidate_model_cache()
+    logger.info("Saved trained DQN model version %s", metadata["model_version"])
+    return metadata
+
+
+def get_model_status() -> dict[str, Any]:
+    model_path, metadata_path = _artifact_paths()
+    base = {
+        "algorithm": ALGORITHM,
+        "feature_schema_version": SCHEMA_VERSION,
+        "model_path": str(model_path),
+        "metadata_path": str(metadata_path),
+    }
+    if not model_path.is_file() or not metadata_path.is_file():
+        return {
+            **base,
+            "status": "UNAVAILABLE",
+            "message": "No trained model artifact and metadata are available.",
+        }
+    try:
+        _, metadata = load_model()
+    except ModelUnavailableError as exc:
+        return {**base, "status": "ERROR", "message": str(exc)}
+    return {
+        **base,
+        "status": "READY",
+        "model_version": metadata.get("model_version"),
+        "trained_at": metadata.get("trained_at"),
+        "evaluation": metadata.get("evaluation"),
+        "training": metadata.get("training"),
+    }
+
+
+def predict(alert: dict[str, Any]) -> dict[str, Any]:
+    """Return an RL recommendation only; it never executes an external action."""
+    model, metadata = load_model()
+    observation = observation_from_alert(alert)
+    started = perf_counter()
+    with torch.no_grad():
+        scores = model(torch.as_tensor(observation, dtype=torch.float32).unsqueeze(0)).squeeze(0)
+        probabilities = torch.softmax(scores, dim=0)
+        action = int(torch.argmax(scores).item())
+    latency_ms = (perf_counter() - started) * 1000
+    return {
+        "action_index": action,
+        "action": ACTION_NAMES[action],
+        "confidence": round(float(probabilities[action].item()), 6),
+        "model_version": metadata["model_version"],
+        "feature_schema_version": SCHEMA_VERSION,
+        "inference_latency_ms": round(latency_ms, 3),
+        "recommendation_status": "PENDING_HUMAN_VALIDATION",
+        "execution_status": "NOT_EXECUTED",
+        "observation": np.asarray(observation, dtype=float).round(8).tolist(),
+    }
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/services/training_service.py
+============================================================
+
+"""Background orchestration for the dataset-backed DQN trainer.
+
+Only metrics produced by :class:`Trainer` are retained.  MongoDB persistence is
+best-effort monitoring: a missing database does not manufacture history or
+prevent a local training run from producing its model artifact.
+"""
+
+from __future__ import annotations
+
+import threading
+from datetime import UTC, datetime
+from typing import Any
+
+from app.config.settings import settings
+from app.database.database import checkpoints_collection, training_collection, training_metrics_collection
+from app.rl_agent.trainer import Trainer
+from app.services.model_service import save_trained_model
+
+
+STATE: dict[str, Any] = {
+    "status": "IDLE",
+    "current_epoch": 0,
+    "history": [],
+    "last_error": None,
+    "model_version": None,
+}
+TRAINING_CTRL: dict[str, Any] = {
+    "thread": None,
+    "stop_event": None,
+    "lock": threading.Lock(),
+}
+_PERSISTENCE_AVAILABLE: bool | None = None
+
+
+def _persist(operation) -> bool:
+    """Persist one monitoring record, disabling repeated failures per process."""
+    global _PERSISTENCE_AVAILABLE
+    if _PERSISTENCE_AVAILABLE is False:
+        return False
+    try:
+        operation()
+    except Exception:
+        _PERSISTENCE_AVAILABLE = False
+        return False
+    _PERSISTENCE_AVAILABLE = True
+    return True
+
+
+def _upsert_training_status(status: str, current_epoch: int) -> None:
+    STATE["status"] = status
+    STATE["current_epoch"] = current_epoch
+    _persist(
+        lambda: training_collection.insert_one(
+            {
+                "type": "status",
+                "status": status,
+                "current_epoch": current_epoch,
+                "updated_at": datetime.now(UTC),
+            }
+        )
+    )
+
+
+def _record_episode(record: dict[str, Any]) -> None:
+    """Record one completed training pass and any optimiser loss."""
+    # normalize record keys for backward compatibility
+    STATE["history"].append(record)
+    pass_number = int(record.get("pass", record.get("episode", 0)))
+    _upsert_training_status("RUNNING", pass_number)
+    if record.get("loss") is None:
+        return
+    metric = {
+        "pass": pass_number,
+        "loss": float(record["loss"]),
+        "average_reward": record.get("average_reward"),
+        "steps": int(record.get("steps", 0)),
+        "epsilon": float(record.get("epsilon", 0.0)),
+        "timestamp": datetime.now(UTC),
+    }
+    _persist(lambda: training_collection.insert_one({"type": "history", **metric}))
+    _persist(lambda: training_metrics_collection.insert_one(metric))
+
+
+def _run_training_async(algorithm: str, training_passes: int | None, stop_event: threading.Event) -> None:
+    try:
+        trainer = Trainer(algorithm=algorithm)
+        result = trainer.train(
+            training_passes=training_passes,
+            max_steps=settings.training_max_steps,
+            seed=settings.training_seed,
+            stop_event=stop_event,
+            on_episode=_record_episode,
+        )
+        if result.get("training_passes", 0) == 0:
+            _upsert_training_status("STOPPED" if result["stopped"] else "FAILED", 0)
+            return
+
+        evaluation = trainer.evaluate(max_steps=settings.evaluation_max_steps)
+        metadata = save_trained_model(
+            trainer.agent.model,
+            training_metadata=result,
+            evaluation=evaluation,
+        )
+        STATE["model_version"] = metadata["model_version"]
+        # Expose useful training counters for monitoring and the frontend.
+        for key in ("dataset_rows", "environment_steps", "gradient_updates", "elapsed_seconds"):
+            if key in result:
+                STATE[key] = result[key]
+        _persist(
+            lambda: checkpoints_collection.insert_one(
+                {
+                    "name": settings.model_path.name,
+                    "path": str(settings.model_path),
+                    "model_version": metadata["model_version"],
+                    "created_at": datetime.now(UTC),
+                }
+            )
+        )
+        _upsert_training_status(
+            "STOPPED" if result["stopped"] else "COMPLETED",
+            int(result.get("training_passes", 0)),
+        )
+    except Exception as exc:
+        STATE["last_error"] = str(exc)
+        _upsert_training_status("FAILED", STATE["current_epoch"])
+    finally:
+        with TRAINING_CTRL["lock"]:
+            TRAINING_CTRL["thread"] = None
+            TRAINING_CTRL["stop_event"] = None
+
+
+def get_training_status() -> dict[str, Any]:
+    base = {
+        "status": STATE["status"],
+        "current_epoch": STATE["current_epoch"],
+        "last_error": STATE["last_error"],
+        "model_version": STATE["model_version"],
+        "persistence": "AVAILABLE" if _PERSISTENCE_AVAILABLE else "UNAVAILABLE",
+    }
+    # Include optional counters when available
+    for optional in ("dataset_rows", "environment_steps", "gradient_updates", "elapsed_seconds"):
+        if optional in STATE:
+            base[optional] = STATE[optional]
+    return base
+
+
+def start_training(algorithm: str = "dqn", episodes: int | None = None) -> dict[str, str]:
+    """Start real train-split interaction in a background thread."""
+    with TRAINING_CTRL["lock"]:
+        thread = TRAINING_CTRL["thread"]
+        if thread is not None and thread.is_alive():
+            return {"message": "Training already in progress"}
+
+        selected_episodes = settings.training_episodes if episodes is None else episodes
+        # If configured training_episodes is <= 0, let the trainer compute
+        # the number of episodes needed to cover the full dataset.
+        if isinstance(selected_episodes, int) and selected_episodes < 1:
+            selected_episodes_arg = None
+        else:
+            selected_episodes_arg = selected_episodes
+        STATE.update({"current_epoch": 0, "history": [], "last_error": None, "model_version": None})
+        stop_event = threading.Event()
+        thread = threading.Thread(
+            target=_run_training_async,
+            args=(algorithm, selected_episodes_arg, stop_event),
+            daemon=True,
+            name="dataset-backed-dqn-training",
+        )
+        TRAINING_CTRL["thread"] = thread
+        TRAINING_CTRL["stop_event"] = stop_event
+        _upsert_training_status("RUNNING", 0)
+        thread.start()
+    return {"message": "Training started"}
+
+
+def stop_training() -> dict[str, str]:
+    """Request a cooperative stop; no fabricated final metric is written."""
+    with TRAINING_CTRL["lock"]:
+        stop_event = TRAINING_CTRL["stop_event"]
+        thread = TRAINING_CTRL["thread"]
+        if stop_event is None or thread is None or not thread.is_alive():
+            return {"message": "No training run is active"}
+        stop_event.set()
+        _upsert_training_status("STOPPING", STATE["current_epoch"])
+    return {"message": "Training stop requested"}
+
+
+def get_checkpoints() -> list[str]:
+    """Return only compatible model-service artifacts, never legacy pickle files."""
+    if settings.model_path.is_file() and settings.model_metadata_path.is_file():
+        return [settings.model_path.name]
+    return []
+
+
+def get_history() -> list[dict[str, Any]]:
+    """Expose episodes with optimiser losses; episodes before replay warmup omit loss."""
+    return [
+        {"epoch": item["episode"], "loss": item["loss"]}
+        for item in STATE["history"]
+        if item["loss"] is not None
+    ]
+
+
+def get_metrics(limit: int = 100) -> list[dict[str, Any]]:
+    records = [item for item in STATE["history"] if item["loss"] is not None]
+    return [
+        {
+            "epoch": item["episode"],
+            "loss": item["loss"],
+            "average_reward": item["average_reward"],
+            "steps": item["steps"],
+            "epsilon": item["epsilon"],
+        }
+        for item in records[-max(0, limit) :]
+    ]
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/environment/gym_env.py
+============================================================
+
+"""Public Gymnasium environment exports.
+
+`SimpleEnv` used to fabricate random alerts and rewards. It has deliberately
+been replaced by the dataset-backed environment; callers must select a split
+of the repository's real processed data.
+"""
+
+from .triage_env import AlertTriageEnv
+
+SimpleEnv = AlertTriageEnv  # backwards-compatible import name; no synthetic behavior
+
+__all__ = ["AlertTriageEnv", "SimpleEnv"]
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/rl_agent/checkpoint.py
+============================================================
+
+import os
+import pickle
+
+
+class CheckpointManager:
+    """
+    Manage saving and loading RL model checkpoints
+    and the best trained model.
+    """
+
+    def __init__(self, checkpoint_dir="models/checkpoints"):
+        self.checkpoint_dir = checkpoint_dir
+        self.best_model_path = "models/best_model.pth"
+
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        os.makedirs("models", exist_ok=True)
+
+    def save(
+        self,
+        model,
+        optimizer,
+        episode,
+        filename="checkpoint.pth",
+    ):
+        """
+        Save a training checkpoint.
+        """
+
+        path = os.path.join(
+            self.checkpoint_dir,
+            filename,
+        )
+
+        data = {
+            "episode": episode,
+        }
+
+        if hasattr(model, "state_dict"):
+            data["model_state_dict"] = model.state_dict()
+        else:
+            data["model"] = model
+
+        if optimizer is not None and hasattr(optimizer, "state_dict"):
+            data["optimizer_state_dict"] = optimizer.state_dict()
+        else:
+            data["optimizer"] = optimizer
+
+        with open(path, "wb") as f:
+            pickle.dump(data, f)
+
+        print(f"Checkpoint saved: {path}")
+
+    def load(
+        self,
+        model,
+        optimizer,
+        filename="checkpoint.pth",
+    ):
+        """
+        Load a training checkpoint.
+        """
+
+        path = os.path.join(
+            self.checkpoint_dir,
+            filename,
+        )
+
+        if not os.path.exists(path):
+            print("No checkpoint found.")
+            return 0
+
+        with open(path, "rb") as f:
+            checkpoint = pickle.load(f)
+
+        if hasattr(model, "load_state_dict") and "model_state_dict" in checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
+
+        if optimizer is not None and hasattr(optimizer, "load_state_dict") and "optimizer_state_dict" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        print(f"Checkpoint loaded: {path}")
+
+        return checkpoint["episode"]
+
+    def save_best_model(self, model):
+        """
+        Save the best performing model.
+        """
+
+        if hasattr(model, "state_dict"):
+            with open(self.best_model_path, "wb") as f:
+                pickle.dump(model.state_dict(), f)
+        else:
+            with open(self.best_model_path, "wb") as f:
+                pickle.dump(model, f)
+
+        print(
+            f"Best model saved: {self.best_model_path}"
+        )
+
+    def load_best_model(self, model):
+        """
+        Load the best performing model.
+        """
+
+        if not os.path.exists(self.best_model_path):
+            print("No best model found.")
+            return False
+
+        with open(self.best_model_path, "rb") as f:
+            best_state = pickle.load(f)
+
+        if hasattr(model, "load_state_dict"):
+            model.load_state_dict(best_state)
+        else:
+            return False
+
+        print(
+            f"Best model loaded: {self.best_model_path}"
+        )
+
+        return True
+
+
+if __name__ == "__main__":
+
+    from networks import QNetwork
+    import torch.optim as optim
+
+    model = QNetwork(10, 4)
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=0.001,
+    )
+
+    manager = CheckpointManager()
+
+    manager.save(
+        model,
+        optimizer,
+        episode=1,
+    )
+
+    manager.load(
+        model,
+        optimizer,
+    )
+
+    manager.save_best_model(model)
+
+    manager.load_best_model(model)
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/data_pipeline/contract.py
+============================================================
+
+"""The single data contract used by training, evaluation, and inference.
+
+The repository's processed CSV files are intentionally treated as immutable
+inputs.  Version 1 of their historic preprocessing fitted categorical encoders
+separately per split and scaled time values using train+test data.  This module
+keeps those files intact while providing a train-fitted runtime adapter for
+the operational model.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Iterable, Literal
+
+import numpy as np
+import pandas as pd
+
+from app.config.settings import settings
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROCESSED_DIR = settings.processed_data_dir
+RAW_DIR = PROJECT_ROOT / "data"
+SCHEMA_VERSION = "alert-observation-v2"
+TARGET_COLUMN = "IncidentGrade"
+
+# ActionGrouped and ActionGranular describe downstream handling and are not
+# available when a new alert is triaged. IncidentId is a row identifier and
+# LastVerdict may be an after-the-fact verdict, so neither is an observation.
+FEATURE_COLUMNS = (
+    "Category",
+    "MitreTechniques",
+    "EntityType",
+    "EvidenceRole",
+    "ThreatFamily",
+    "OSFamily",
+    "SuspicionLevel",
+    "hour",
+    "day",
+    "month",
+    "is_weekend",
+)
+CATEGORICAL_COLUMNS = FEATURE_COLUMNS[:7]
+TIME_COLUMNS = FEATURE_COLUMNS[7:]
+REQUIRED_PROCESSED_COLUMNS = (
+    "IncidentId",
+    "Timestamp",
+    "Category",
+    "MitreTechniques",
+    TARGET_COLUMN,
+    "ActionGrouped",
+    "ActionGranular",
+    "EntityType",
+    "EvidenceRole",
+    "ThreatFamily",
+    "OSFamily",
+    "SuspicionLevel",
+    "LastVerdict",
+    "hour",
+    "day",
+    "month",
+    "is_weekend",
+)
+
+ALERT_FIELD_TO_DATASET_COLUMN = {
+    "category": "Category",
+    "mitre_techniques": "MitreTechniques",
+    "entity_type": "EntityType",
+    "evidence_role": "EvidenceRole",
+    "threat_family": "ThreatFamily",
+    "os_family": "OSFamily",
+    "suspicion_level": "SuspicionLevel",
+}
+
+
+class DataContractError(ValueError):
+    """Raised when a dataset or incoming alert violates the observation contract."""
+
+
+@dataclass(frozen=True)
+class DatasetAudit:
+    split: str
+    rows: int
+    columns: int
+    missing_values: int
+    duplicate_rows: int
+    class_distribution: dict[str, int]
+
+
+def _processed_path(split: Literal["train", "test"]) -> Path:
+    return PROCESSED_DIR / f"{split}_processed.csv"
+
+
+@lru_cache(maxsize=2)
+def load_processed_split(split: Literal["train", "test"]) -> pd.DataFrame:
+    """Load and validate an existing processed split without rewriting it."""
+    path = _processed_path(split)
+    if not path.is_file():
+        raise DataContractError(f"Processed {split} dataset is missing: {path}")
+
+    frame = pd.read_csv(path)
+    missing = [column for column in REQUIRED_PROCESSED_COLUMNS if column not in frame.columns]
+    if missing:
+        raise DataContractError(f"Processed {split} dataset is missing columns: {', '.join(missing)}")
+    if frame.empty:
+        raise DataContractError(f"Processed {split} dataset is empty")
+    if frame[list(FEATURE_COLUMNS)].isna().any().any():
+        raise DataContractError(f"Processed {split} dataset contains missing observation values")
+    return frame
+
+
+@lru_cache(maxsize=2)
+def audit_processed_split(split: Literal["train", "test"]) -> DatasetAudit:
+    frame = load_processed_split(split)
+    distribution = frame[TARGET_COLUMN].value_counts(dropna=False).sort_index().to_dict()
+    return DatasetAudit(
+        split=split,
+        rows=len(frame),
+        columns=len(frame.columns),
+        missing_values=int(frame.isna().sum().sum()),
+        duplicate_rows=int(frame.duplicated().sum()),
+        class_distribution={str(key): int(value) for key, value in distribution.items()},
+    )
+
+
+@lru_cache(maxsize=1)
+def _train_feature_limits() -> tuple[dict[str, float], dict[str, tuple[float, float]]]:
+    train = load_processed_split("train")
+    # Reserve one normalized value for source categories first observed after
+    # training. This is an explicit UNKNOWN bucket, not a fabricated category.
+    categorical_maxima = {
+        column: max(1.0, float(pd.to_numeric(train[column], errors="raise").max()) + 1.0)
+        for column in CATEGORICAL_COLUMNS
+    }
+    timestamp = pd.to_datetime(train["Timestamp"], utc=True, errors="raise")
+    time_values = _extract_time_features(timestamp)
+    time_ranges = {
+        column: (float(time_values[column].min()), float(time_values[column].max()))
+        for column in TIME_COLUMNS
+    }
+    return categorical_maxima, time_ranges
+
+
+def _extract_time_features(timestamp: pd.Series) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "hour": timestamp.dt.hour.astype(float),
+            "day": timestamp.dt.day.astype(float),
+            "month": timestamp.dt.month.astype(float),
+            "is_weekend": (timestamp.dt.dayofweek >= 5).astype(float),
+        },
+        index=timestamp.index,
+    )
+
+
+def _scale(value: float, lower: float, upper: float) -> float:
+    if upper <= lower:
+        return 0.0
+    # Values outside the historical training range remain explicit rather than
+    # being clipped, so distribution shift is not silently hidden.
+    return (value - lower) / (upper - lower)
+
+
+def observations_for_split(split: Literal["train", "test"]) -> tuple[np.ndarray, np.ndarray]:
+    """Return observations and target labels using the train-fitted contract.
+
+    Train categorical codes come from the existing processed data. For test,
+    the raw split is aligned with the existing processed rows and translated
+    through the *training* codebook, fixing the historic split-local encoding
+    mismatch without creating replacement datasets.
+    """
+    frame = load_processed_split(split)
+    categorical_maxima, time_ranges = _train_feature_limits()
+    values: dict[str, np.ndarray] = {}
+
+    if split == "train":
+        for column in CATEGORICAL_COLUMNS:
+            raw_values = pd.to_numeric(frame[column], errors="raise").astype(float)
+            values[column] = (raw_values / categorical_maxima[column]).to_numpy(dtype=np.float32)
+    else:
+        raw = _aligned_raw_split("test")
+        mappings = _raw_to_train_codebook()
+        for column in CATEGORICAL_COLUMNS:
+            mapped = raw[column].astype(str).map(mappings[column])
+            # A category legitimately absent from train has no encoder ID in
+            # the historical file. Route it to the documented UNKNOWN bucket.
+            mapped = mapped.fillna(categorical_maxima[column])
+            values[column] = (mapped.astype(float) / categorical_maxima[column]).to_numpy(dtype=np.float32)
+
+    timestamp = pd.to_datetime(frame["Timestamp"], utc=True, errors="raise")
+    time_values = _extract_time_features(timestamp)
+    for column in TIME_COLUMNS:
+        lower, upper = time_ranges[column]
+        values[column] = np.asarray(
+            [_scale(float(item), lower, upper) for item in time_values[column]], dtype=np.float32
+        )
+
+    observations = np.column_stack([values[column] for column in FEATURE_COLUMNS]).astype(np.float32)
+    labels = pd.to_numeric(frame[TARGET_COLUMN], errors="raise").to_numpy(dtype=np.int64)
+    return observations, labels
+
+
+@lru_cache(maxsize=2)
+def _aligned_raw_split(split: Literal["train", "test"]) -> pd.DataFrame:
+    path = RAW_DIR / f"data_{split}.csv"
+    if not path.is_file():
+        raise DataContractError(f"Raw {split} data is required for encoder compatibility but missing: {path}")
+    raw = pd.read_csv(path).drop_duplicates().fillna("Unknown").reset_index(drop=True)
+    processed = load_processed_split(split)
+    if len(raw) != len(processed):
+        raise DataContractError(
+            f"Raw/processed {split} row counts differ ({len(raw)} != {len(processed)}); cannot safely align encodings"
+        )
+    # Timestamp is an immutable cross-check; do not rely only on row order.
+    raw_timestamp = pd.to_datetime(raw["Timestamp"], utc=True, errors="raise")
+    processed_timestamp = pd.to_datetime(processed["Timestamp"], utc=True, errors="raise")
+    if not raw_timestamp.equals(processed_timestamp):
+        raise DataContractError(f"Raw/processed {split} timestamps are not aligned")
+    return raw
+
+
+@lru_cache(maxsize=1)
+def _raw_to_train_codebook() -> dict[str, dict[str, float]]:
+    raw_train = _aligned_raw_split("train")
+    processed_train = load_processed_split("train")
+    mappings: dict[str, dict[str, float]] = {}
+    for column in CATEGORICAL_COLUMNS:
+        pairs = pd.DataFrame(
+            {
+                "raw": raw_train[column].astype(str),
+                "code": pd.to_numeric(processed_train[column], errors="raise").astype(float),
+            }
+        ).drop_duplicates()
+        if pairs["raw"].duplicated().any():
+            raise DataContractError(f"Training encoder for {column} is not a one-to-one mapping")
+        mappings[column] = dict(zip(pairs["raw"], pairs["code"], strict=True))
+    return mappings
+
+
+def observation_from_alert(alert: dict[str, Any]) -> np.ndarray:
+    """Transform one canonical external alert into the model observation.
+
+    Categorical fields may be supplied as the original source value or as a
+    numeric value already encoded with the training contract. Timestamp must
+    be present to produce the train-normalized time features.
+    """
+    mappings = _raw_to_train_codebook()
+    categorical_maxima, time_ranges = _train_feature_limits()
+    missing = [field for field in ALERT_FIELD_TO_DATASET_COLUMN if alert.get(field) is None]
+    if alert.get("timestamp") is None:
+        missing.append("timestamp")
+    if missing:
+        raise DataContractError("Alert lacks required state fields: " + ", ".join(missing))
+
+    vector: list[float] = []
+    for field, column in ALERT_FIELD_TO_DATASET_COLUMN.items():
+        value = alert[field]
+        if isinstance(value, bool):
+            raise DataContractError(f"{field} must be a source value or encoded numeric value")
+        if isinstance(value, (int, float)):
+            encoded = float(value)
+        else:
+            encoded = mappings[column].get(str(value), categorical_maxima[column])
+        vector.append(encoded / categorical_maxima[column])
+
+    timestamp = pd.to_datetime(pd.Series([alert["timestamp"]]), utc=True, errors="coerce")
+    if timestamp.isna().any():
+        raise DataContractError("timestamp must be a valid ISO-8601 datetime")
+    time_values = _extract_time_features(timestamp)
+    for column in TIME_COLUMNS:
+        lower, upper = time_ranges[column]
+        vector.append(_scale(float(time_values.iloc[0][column]), lower, upper))
+    return np.asarray(vector, dtype=np.float32)
+
+
+def feature_schema() -> dict[str, Any]:
+    """Serializable model-contract metadata."""
+    categorical_maxima, time_ranges = _train_feature_limits()
+    return {
+        "version": SCHEMA_VERSION,
+        "target_column": TARGET_COLUMN,
+        "feature_order": list(FEATURE_COLUMNS),
+        "excluded_columns": ["IncidentId", TARGET_COLUMN, "ActionGrouped", "ActionGranular", "LastVerdict"],
+        "categorical_maxima": categorical_maxima,
+        "time_ranges": {name: list(bounds) for name, bounds in time_ranges.items()},
+        "train_rows": audit_processed_split("train").rows,
+        "test_rows": audit_processed_split("test").rows,
+    }
+
+
+def clear_dataset_caches() -> None:
+    """Test helper for isolated dataset-contract tests."""
+    for func in (
+        load_processed_split,
+        audit_processed_split,
+        _train_feature_limits,
+        _aligned_raw_split,
+        _raw_to_train_codebook,
+    ):
+        func.cache_clear()
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/reward/outcomes.py
+============================================================
+
+"""Deterministic rewards tied to recorded historical or human outcomes."""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+CLOSE = 0
+ESCALATE = 1
+HUMAN_REVIEW = 2
+ACTION_NAMES = {
+    CLOSE: "close_recommendation",
+    ESCALATE: "escalate_for_human_review",
+    HUMAN_REVIEW: "request_human_validation",
+}
+
+# `IncidentGrade` was LabelEncoder-encoded alphabetically by the historic
+# preprocessing: BenignPositive=0, FalsePositive=1, TruePositive=2,
+# Unknown=3. The mapping is recorded in model metadata.
+EXPECTED_ACTION_BY_GRADE = {0: CLOSE, 1: CLOSE, 2: ESCALATE, 3: HUMAN_REVIEW}
+
+
+def expected_action(incident_grade: int) -> int:
+    try:
+        return EXPECTED_ACTION_BY_GRADE[int(incident_grade)]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"Unsupported IncidentGrade value: {incident_grade!r}") from exc
+
+
+def historical_outcome_reward(incident_grade: int, action: int) -> float:
+    """Score a training action against the labelled historical outcome.
+
+    Rewards are intentionally deterministic. The substantial missed-threat
+    penalty reflects the asymmetric operational cost of closing a true
+    positive. Unknown incidents are rewarded only for human validation.
+    """
+    target = expected_action(incident_grade)
+    if action == target:
+        return {CLOSE: 8.0, ESCALATE: 20.0, HUMAN_REVIEW: 3.0}[target]
+    if int(incident_grade) == 2 and action == CLOSE:
+        return -40.0
+    if int(incident_grade) in (0, 1) and action == ESCALATE:
+        return -15.0
+    if int(incident_grade) == 3 and action != HUMAN_REVIEW:
+        return -8.0
+    return -12.0
+
+
+def feedback_reward(
+    *,
+    outcome: str,
+    decision_correct: bool | None,
+    processing_time_seconds: float | None,
+) -> tuple[float, dict[str, Any]]:
+    """Calculate a persisted reward from a real human/executor result.
+
+    No reward is generated until feedback is supplied. A failed execution is
+    always negative; an explicit correctness value is otherwise authoritative.
+    The only time component is a deterministic penalty for a reported duration.
+    """
+    if outcome == "failed":
+        base = -20.0
+    elif decision_correct is True:
+        base = 10.0
+    elif decision_correct is False:
+        base = -15.0
+    elif outcome == "approved":
+        base = 2.0
+    elif outcome in {"rejected", "cancelled"}:
+        base = -5.0
+    elif outcome == "executed":
+        # The executor confirmed completion but correctness was not supplied.
+        base = 1.0
+    else:
+        raise ValueError(f"Unsupported feedback outcome: {outcome!r}")
+
+    latency_penalty = 0.0
+    if processing_time_seconds is not None:
+        if processing_time_seconds < 0:
+            raise ValueError("processing_time_seconds must be >= 0")
+        latency_penalty = min(float(processing_time_seconds) * 0.1, 8.0)
+    reward = max(-50.0, min(50.0, base - latency_penalty))
+    return reward, {
+        "outcome": outcome,
+        "decision_correct": decision_correct,
+        "processing_time_seconds": processing_time_seconds,
+        "base_reward": base,
+        "latency_penalty": latency_penalty,
+    }
+
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: frontend/src/pages/Training.tsx
+============================================================
+
+import { useCallback } from "react";
+import { LineChart } from "../components/charts/LineChart";
+import { EmptyState } from "../components/ui/EmptyState";
+import { KpiCard } from "../components/ui/KpiCard";
+import { PageHeader } from "../components/ui/PageHeader";
+import { QueryState } from "../components/ui/QueryState";
+import { StatusBadge } from "../components/ui/StatusBadge";
+import { useToast } from "../components/ui/ToastProvider";
+import { useApi } from "../hooks/useApi";
+import { trainingService } from "../services/training.service";
+
+export function TrainingPage() {
+  const status = useApi(trainingService.getStatus, { poll: 2000 });
+  const history = useApi(trainingService.getHistory, { poll: true });
+  const checkpoints = useApi(trainingService.getCheckpoints);
+  const metrics = useApi(trainingService.getMetrics, { poll: true });
+  const { notify } = useToast();
+  const startExperiment = useCallback(async () => {
+    if (!window.confirm("Start full experiment with selected models?")) return;
+    try {
+      const models = [
+        { name: "dqn_baseline", architecture: "standard", learning_rate: 1e-3, gamma: 0.99 },
+        { name: "dqn_double", architecture: "standard", learning_rate: 5e-4, gamma: 0.99 },
+        { name: "dqn_dueling", architecture: "dueling", learning_rate: 1e-3, gamma: 0.98 },
+      ];
+      notify({ tone: "info", title: "Experiment started" });
+      const res = await trainingService.startExperiment(models);
+      const runId = res.run_id;
+      // poll status
+      const poll = async () => {
+        const s = await trainingService.getExperimentStatus(runId);
+        if (s.status && s.status !== "completed" && s.status !== "failed") {
+          setTimeout(poll, 2000);
+        } else {
+          notify({ tone: "success", title: "Experiment completed", description: `Best: ${s.best?.name ?? 'N/A'}` });
+          status.refresh();
+        }
+      };
+      void poll();
+    } catch (err) {
+      notify({ tone: "error", title: "Experiment failed", description: err instanceof Error ? err.message : String(err) });
+    }
+  }, [notify, status]);
+  const runAction = useCallback(async (action: "start" | "stop") => {
+    const verb = action === "start" ? "start" : "stop";
+    if (!window.confirm(`Are you sure you want to ${verb} training?`)) return;
+    try {
+      const response = await trainingService[action]();
+      notify({ tone: "success", title: response.message });
+      await status.refresh();
+    } catch (error) {
+      notify({ tone: "error", title: "Training action failed", description: error instanceof Error ? error.message : "Unable to reach the API." });
+    }
+  }, [notify, status]);
+  return <>
+    <PageHeader eyebrow="MODEL TRAINING" title="Training control" description="Start and stop commands call the configured API only after confirmation." actions={<div className="button-group"><button className="button button--primary" type="button" onClick={() => void runAction("start")}>Start training</button><button className="button button--danger" type="button" onClick={() => void runAction("stop")}>Stop training</button></div>} />
+    <QueryState state={status}>{(data) => <section className="kpi-grid kpi-grid--three"><KpiCard label="Training status" value={<StatusBadge value={data.status} />} detail="Reported by training API" icon="⌁" /><KpiCard label="Current epoch" value={data.current_epoch} detail={`Dataset rows: ${data.dataset_rows ?? 'N/A'}`} icon="◷" /><KpiCard label="Progress" value={data.environment_steps ? `${data.environment_steps}/${data.dataset_rows ?? '?'}` : '—'} detail="Environment steps / dataset rows" icon="◎" /><KpiCard label="Models" value={<span>3</span>} detail="Configured models in experiment" icon="⚙" /></section>}</QueryState>
+    <section className="split-grid">
+      <article className="panel"><div className="panel__header"><div><p className="eyebrow">LOSS CURVE</p><h2>Training loss</h2></div></div><QueryState state={history} empty={(data) => data.history.length === 0}>{(data) => <LineChart label="Training loss by epoch" points={data.history.map((point) => ({ label: `Epoch ${point.epoch}`, value: point.loss }))} />}</QueryState></article>
+      <article className="panel"><div className="panel__header"><div><p className="eyebrow">CHECKPOINTS</p><h2>Available models</h2></div></div><QueryState state={checkpoints} empty={(data) => data.checkpoints.length === 0}>{(data) => <ul className="checkpoint-list">{data.checkpoints.map((checkpoint) => <li key={checkpoint}><span aria-hidden="true">▣</span>{checkpoint}</li>)}</ul>}</QueryState></article>
+    </section>
+    <section className="panel"><div className="panel__header"><div><p className="eyebrow">REWARD & PERFORMANCE</p><h2>Awaiting metrics</h2></div></div>
+      <div style={{display: 'flex', gap: '8px', marginBottom: '8px'}}>
+        <button className="button button--primary" onClick={() => void startExperiment()}>Start full experiment</button>
+      </div>
+      <QueryState state={metrics} empty={(d) => d.metrics.length === 0}>
+        {(data) => <LineChart label="Training loss (metrics)" points={data.metrics.map((m) => ({ label: `Epoch ${m.epoch}`, value: m.loss }))} />}
+      </QueryState>
+    </section>
+  </>;
+}
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: frontend/src/services/training.service.ts
+============================================================
+
+import { apiRequest } from "./api";
+import type { TrainingCheckpoints, TrainingHistory, TrainingStatus } from "../types/domain";
+
+export const trainingService = {
+  getStatus: () => apiRequest<TrainingStatus>("/api/training/status"),
+  getHistory: () => apiRequest<TrainingHistory>("/api/training/history"),
+  getCheckpoints: () => apiRequest<TrainingCheckpoints>("/api/training/checkpoints"),
+  getMetrics: () => apiRequest<{ metrics: { epoch: number; loss: number; timestamp?: string }[] }>("/api/training/metrics"),
+  start: () => apiRequest<{ message: string }>("/api/training/start", { method: "POST" }),
+  stop: () => apiRequest<{ message: string }>("/api/training/stop", { method: "POST" }),
+  startExperiment: (models: any) => apiRequest<any>("/api/training/experiment", { method: "POST", body: JSON.stringify(models) }),
+  getExperimentStatus: (runId: string) => apiRequest<any>(`/api/training/experiment/${runId}/status`),
+};
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: frontend/src/types/domain.ts
+============================================================
+
+export type ApiHealth = "online" | "offline" | "unknown";
+
+export interface Alert {
+  id: string | number;
+  title: string;
+  severity: string;
+  source: string;
+}
+
+export interface Decision {
+  id: number;
+  incident_id: number;
+  action: string;
+  timestamp: string;
+}
+
+export interface Reward {
+  id: number;
+  decision_id: number;
+  reward_value: number;
+  metrics: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface DashboardSummary {
+  total_alerts: number | null;
+  processed_alerts: number | null;
+  total_decisions: number | null;
+  total_rewards: number | null;
+  average_reward: number | null;
+  average_latency: number | null;
+  accuracy: number | null;
+  database_status: string;
+  training_status: string;
+  current_episode: number | null;
+}
+
+export interface SystemHealth {
+  status: string;
+}
+
+export interface ApiComponent {
+  name: string;
+  prefix: string;
+  status: string;
+  last_seen?: number | null;
+  request_count?: number;
+}
+
+export interface TrainingStatus {
+  status: string;
+  current_epoch: number;
+}
+
+export interface TrainingHistoryPoint {
+  epoch: number;
+  loss: number;
+}
+
+export interface TrainingHistory {
+  history: TrainingHistoryPoint[];
+}
+
+export interface TrainingCheckpoints {
+  checkpoints: string[];
+}
+
+export interface PipelineStats {
+  total_rows: number;
+  total_columns: number;
+  missing_values: number;
+}
+
+export interface PipelineStatus {
+  status: string;
+  last_run: string | null;
+}
+
+export interface DatabaseHealth {
+  status: string;
+  database: string;
+}
+
+export interface DatabaseStatistics {
+  collections_count: number;
+  total_objects: number;
+}
+
+export interface RewardStatistics {
+  mean_reward: number | null;
+  max_reward: number | null;
+  min_reward: number | null;
+}
+
+export interface ToastMessage {
+  id: number;
+  tone: "success" | "error" | "info";
+  title: string;
+  description?: string;
+}
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/api/agent.py
+============================================================
+
+"""Agent-related API routes.
+
+Provides a small router to query agent status and request an action for an
+incoming event. Uses `app.services.agent_service` for behavior.
+"""
+
+from fastapi import APIRouter, HTTPException
+from app.data_pipeline.contract import DataContractError
+from app.services.agent_service import get_agent_status, act_on_event
+from app.services.model_service import ModelUnavailableError
+
+router = APIRouter(prefix="/api/agent", tags=["Agent"])
+
+
+@router.get("/status")
+def api_agent_status():
+	return get_agent_status()
+
+
+@router.post("/act")
+def api_act(payload: dict):
+    try:
+        return act_on_event(payload)
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except DataContractError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+__all__ = ["router"]
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/api/router.py
+============================================================
+
+# app/api/router.py
+from fastapi import APIRouter
+from app.api.alerts import router as alerts_router
+from app.api.health import router as health_router
+from app.api.pipeline import router as pipeline_router
+from app.api.decisions import router as decisions_router
+from app.api.training import router as training_router
+from app.api.rewards import router as rewards_router
+from app.api.database_monitoring import router as db_router
+from app.api.dashboard import router as dashboard_router
+from app.api.agent import router as agent_router
+from app.api.evaluation import router as evaluation_router
+from app.api.metrics import router as metrics_router
+from app.api.api_status import router as api_status_router
+
+router = APIRouter()
+
+# 1. Alerts & System Health
+router.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
+router.include_router(health_router, prefix="/api/system", tags=["System Health"])
+# API status / activity tracking endpoint
+router.include_router(api_status_router)
+router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
+router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
+router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+
+# 2. Routers الخرى اللي نجحات سابقاً
+router.include_router(pipeline_router)
+router.include_router(training_router)
+router.include_router(db_router)
+router.include_router(agent_router)
+router.include_router(evaluation_router)
+router.include_router(metrics_router)
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/main.py
+============================================================
+
+# main.py
+import sys
+from pathlib import Path
+
+# إضافة مجلد backend للمسار الأساسي لـ Python لتفادي مشاكل الـ Imports
+sys.path.append(str(Path(__file__).resolve().parent))
+
+from fastapi import FastAPI
+from app.api.router import router
+from fastapi.middleware.cors import CORSMiddleware
+from app.config.settings import settings
+
+app = FastAPI(
+    title="SOAR-RL-Agent API",
+    version="1.0.0",
+    description="Backend Central API for SOAR Reinforcement Learning Agent",
+)
+
+# Configure CORS for frontend dev servers and register routers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=getattr(settings, "api_allowed_origins", ["*"]),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Start API activity tracking (middleware + background monitor)
+from app.services.api_activity import (
+    init_api_status_store,
+    api_activity_middleware,
+    start_status_monitor,
+    stop_status_monitor,
+)
+
+if settings.enable_api_activity_tracking:
+    init_api_status_store(app)
+    app.middleware("http")(api_activity_middleware)
+
+
+@app.on_event("startup")
+async def _startup_api_monitor():
+    start_status_monitor(app)
+
+
+@app.on_event("shutdown")
+async def _shutdown_api_monitor():
+    await stop_status_monitor(app)
+
+# تسجيل الـ Routers الأساسية
+app.include_router(router)
+
+
+@app.get("/", tags=["Root"])
+def root():
+    return {"message": "Welcome to SOAR-RL-Agent API"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    from app.config.settings import settings
+
+    uvicorn.run(
+        "main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.debug,
+    )
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/services/dataset_service.py
+============================================================
+
+"""Read-only access to the immutable processed dataset splits.
+
+The historical API called this operation an "import", but the authoritative
+CSV files are already part of the project.  These functions therefore validate
+and audit the requested split; they never create replacement data or invent
+statistics.
+"""
+
+from datetime import UTC, datetime
+
+from app.data_pipeline.contract import DatasetAudit, audit_processed_split
+from app.database.database import pipeline_collection
+
+PIPELINE_STATE = {
+    "status": "UNAVAILABLE",
+    "last_run": None,
+    "total_rows": None,
+    "total_columns": None,
+    "missing_values": None,
+    "split": None,
+}
+
+
+def _log_pipeline_event(event_type: str, audit: DatasetAudit) -> None:
+    """Persist an audit when MongoDB is available without masking file results."""
+    try:
+        pipeline_collection.insert_one(
+            {
+                "type": event_type,
+                "rows": audit.rows,
+                "columns": audit.columns,
+                "missing_values": audit.missing_values,
+                "timestamp": datetime.now(UTC),
+            }
+        )
+    except Exception:
+        # The data result is still valid when optional monitoring storage is
+        # unavailable; callers can observe DB health through its own endpoint.
+        return None
+
+
+def _validate_split(split: str) -> DatasetAudit:
+    audit = audit_processed_split(split)  # type: ignore[arg-type]
+    PIPELINE_STATE.update(
+        {
+            "status": "READY",
+            "last_run": datetime.now(UTC).isoformat(),
+            "total_rows": audit.rows,
+            "total_columns": audit.columns,
+            "missing_values": audit.missing_values,
+            "split": split,
+        }
+    )
+    _log_pipeline_event(f"{split}_validated", audit)
+    return audit
+
+
+def import_train_dataset():
+    audit = _validate_split("train")
+    return {
+        "message": "Train processed dataset validated",
+        "imported_count": audit.rows,
+    }
+
+
+def import_test_dataset():
+    audit = _validate_split("test")
+    return {
+        "message": "Test processed dataset validated",
+        "imported_count": audit.rows,
+    }
+
+
+def get_pipeline_status():
+    if PIPELINE_STATE["split"] is None:
+        try:
+            _validate_split("train")
+        except Exception:
+            return {"status": "UNAVAILABLE", "last_run": None}
+    return {
+        "status": PIPELINE_STATE["status"],
+        "last_run": PIPELINE_STATE["last_run"],
+    }
+
+
+def get_pipeline_statistics():
+    if PIPELINE_STATE["split"] is None:
+        _validate_split("train")
+    return {
+        "total_rows": PIPELINE_STATE["total_rows"],
+        "total_columns": PIPELINE_STATE["total_columns"],
+        "missing_values": PIPELINE_STATE["missing_values"],
+    }
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/services/agent_service.py
+============================================================
+
+"""Model-backed agent API helpers.
+
+The API may recommend an action from a compatible trained model, but it never
+executes an external SOAR action.  Missing model artifacts are surfaced to the
+caller instead of being replaced with a random decision.
+"""
+
+from typing import Any
+
+from app.services.model_service import get_model_status, predict
+
+
+AGENT_STATE: dict[str, Any] = {"last_action": None}
+
+
+def get_agent_status() -> dict[str, Any]:
+    model = get_model_status()
+    return {
+        "status": model["status"],
+        "last_action": AGENT_STATE["last_action"],
+        "model": model,
+    }
+
+
+def act_on_event(event: dict[str, Any]) -> dict[str, Any]:
+    """Produce a model recommendation from a contract-valid alert payload."""
+    recommendation = predict(event)
+    AGENT_STATE["last_action"] = recommendation["action"]
+    return recommendation
+
+
+__all__ = ["get_agent_status", "act_on_event"]
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/schemas/dashboard_schema.py
+============================================================
+
+from pydantic import BaseModel, ConfigDict
+
+class DashboardSummary(BaseModel):
+    total_alerts: int | None
+    processed_alerts: int | None
+    total_decisions: int | None
+    total_rewards: int | None
+    average_reward: float | None
+    average_latency: float | None
+    accuracy: float | None
+    database_status: str
+    training_status: str
+    current_episode: int | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: backend/app/schemas/__init__.py
+============================================================
+
+from .alert_schema import Alert, AlertCreate
+from .decision_schema import Decision, DecisionCreate
+from .reward_schema import Reward, RewardCreate
+from .dashboard_schema import DashboardSummary
+from .pipeline_schema import PipelineStats, PipelineImportResponse
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: frontend/src/pages/Agent.tsx
+============================================================
+
+import { EmptyState } from "../components/ui/EmptyState";
+import { PageHeader } from "../components/ui/PageHeader";
+import { QueryState } from "../components/ui/QueryState";
+import { StatusBadge } from "../components/ui/StatusBadge";
+import { useApi } from "../hooks/useApi";
+import { dashboardService } from "../services/dashboard.service";
+import { pipelineService } from "../services/pipeline.service";
+import { trainingService } from "../services/training.service";
+import { formatDateTime, formatDecimal, formatNumber } from "../utils/format";
+
+export function AgentPage() {
+  const summary = useApi(dashboardService.getSummary, { poll: true });
+  const training = useApi(trainingService.getStatus, { poll: true });
+  const pipeline = useApi(pipelineService.getStatus, { poll: true });
+  return <>
+    <PageHeader eyebrow="RL AGENT" title="Agent oversight" description="Current data is composed only from dashboard, training, and pipeline endpoints; a dedicated agent endpoint is not yet exposed." />
+    <section className="split-grid">
+      <article className="panel"><div className="panel__header"><div><p className="eyebrow">AVAILABLE STATUS</p><h2>Runtime signals</h2></div></div>
+        <QueryState state={summary}>{(data) => <dl className="detail-list"><Detail label="Training state" value={data.training_status} badge /><Detail label="Current episode" value={formatNumber(data.current_episode)} /><Detail label="Average reward" value={formatDecimal(data.average_reward)} /><Detail label="Reported accuracy" value={data.accuracy === null ? "—" : `${formatDecimal(data.accuracy * 100, 1)}%`} /><Detail label="Model version" value="Not provided by API" muted /><Detail label="Algorithm" value="Not provided by API" muted /></dl>}</QueryState>
+      </article>
+      <article className="panel"><div className="panel__header"><div><p className="eyebrow">ENVIRONMENT</p><h2>Pipeline state</h2></div></div>
+        <QueryState state={pipeline}>{(data) => <dl className="detail-list"><Detail label="Pipeline" value={data.status} badge /><Detail label="Last run" value={formatDateTime(data.last_run)} /><Detail label="Agent endpoint" value="Not available" muted /></dl>}</QueryState>
+        <div className="divider" />
+        <QueryState state={training}>{(data) => <div className="inline-stat"><span>Training endpoint</span><StatusBadge value={data.status} /><strong>Epoch {data.current_epoch}</strong></div>}</QueryState>
+      </article>
+    </section>
+    <section className="panel"><div className="panel__header"><div><p className="eyebrow">MODEL DETAILS</p><h2>Awaiting agent telemetry</h2></div></div><EmptyState compact title="No model metadata endpoint" description="Algorithm, model version, policy metrics, confidence, and environment health are not available from the current FastAPI router." /></section>
+  </>;
+}
+
+function Detail({ label, value, badge = false, muted = false }: { label: string; value: string; badge?: boolean; muted?: boolean }) {
+  return <div><dt>{label}</dt><dd className={muted ? "not-provided" : ""}>{badge ? <StatusBadge value={value} /> : value}</dd></div>;
+}
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: frontend/src/pages/Dashboard.tsx
+============================================================
+
+import { Link } from "react-router-dom";
+import { KpiCard } from "../components/ui/KpiCard";
+import { PageHeader } from "../components/ui/PageHeader";
+import { QueryState } from "../components/ui/QueryState";
+import { StatusBadge } from "../components/ui/StatusBadge";
+import { useApi } from "../hooks/useApi";
+import { alertsService } from "../services/alerts.service";
+import { dashboardService } from "../services/dashboard.service";
+import { systemService } from "../services/system.service";
+import { decisionsService } from "../services/decisions.service";
+import { rewardsService } from "../services/rewards.service";
+import { formatDateTime, formatDecimal, formatNumber } from "../utils/format";
+
+export function DashboardPage() {
+  const summary = useApi(dashboardService.getSummary, { poll: true });
+  const alerts = useApi(alertsService.getAlerts, { poll: true });
+  const decisions = useApi(decisionsService.getDecisions, { poll: true });
+  const rewards = useApi(rewardsService.getRewards, { poll: true });
+  const apis = useApi(systemService.getApis, { poll: true });
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="SOC SUPERVISION"
+        title="Operations dashboard"
+        description="Live operational data from the SOAR-RL API. Values refresh on the configured polling interval."
+        actions={<Link className="button button--primary" to="/alerts">Review alerts <span aria-hidden="true">→</span></Link>}
+      />
+
+      <QueryState state={summary}>
+        {(data) => (
+          <section className="kpi-grid" aria-label="SOC key performance indicators">
+            <KpiCard label="Total alerts" value={formatNumber(data.total_alerts)} detail="Registered alerts" icon="◇" />
+            <KpiCard label="Processed alerts" value={formatNumber(data.processed_alerts)} detail="Alerts with decisions" icon="✓" tone="success" />
+            <KpiCard label="Total decisions" value={formatNumber(data.total_decisions)} detail="Recorded agent decisions" icon="↗" />
+            <KpiCard label="Average reward" value={formatDecimal(data.average_reward)} detail="Across recorded rewards" icon="✦" tone="success" />
+            <KpiCard label="Processing time" value={`${formatDecimal(data.average_latency)} ms`} detail="Reported average latency" icon="◷" />
+            <KpiCard label="Accuracy" value={data.accuracy === null ? "—" : `${formatDecimal(data.accuracy * 100, 1)}%`} detail="Reported evaluation accuracy" icon="◎" />
+            <KpiCard label="Reward events" value={formatNumber(data.total_rewards)} detail="Persisted reward records" icon="◌" />
+            <KpiCard label="Current episode" value={formatNumber(data.current_episode)} detail="Reported training episode" icon="⌁" tone="warning" />
+          </section>
+        )}
+      </QueryState>
+
+      <section className="dashboard-grid">
+        <article className="panel panel--wide">
+          <div className="panel__header">
+            <div>
+              <p className="eyebrow">ALERT OVERVIEW</p>
+              <h2>Recent alerts</h2>
+            </div>
+            <Link className="text-link" to="/alerts">View all alerts →</Link>
+          </div>
+          <QueryState state={alerts} empty={(data) => data.length === 0}>
+            {(items) => (
+              <div className="table-scroll">
+                <table>
+                  <thead><tr><th>Alert</th><th>Severity</th><th>Source</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {items.slice(0, 6).map((alert) => (
+                      <tr key={alert.id}>
+                        <td><strong>{alert.title}</strong><span className="muted">ID {alert.id}</span></td>
+                        <td><StatusBadge value={alert.severity} /></td>
+                        <td>{alert.source}</td>
+                        <td><Link className="table-link" to={`/alerts/${alert.id}`}>Inspect</Link></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </QueryState>
+        </article>
+
+        <article className="panel">
+          <div className="panel__header">
+            <div><p className="eyebrow">AGENT ACTIVITY</p><h2>Recent decisions</h2></div>
+            <Link className="text-link" to="/decisions">History →</Link>
+          </div>
+          <QueryState state={decisions} empty={(data) => data.length === 0}>
+            {(items) => <ul className="activity-feed">
+              {items.slice(0, 6).map((decision) => (
+                <li key={decision.id}>
+                  <span className="activity-feed__mark" aria-hidden="true">↗</span>
+                  <div><strong>{decision.action}</strong><p>Alert #{decision.incident_id} · {formatDateTime(decision.timestamp)}</p></div>
+                </li>
+              ))}
+            </ul>}
+          </QueryState>
+        </article>
+      </section>
+
+      <section className="dashboard-grid dashboard-grid--bottom">
+        <article className="panel">
+          <div className="panel__header"><div><p className="eyebrow">SYSTEM HEALTH</p><h2>Service readiness</h2></div></div>
+          <div className="health-list">
+            <HealthItem label="API" state={summary.data?.training_status ? "online" : "unknown"} />
+            <HealthItem label="Database" state={summary.data?.database_status ?? "unknown"} />
+            <HealthItem label="Training" state={summary.data?.training_status ?? "unknown"} />
+            <HealthItem label="RL agent" state="unknown" note="No agent status endpoint" />
+            <div style={{ marginTop: 12 }}>
+              <p className="eyebrow">API Components</p>
+              <QueryState state={apis} empty={(d) => (d?.components?.length ?? 0) === 0}>{(data) => (
+                <ul className="metric-list">
+                  {data.components.map((c) => <li key={c.name}><strong>{c.name}</strong>: <StatusBadge value={c.status} /></li>)}
+                </ul>
+              )}</QueryState>
+            </div>
+          </div>
+        </article>
+        <article className="panel">
+          <div className="panel__header"><div><p className="eyebrow">REWARDS</p><h2>Latest reward events</h2></div><Link className="text-link" to="/history">View history →</Link></div>
+          <QueryState state={rewards} empty={(data) => data.length === 0}>
+            {(items) => <ul className="metric-list">
+              {items.slice(0, 5).map((reward) => <li key={reward.id}><span>Decision #{reward.decision_id}</span><strong className={reward.reward_value >= 0 ? "positive" : "negative"}>{reward.reward_value >= 0 ? "+" : ""}{formatDecimal(reward.reward_value)}</strong></li>)}
+            </ul>}
+          </QueryState>
+        </article>
+        <article className="panel rl-cycle">
+          <div className="panel__header"><div><p className="eyebrow">RL DECISION CYCLE</p><h2>How a decision flows</h2></div></div>
+          <ol><li>Observation</li><li>Agent</li><li>Action</li><li>Environment</li><li>Reward</li><li>Policy update</li></ol>
+        </article>
+      </section>
+    </>
+  );
+}
+
+function HealthItem({ label, state, note }: { label: string; state: string; note?: string }) {
+  return <div className="health-list__item"><span>{label}</span><div>{note && <small>{note}</small>}<StatusBadge value={state} /></div></div>;
+}
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: frontend/src/pages/Metrics.tsx
+============================================================
+
+import { LineChart } from "../components/charts/LineChart";
+import { EmptyState } from "../components/ui/EmptyState";
+import { KpiCard } from "../components/ui/KpiCard";
+import { PageHeader } from "../components/ui/PageHeader";
+import { QueryState } from "../components/ui/QueryState";
+import { useApi } from "../hooks/useApi";
+import { dashboardService } from "../services/dashboard.service";
+import { rewardsService } from "../services/rewards.service";
+import { formatDecimal } from "../utils/format";
+
+export function MetricsPage() {
+  const summary = useApi(dashboardService.getSummary, { poll: true });
+  const rewards = useApi(rewardsService.getRewards, { poll: true });
+  const rewardStats = useApi(rewardsService.getStatistics, { poll: true });
+  return <>
+    <PageHeader eyebrow="MODEL EVALUATION" title="Metrics" description="Metrics are displayed only when supplied by the current API contracts." />
+    <QueryState state={summary}>{(data) => <section className="kpi-grid kpi-grid--four"><KpiCard label="Accuracy" value={data.accuracy === null ? "—" : `${formatDecimal(data.accuracy * 100, 1)}%`} detail="Reported dashboard metric" icon="◎" /><KpiCard label="Average reward" value={formatDecimal(data.average_reward)} detail="Reported dashboard metric" icon="✦" /><KpiCard label="Avg. processing time" value={data.average_latency === null ? "—" : `${formatDecimal(data.average_latency)} ms`} detail="Reported dashboard metric" icon="◷" /><KpiCard label="F1 score" value="—" detail="Not exposed by API" icon="◇" /></section>}</QueryState>
+    <section className="split-grid"><article className="panel"><div className="panel__header"><div><p className="eyebrow">REWARD HISTORY</p><h2>Reward events</h2></div></div><QueryState state={rewards} empty={(data) => data.length === 0}>{(data) => <LineChart label="Reward history" points={data.map((point) => ({ label: `#${point.id}`, value: point.reward_value }))} valueFormatter={(value) => formatDecimal(value)} />}</QueryState></article><article className="panel"><div className="panel__header"><div><p className="eyebrow">REWARD RANGE</p><h2>Aggregate values</h2></div></div><QueryState state={rewardStats}>{(data) => <dl className="detail-list"><Detail label="Mean reward" value={formatDecimal(data.mean_reward)} /><Detail label="Best reward" value={formatDecimal(data.max_reward)} /><Detail label="Lowest reward" value={formatDecimal(data.min_reward)} /></dl>}</QueryState></article></section>
+    <section className="panel"><div className="panel__header"><div><p className="eyebrow">BASELINE COMPARISON</p><h2>Baseline vs RL agent</h2></div></div><EmptyState compact title="No comparison dataset available" description="The backend currently does not expose baseline, precision, recall, F1, MTTR, or analyst-load comparison data." /></section>
+  </>;
+}
+function Detail({ label, value }: { label: string; value: string }) { return <div><dt>{label}</dt><dd>{value}</dd></div>; }
+
+
+============================================================
+END FILE
+============================================================
+
+============================================================
+FILE: frontend/src/utils/format.ts
+============================================================
+
+export const humanize = (value: string) =>
+  value.replace(/[_-]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+export const formatNumber = (value: number | null | undefined) =>
+  typeof value === "number" ? new Intl.NumberFormat("en-US").format(value) : "—";
+
+export const formatDecimal = (value: number | null | undefined, fractionDigits = 2) =>
+  typeof value === "number"
+    ? new Intl.NumberFormat("en-US", { maximumFractionDigits: fractionDigits }).format(value)
+    : "—";
+
+export const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return "Not provided";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : new Intl.DateTimeFormat("en-GB", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(parsed);
+};
+
+
+============================================================
+END FILE
+============================================================
+

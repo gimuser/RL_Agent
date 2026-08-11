@@ -1,0 +1,161 @@
+{
+  "action_dim": 3,
+  "actions": {
+    "0": "close_recommendation",
+    "1": "escalate_for_human_review",
+    "2": "request_human_validation"
+  },
+  "algorithm": "dqn",
+  "evaluation": {
+    "average_historical_reward": 2.3647,
+    "policy_action_accuracy": 0.606,
+    "samples": 10000,
+    "split": "test",
+    "total_historical_reward": 23647.0
+  },
+  "feature_schema": {
+    "categorical_maxima": {
+      "Category": 19.0,
+      "EntityType": 28.0,
+      "EvidenceRole": 2.0,
+      "MitreTechniques": 836.0,
+      "OSFamily": 4.0,
+      "SuspicionLevel": 3.0,
+      "ThreatFamily": 699.0
+    },
+    "excluded_columns": [
+      "IncidentId",
+      "IncidentGrade",
+      "ActionGrouped",
+      "ActionGranular",
+      "LastVerdict"
+    ],
+    "feature_order": [
+      "Category",
+      "MitreTechniques",
+      "EntityType",
+      "EvidenceRole",
+      "ThreatFamily",
+      "OSFamily",
+      "SuspicionLevel",
+      "hour",
+      "day",
+      "month",
+      "is_weekend"
+    ],
+    "target_column": "IncidentGrade",
+    "test_rows": 147781,
+    "time_ranges": {
+      "day": [
+        1.0,
+        31.0
+      ],
+      "hour": [
+        0.0,
+        23.0
+      ],
+      "is_weekend": [
+        0.0,
+        1.0
+      ],
+      "month": [
+        1.0,
+        12.0
+      ]
+    },
+    "train_rows": 401326,
+    "version": "alert-observation-v2"
+  },
+  "feature_schema_version": "alert-observation-v2",
+  "model_version": "dqn-20260811T165734Z",
+  "state_dim": 11,
+  "trained_at": "2026-08-11T16:57:34.656561+00:00",
+  "training": {
+    "action_dim": 3,
+    "episodes": [
+      {
+        "average_reward": -1.925,
+        "episode": 1,
+        "epsilon": 0.00998645168764533,
+        "loss": 266.5024738291412,
+        "steps": 1000,
+        "total_reward": -1925.0
+      },
+      {
+        "average_reward": 1.145,
+        "episode": 2,
+        "epsilon": 0.00998645168764533,
+        "loss": 272.80539796447755,
+        "steps": 1000,
+        "total_reward": 1145.0
+      },
+      {
+        "average_reward": 0.721,
+        "episode": 3,
+        "epsilon": 0.00998645168764533,
+        "loss": 274.0650863037109,
+        "steps": 1000,
+        "total_reward": 721.0
+      },
+      {
+        "average_reward": 1.093,
+        "episode": 4,
+        "epsilon": 0.00998645168764533,
+        "loss": 280.843660369873,
+        "steps": 1000,
+        "total_reward": 1093.0
+      },
+      {
+        "average_reward": 1.176,
+        "episode": 5,
+        "epsilon": 0.00998645168764533,
+        "loss": 286.051666595459,
+        "steps": 1000,
+        "total_reward": 1176.0
+      },
+      {
+        "average_reward": 2.242,
+        "episode": 6,
+        "epsilon": 0.00998645168764533,
+        "loss": 293.14626889038084,
+        "steps": 1000,
+        "total_reward": 2242.0
+      },
+      {
+        "average_reward": 1.514,
+        "episode": 7,
+        "epsilon": 0.00998645168764533,
+        "loss": 292.9228188018799,
+        "steps": 1000,
+        "total_reward": 1514.0
+      },
+      {
+        "average_reward": 1.688,
+        "episode": 8,
+        "epsilon": 0.00998645168764533,
+        "loss": 295.41137229919434,
+        "steps": 1000,
+        "total_reward": 1688.0
+      },
+      {
+        "average_reward": 1.462,
+        "episode": 9,
+        "epsilon": 0.00998645168764533,
+        "loss": 295.254241394043,
+        "steps": 1000,
+        "total_reward": 1462.0
+      },
+      {
+        "average_reward": 0.627,
+        "episode": 10,
+        "epsilon": 0.00998645168764533,
+        "loss": 297.55173963928223,
+        "steps": 1000,
+        "total_reward": 627.0
+      }
+    ],
+    "episodes_completed": 10,
+    "state_dim": 11,
+    "stopped": false
+  }
+}

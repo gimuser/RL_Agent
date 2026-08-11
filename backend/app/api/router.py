@@ -19,7 +19,8 @@ router = APIRouter()
 router.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
 router.include_router(health_router, prefix="/api/system", tags=["System Health"])
 # API status / activity tracking endpoint
-router.include_router(api_status_router)router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
+router.include_router(api_status_router)
+router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
 router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
 router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 

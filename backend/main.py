@@ -26,7 +26,16 @@ app.add_middleware(
 )
 
 # Start API activity tracking (middleware + background monitor)
-from app.services.api_activity import start_status_monitor, stop_status_monitor
+from app.services.api_activity import (
+    init_api_status_store,
+    api_activity_middleware,
+    start_status_monitor,
+    stop_status_monitor,
+)
+
+if settings.enable_api_activity_tracking:
+    init_api_status_store(app)
+    app.middleware("http")(api_activity_middleware)
 
 
 @app.on_event("startup")
