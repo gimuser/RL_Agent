@@ -7,16 +7,16 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import torch
 
 from app.database.database import db
-from app.rl_agent.dqn import DoubleDQN
+from app.rl_agent.offline_algorithms import build_model, algorithm_metadata
 from app.rl_agent.triage_env import ACTIONS, FEATURES
 from app.services.model_versioning import get_current_model_version, ensure_model_version
 from app.services.live_alert_service import alerts_collection, activity_collection, analysts_collection
 
 MODEL_PATH = Path(__file__).resolve().parents[3] / "models" / "real_dqn_agent.pt"
 INFERENCE_META_PATH = Path(__file__).resolve().parents[3] / "models" / "live_inference.json"
-
 DEFAULT_CONFIDENCE_THRESHOLD = 0.60
 DEFAULT_MARGIN_THRESHOLD = 0.15
 
@@ -33,243 +33,86 @@ def _softmax(values: np.ndarray) -> np.ndarray:
 
 def _least_loaded_analyst() -> dict[str, Any] | None:
     analysts = list(analysts_collection.find({"active": True}, {"_id": 0}))
-    if not analysts:
-        return None
+    if not analysts: return None
     scored = []
     for analyst in analysts:
-        analyst_id = analyst.get("analyst_id")
-        capacity = int(analyst.get("capacity", 0) or 0)
-        load = alerts_collection.count_documents({
-            "assigned_analyst": analyst_id,
-            "status": {"$in": ["HUMAN_REVIEW_PENDING", "ESCALATED", "OPEN"]},
-        })
-        available = max(capacity - load, 0)
-        scored.append((load, -available, analyst))
-    available = [item for item in scored if item[0] < int(item[2].get("capacity", 0) or 0)]
-    pool = available or scored
-    pool.sort(key=lambda item: (item[0], item[1], str(item[2].get("analyst_id", ""))))
+        analyst_id = analyst.get("analyst_id"); capacity = int(analyst.get("capacity", 0) or 0)
+        load = alerts_collection.count_documents({"assigned_analyst": analyst_id, "status": {"$in": ["HUMAN_REVIEW_PENDING", "ESCALATED", "OPEN"]}})
+        scored.append((load, -max(capacity - load, 0), analyst))
+    available = [x for x in scored if x[0] < int(x[2].get("capacity", 0) or 0)]
+    pool = available or scored; pool.sort(key=lambda x: (x[0], x[1], str(x[2].get("analyst_id", ""))))
     return pool[0][2] if pool else None
 
 
 def _feature_matrix(document: dict[str, Any]) -> np.ndarray:
-    processed = document.get("processed") or {}
-    missing = [name for name in FEATURES if name not in processed]
-    if missing:
-        raise ValueError(f"Alert {document.get('alert_id')} missing processed features: {missing}")
+    processed = document.get("processed") or {}; missing = [n for n in FEATURES if n not in processed]
+    if missing: raise ValueError(f"Alert {document.get('alert_id')} missing processed features: {missing}")
     values = []
     for name in FEATURES:
         value = processed.get(name)
-        if value is None:
-            raise ValueError(f"Alert {document.get('alert_id')} has null processed feature: {name}")
+        if value is None: raise ValueError(f"Alert {document.get('alert_id')} has null processed feature: {name}")
         values.append(float(value))
     return np.asarray([values], dtype=np.float32)
 
 
-def _load_model(
-    *,
-    model_path: Path | None = None,
-    model_name: str | None = None,
-) -> tuple[DoubleDQN, dict[str, Any]]:
+def _load_model(*, model_path: Path | None = None, model_name: str | None = None):
     path = model_path or MODEL_PATH
-    if not path.exists():
-        raise FileNotFoundError(f"Trained model not found: {path}")
-
-    if model_path is None:
-        metadata = get_current_model_version() or ensure_model_version(
-            model_path=path,
-            model_name=model_name or "DoubleDQN",
-        )
-    else:
-        metadata = ensure_model_version(
-            model_path=path,
-            model_name=model_name or path.stem,
-            extra={"inference_role": "candidate_live_evaluation"},
-        )
-
-    metadata = metadata or {
-        "model_version": "unknown",
-        "model_name": model_name or path.stem,
-    }
-    model = DoubleDQN(input_dim=len(FEATURES), n_actions=len(ACTIONS), gamma=0.95)
+    if not path.exists(): raise FileNotFoundError(f"Trained model not found: {path}")
+    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+    algorithm = str(checkpoint.get("algorithm") or model_name or "double_dqn").lower()
+    metadata = ensure_model_version(model_path=path, model_name=model_name or algorithm, extra={"algorithm": algorithm, "inference_role": "candidate_live_evaluation"})
+    model = build_model(algorithm, input_dim=len(FEATURES), n_actions=len(ACTIONS), learning_rate=1e-3, gamma=float(checkpoint.get("gamma", 0.95)), hidden_dim=128)
     model.load(str(path))
-    return model, metadata
+    return model, {**(metadata or {}), "algorithm": algorithm, "algorithm_metadata": algorithm_metadata(algorithm)}
 
 
-def run_live_inference(
-    *,
-    confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
-    margin_threshold: float = DEFAULT_MARGIN_THRESHOLD,
-    only_uninferred: bool = True,
-    model_path: str | None = None,
-    model_name: str | None = None,
-) -> dict[str, Any]:
-    """Score the active isolated live cycle.
-
-    The caller may supply a candidate checkpoint so every experiment candidate is
-    evaluated against a fresh 40-alert cycle before the next candidate starts.
-    """
+def run_live_inference(*, confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD, margin_threshold: float = DEFAULT_MARGIN_THRESHOLD, only_uninferred: bool = True, model_path: str | None = None, model_name: str | None = None) -> dict[str, Any]:
     selected_model_path = Path(model_path) if model_path else None
     model, model_meta = _load_model(model_path=selected_model_path, model_name=model_name)
-
-    query: dict[str, Any] = {}
-    if only_uninferred:
-        query["agent.status"] = {"$in": ["WAITING_INFERENCE", None]}
-
+    query: dict[str, Any] = {"agent.status": {"$in": ["WAITING_INFERENCE", None]}} if only_uninferred else {}
     documents = list(alerts_collection.find(query, {"_id": 0}).sort("timestamp", 1))
-    now = utc_now()
-    cycle_doc = alerts_collection.find_one({}, {"_id": 0, "cycle_id": 1, "decision_cycle_id": 1}) or {}
+    now = utc_now(); cycle_doc = alerts_collection.find_one({}, {"_id": 0, "cycle_id": 1, "decision_cycle_id": 1}) or {}
     cycle_id = cycle_doc.get("cycle_id") or cycle_doc.get("decision_cycle_id") or f"CYCLE-INFER-{int(now.timestamp())}"
-    counts = {name: 0 for name in ACTIONS.values()}
-    routed = 0
-    errors = []
-    processed = 0
-    start = time.perf_counter()
+    counts = {name: 0 for name in ACTIONS.values()}; routed = 0; errors = []; processed = 0; start = time.perf_counter()
 
     for document in documents:
         alert_id = str(document.get("alert_id"))
         try:
-            states = _feature_matrix(document)
-            q_values = model.q_values(states)[0]
+            states = _feature_matrix(document); q_values = model.q_values(states)[0]
             probabilities = _softmax(q_values.reshape(1, -1))[0]
-            order = np.argsort(probabilities)[::-1]
-            top_action = int(order[0])
-            second_action = int(order[1]) if len(order) > 1 else top_action
-            confidence = float(probabilities[top_action])
-            margin = float(probabilities[top_action] - probabilities[second_action])
-
-            selected_action = top_action
-            uncertainty_reason = None
+            order = np.argsort(probabilities)[::-1]; top_action = int(order[0]); second_action = int(order[1]) if len(order) > 1 else top_action
+            confidence = float(probabilities[top_action]); margin = float(probabilities[top_action] - probabilities[second_action])
+            selected_action = top_action; uncertainty_reason = None
             if top_action != 2:
-                if confidence < confidence_threshold:
-                    selected_action = 2
-                    uncertainty_reason = "LOW_CONFIDENCE"
-                elif margin < margin_threshold:
-                    selected_action = 2
-                    uncertainty_reason = "LOW_MARGIN"
-
-            action_name = ACTIONS[selected_action]
-            timestamp = utc_now()
-            requires_human = action_name == "human_review"
-            status = "HUMAN_REVIEW_PENDING" if requires_human else (
-                "MODEL_ALLOWED" if action_name == "allow" else "MODEL_BLOCKED"
-            )
-
+                if confidence < confidence_threshold: selected_action = 2; uncertainty_reason = "LOW_CONFIDENCE"
+                elif margin < margin_threshold: selected_action = 2; uncertainty_reason = "LOW_MARGIN"
+            action_name = ACTIONS[selected_action]; timestamp = utc_now(); requires_human = action_name == "human_review"
+            status = "HUMAN_REVIEW_PENDING" if requires_human else ("MODEL_ALLOWED" if action_name == "allow" else "MODEL_BLOCKED")
             assigned_analyst = None
             if requires_human:
                 analyst = _least_loaded_analyst()
-                if analyst:
-                    assigned_analyst = analyst.get("analyst_id")
-                    routed += 1
-
+                if analyst: assigned_analyst = analyst.get("analyst_id"); routed += 1
             q_map = {ACTIONS[index]: float(value) for index, value in enumerate(q_values)}
             probability_map = {ACTIONS[index]: float(value) for index, value in enumerate(probabilities)}
             agent_state = {
-                "status": "INFERRED",
-                "action": action_name,
-                "model_action": ACTIONS[top_action],
-                "confidence": confidence,
-                "q_values": q_map,
-                "action_probabilities": probability_map,
-                "confidence_threshold": float(confidence_threshold),
-                "margin_threshold": float(margin_threshold),
-                "action_margin": margin,
-                "uncertainty_reason": uncertainty_reason,
-                "model_version": model_meta.get("model_version"),
-                "model_name": model_meta.get("model_name"),
-                "candidate_model_path": str(selected_model_path) if selected_model_path else str(MODEL_PATH),
-                "requires_human_review": requires_human,
-                "inference_timestamp": timestamp,
-                "decision_cycle_id": cycle_id,
+                "status": "INFERRED", "action": action_name, "model_action": ACTIONS[top_action], "confidence": confidence,
+                "q_values": q_map, "action_probabilities": probability_map, "confidence_threshold": float(confidence_threshold),
+                "margin_threshold": float(margin_threshold), "action_margin": margin, "uncertainty_reason": uncertainty_reason,
+                "model_version": model_meta.get("model_version"), "model_name": model_meta.get("model_name") or model_name,
+                "algorithm": model_meta.get("algorithm"), "algorithm_metadata": model_meta.get("algorithm_metadata"),
+                "candidate_model_path": str(selected_model_path) if selected_model_path else str(MODEL_PATH), "requires_human_review": requires_human,
+                "inference_timestamp": timestamp, "decision_cycle_id": cycle_id,
             }
-
-            alerts_collection.update_one(
-                {"alert_id": alert_id},
-                {"$set": {
-                    "status": status,
-                    "agent": agent_state,
-                    "assigned_analyst": assigned_analyst,
-                    "updated_at": timestamp,
-                    "cycle_id": cycle_id,
-                    "decision_cycle_id": cycle_id,
-                }},
-            )
-
-            activity_collection.insert_one({
-                "alert_id": alert_id,
-                "cycle_id": cycle_id,
-                "decision_cycle_id": cycle_id,
-                "actor": "agent",
-                "action": "AGENT_INFERENCE",
-                "details": {
-                    "action": action_name,
-                    "model_action": ACTIONS[top_action],
-                    "confidence": confidence,
-                    "action_margin": margin,
-                    "uncertainty_reason": uncertainty_reason,
-                    "model_version": model_meta.get("model_version"),
-                    "model_name": model_meta.get("model_name"),
-                },
-                "timestamp": timestamp,
-            })
-
+            alerts_collection.update_one({"alert_id": alert_id}, {"$set": {"status": status, "agent": agent_state, "assigned_analyst": assigned_analyst, "updated_at": timestamp, "cycle_id": cycle_id, "decision_cycle_id": cycle_id}})
+            activity_collection.insert_one({"alert_id": alert_id, "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "actor": "agent", "action": "AGENT_INFERENCE", "details": {"action": action_name, "model_action": ACTIONS[top_action], "confidence": confidence, "action_margin": margin, "uncertainty_reason": uncertainty_reason, "model_version": model_meta.get("model_version"), "algorithm": model_meta.get("algorithm")}, "timestamp": timestamp})
             if requires_human:
-                activity_collection.insert_one({
-                    "alert_id": alert_id,
-                    "cycle_id": cycle_id,
-                    "decision_cycle_id": cycle_id,
-                    "actor": "system",
-                    "action": "HUMAN_REVIEW_ROUTED",
-                    "details": {
-                        "analyst_id": assigned_analyst,
-                        "reason": uncertainty_reason or "MODEL_REQUESTED_REVIEW",
-                        "confidence": confidence,
-                        "model_version": model_meta.get("model_version"),
-                    },
-                    "timestamp": timestamp,
-                })
-
-            counts[action_name] += 1
-            processed += 1
+                activity_collection.insert_one({"alert_id": alert_id, "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "actor": "system", "action": "HUMAN_REVIEW_ROUTED", "details": {"analyst_id": assigned_analyst, "reason": uncertainty_reason or "MODEL_REQUESTED_REVIEW", "confidence": confidence, "model_version": model_meta.get("model_version"), "algorithm": model_meta.get("algorithm")}, "timestamp": timestamp})
+            counts[action_name] += 1; processed += 1
         except Exception as exc:
             errors.append({"alert_id": alert_id, "error": str(exc)})
-            activity_collection.insert_one({
-                "alert_id": alert_id,
-                "cycle_id": cycle_id,
-                "decision_cycle_id": cycle_id,
-                "actor": "system",
-                "action": "AGENT_INFERENCE_ERROR",
-                "details": {"error": str(exc), "model_version": model_meta.get("model_version")},
-                "timestamp": utc_now(),
-            })
+            activity_collection.insert_one({"alert_id": alert_id, "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "actor": "system", "action": "AGENT_INFERENCE_ERROR", "details": {"error": str(exc), "model_version": model_meta.get("model_version")}, "timestamp": utc_now()})
 
     elapsed = time.perf_counter() - start
-    summary = {
-        "status": "completed" if not errors else "completed_with_errors",
-        "cycle_id": cycle_id,
-        "decision_cycle_id": cycle_id,
-        "model_version": model_meta.get("model_version"),
-        "model_name": model_meta.get("model_name"),
-        "model_path": str(selected_model_path) if selected_model_path else str(MODEL_PATH),
-        "confidence_threshold": confidence_threshold,
-        "margin_threshold": margin_threshold,
-        "alerts_considered": len(documents),
-        "alerts_processed": processed,
-        "human_review_routed": routed,
-        "action_distribution": counts,
-        "errors": errors,
-        "duration_seconds": elapsed,
-        "throughput_alerts_per_second": (processed / elapsed) if elapsed else 0.0,
-        "completed_at": now.isoformat(),
-    }
+    summary = {"status": "completed" if not errors else "completed_with_errors", "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "model_version": model_meta.get("model_version"), "model_name": model_meta.get("model_name") or model_name, "algorithm": model_meta.get("algorithm"), "confidence_threshold": confidence_threshold, "margin_threshold": margin_threshold, "alerts_considered": len(documents), "alerts_processed": processed, "human_review_routed": routed, "action_distribution": counts, "errors": errors, "duration_seconds": elapsed}
     INFERENCE_META_PATH.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     return summary
-
-
-def get_inference_status() -> dict[str, Any]:
-    try:
-        if not INFERENCE_META_PATH.exists():
-            return {"status": "NOT_RUN", "summary": None}
-        value = json.loads(INFERENCE_META_PATH.read_text(encoding="utf-8"))
-        return {"status": value.get("status", "UNKNOWN"), "summary": value}
-    except Exception as exc:
-        return {"status": "ERROR", "summary": {"error": str(exc)}}
