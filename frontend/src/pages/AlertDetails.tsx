@@ -11,21 +11,38 @@ import { formatDateTime } from "../utils/format";
 export function AlertDetailsPage() {
   const { id = "" } = useParams();
   const alert = useApi(() => liveAlertsService.getAlert(id), { poll: true });
+  const workload = useApi(liveAlertsService.getWorkload, { poll: true });
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [selectedAnalyst, setSelectedAnalyst] = useState("SA");
 
   async function review(decision: string) {
     setBusy(true);
     try {
       await liveAlertsService.review(id, {
-        analyst_id: "SA",
+        analyst_id: selectedAnalyst,
         decision,
         comment: `Decision made from the SOC supervision interface: ${decision}`,
       });
       setMessage(`Alert ${id} marked as ${decision}.`);
       await alert.refresh();
+      await workload.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to update the alert.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function assign() {
+    setBusy(true);
+    try {
+      await liveAlertsService.assign(id, selectedAnalyst);
+      setMessage(`Alert ${id} assigned to ${selectedAnalyst}.`);
+      await alert.refresh();
+      await workload.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to assign the alert.");
     } finally {
       setBusy(false);
     }
@@ -67,7 +84,13 @@ export function AlertDetailsPage() {
               <Detail label="Human review" value={data.agent.requires_human_review ? "Required" : "Completed"} />
             </dl>
             <div className="divider" />
-            <div className="panel__header"><div><p className="eyebrow">ANALYST CONTROLS</p><h2>Human verification</h2></div></div>
+            <div className="panel__header"><div><p className="eyebrow">ANALYST CONTROLS</p><h2>Assignment and human verification</h2></div></div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
+              <select value={selectedAnalyst} onChange={(event) => setSelectedAnalyst(event.target.value)} aria-label="Assign analyst">
+                {(workload.data?.items ?? []).map((analyst) => <option key={analyst.analyst_id} value={analyst.analyst_id}>{analyst.name} — {analyst.role} ({analyst.available} available)</option>)}
+              </select>
+              <button className="button button--quiet" type="button" disabled={busy} onClick={() => void assign()}>Assign</button>
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               <button className="button" type="button" disabled={busy} onClick={() => void review("approve")}>Approve</button>
               <button className="button button--quiet" type="button" disabled={busy} onClick={() => void review("reject")}>Reject</button>
