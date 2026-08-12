@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 import time
 from datetime import datetime, timezone
@@ -8,17 +9,13 @@ from typing import Any
 
 import numpy as np
 
-from app.database.database import db
 from app.rl_agent.dqn import DoubleDQN
 from app.rl_agent.triage_env import ACTIONS, FEATURES
 from app.services.model_versioning import get_current_model_version, ensure_model_version
-from app.services.live_alert_service import alerts_collection, activity_collection, analysts_collection, get_alert
+from app.services.live_alert_service import alerts_collection, activity_collection, analysts_collection
 
 MODEL_PATH = Path(__file__).resolve().parents[3] / "models" / "real_dqn_agent.pt"
 INFERENCE_META_PATH = Path(__file__).resolve().parents[3] / "models" / "live_inference.json"
-
-# These are intentionally configurable. Confidence is a Q-value softmax heuristic,
-# not a calibrated probability. Human review is also triggered by low action margin.
 DEFAULT_CONFIDENCE_THRESHOLD = 0.60
 DEFAULT_MARGIN_THRESHOLD = 0.15
 
@@ -37,7 +34,6 @@ def _least_loaded_analyst() -> dict[str, Any] | None:
     analysts = list(analysts_collection.find({"active": True}, {"_id": 0}))
     if not analysts:
         return None
-
     scored = []
     for analyst in analysts:
         analyst_id = analyst.get("analyst_id")
@@ -48,7 +44,6 @@ def _least_loaded_analyst() -> dict[str, Any] | None:
         })
         available = max(capacity - load, 0)
         scored.append((load, -available, analyst))
-
     available = [item for item in scored if item[0] < int(item[2].get("capacity", 0) or 0)]
     pool = available or scored
     pool.sort(key=lambda item: (item[0], item[1], str(item[2].get("analyst_id", ""))))
@@ -60,7 +55,6 @@ def _feature_matrix(document: dict[str, Any]) -> np.ndarray:
     missing = [name for name in FEATURES if name not in processed]
     if missing:
         raise ValueError(f"Alert {document.get('alert_id')} missing processed features: {missing}")
-
     values = []
     for name in FEATURES:
         value = processed.get(name)
@@ -73,17 +67,10 @@ def _feature_matrix(document: dict[str, Any]) -> np.ndarray:
 def _load_model() -> tuple[DoubleDQN, dict[str, Any]]:
     if not MODEL_PATH.exists():
         raise FileNotFoundError(f"Trained model not found: {MODEL_PATH}")
-
-    metadata = get_current_model_version()
-    if metadata is None:
-        metadata = ensure_model_version(model_path=MODEL_PATH, model_name="DoubleDQN")
-    metadata = metadata or {"model_version": "unknown", "model_name": "DoubleDQN"}
-
-    model = DoubleDQN(
-        input_dim=len(FEATURES),
-        n_actions=len(ACTIONS),
-        gamma=0.95,
-    )
+    metadata = get_current_model_version() or ensure_model_version(model_path=MODEL_PATH, model_name="DoubleDQN") or {
+        "model_version": "unknown", "model_name": "DoubleDQN"
+    }
+    model = DoubleDQN(input_dim=len(FEATURES), n_actions=len(ACTIONS), gamma=0.95)
     model.load(str(MODEL_PATH))
     return model, metadata
 
@@ -94,19 +81,19 @@ def run_live_inference(
     margin_threshold: float = DEFAULT_MARGIN_THRESHOLD,
     only_uninferred: bool = True,
 ) -> dict[str, Any]:
-    """Run the champion model against the isolated 40-alert Mongo queue.
+    """Score the isolated live-alert holdout and route uncertain alerts to analysts.
 
-    The original source and processed payloads are never rewritten. Only the
-    Mongo operational state and audit trail are updated.
+    Every run creates a decision-cycle identifier. Source, processed, and lineage
+    payloads are preserved; analyst decisions stay in the append-only activity/review
+    collections even when a later model creates a new cycle.
     """
     model, model_meta = _load_model()
-
+    cycle_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
     query: dict[str, Any] = {}
     if only_uninferred:
         query["agent.status"] = {"$in": ["WAITING_INFERENCE", None]}
 
     documents = list(alerts_collection.find(query, {"_id": 0}).sort("timestamp", 1))
-    now = utc_now()
     counts = {name: 0 for name in ACTIONS.values()}
     routed = 0
     errors = []
@@ -137,7 +124,6 @@ def run_live_inference(
 
             action_name = ACTIONS[selected_action]
             timestamp = utc_now()
-
             requires_human = action_name == "human_review"
             status = "HUMAN_REVIEW_PENDING" if requires_human else (
                 "MODEL_ALLOWED" if action_name == "allow" else "MODEL_BLOCKED"
@@ -152,7 +138,6 @@ def run_live_inference(
 
             q_map = {ACTIONS[index]: float(value) for index, value in enumerate(q_values)}
             probability_map = {ACTIONS[index]: float(value) for index, value in enumerate(probabilities)}
-
             agent_state = {
                 "status": "INFERRED",
                 "action": action_name,
@@ -166,21 +151,22 @@ def run_live_inference(
                 "uncertainty_reason": uncertainty_reason,
                 "model_version": model_meta.get("model_version"),
                 "model_name": model_meta.get("model_name"),
+                "decision_cycle_id": cycle_id,
                 "requires_human_review": requires_human,
                 "inference_timestamp": timestamp,
             }
 
-            alerts_collection.update_one(
-                {"alert_id": alert_id},
-                {
-                    "$set": {
-                        "status": status,
-                        "agent": agent_state,
-                        "assigned_analyst": assigned_analyst,
-                        "updated_at": timestamp,
-                    }
-                },
-            )
+            update = {
+                "$set": {
+                    "status": status,
+                    "agent": agent_state,
+                    "assigned_analyst": assigned_analyst,
+                    "updated_at": timestamp,
+                    "decision_cycle_id": cycle_id,
+                    "last_human_decision": None,
+                }
+            }
+            alerts_collection.update_one({"alert_id": alert_id}, update)
 
             activity_collection.insert_one({
                 "alert_id": alert_id,
@@ -193,6 +179,7 @@ def run_live_inference(
                     "action_margin": margin,
                     "uncertainty_reason": uncertainty_reason,
                     "model_version": model_meta.get("model_version"),
+                    "decision_cycle_id": cycle_id,
                 },
                 "timestamp": timestamp,
             })
@@ -207,6 +194,7 @@ def run_live_inference(
                         "reason": uncertainty_reason or "MODEL_REQUESTED_REVIEW",
                         "confidence": confidence,
                         "model_version": model_meta.get("model_version"),
+                        "decision_cycle_id": cycle_id,
                     },
                     "timestamp": timestamp,
                 })
@@ -219,13 +207,14 @@ def run_live_inference(
                 "alert_id": alert_id,
                 "actor": "system",
                 "action": "AGENT_INFERENCE_ERROR",
-                "details": {"error": str(exc), "model_version": model_meta.get("model_version")},
+                "details": {"error": str(exc), "model_version": model_meta.get("model_version"), "decision_cycle_id": cycle_id},
                 "timestamp": utc_now(),
             })
 
     elapsed = time.perf_counter() - start
     summary = {
         "status": "completed" if not errors else "completed_with_errors",
+        "decision_cycle_id": cycle_id,
         "model_version": model_meta.get("model_version"),
         "model_name": model_meta.get("model_name"),
         "confidence_threshold": confidence_threshold,
@@ -237,12 +226,9 @@ def run_live_inference(
         "errors": errors,
         "duration_seconds": elapsed,
         "throughput_alerts_per_second": (processed / elapsed) if elapsed else 0.0,
-        "completed_at": now.isoformat(),
+        "completed_at": utc_now().isoformat(),
     }
-    INFERENCE_META_PATH.write_text(
-        __import__("json").dumps(summary, indent=2, default=str),
-        encoding="utf-8",
-    )
+    INFERENCE_META_PATH.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     return summary
 
 
@@ -250,7 +236,7 @@ def get_inference_status() -> dict[str, Any]:
     try:
         if not INFERENCE_META_PATH.exists():
             return {"status": "NOT_RUN", "summary": None}
-        value = __import__("json").loads(INFERENCE_META_PATH.read_text(encoding="utf-8"))
+        value = json.loads(INFERENCE_META_PATH.read_text(encoding="utf-8"))
         return {"status": value.get("status", "UNKNOWN"), "summary": value}
     except Exception as exc:
         return {"status": "ERROR", "summary": {"error": str(exc)}}
