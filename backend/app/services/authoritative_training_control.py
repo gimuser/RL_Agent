@@ -172,17 +172,17 @@ def _sync_process_state() -> None:
         return
     _last_return_code = code
     if code == 0:
-        _last_message = "Authoritative real-data training and model selection completed."
+        _last_message = "Sequential model training and live-alert evaluation completed."
         try:
             from app.services.post_training_service import promote_and_infer
             _post_training = promote_and_infer()
             if _post_training.get("status") == "completed":
-                _last_message = "Training completed; champion model versioned and live-alert inference routed automatically."
+                _last_message = "All model candidates evaluated; champion model versioned and final live-alert cycle routed."
             else:
-                _last_message = "Training completed; live inference reported an error and requires review."
+                _last_message = "Model sequence completed; final live inference reported an error and requires review."
         except Exception as exc:
             _post_training = {"status": "post_training_failed", "error": str(exc)}
-            _last_message = "Training completed, but post-training live inference failed."
+            _last_message = "Model sequence completed, but final post-training live inference failed."
     elif code < 0:
         _last_message = f"Training process terminated by signal {-code}."
     else:
@@ -201,7 +201,7 @@ def start() -> dict[str, Any]:
     with _lock:
         _sync_process_state()
         if _process is not None and _process.poll() is None:
-            return {"status": "running", "message": "Full real-data training is already running."}
+            return {"status": "running", "message": "Sequential model training is already running."}
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         TRAIN_METRICS.write_text('{"config": {}, "metrics": []}\n', encoding="utf-8")
@@ -210,7 +210,7 @@ def start() -> dict[str, Any]:
         env["PYTHONPATH"] = str(PROJECT_ROOT / "backend") + os.pathsep + env.get("PYTHONPATH", "")
         _log_handle = LOG_PATH.open("w", encoding="utf-8")
         _process = subprocess.Popen(
-            [sys.executable, "-m", "app.rl_agent.real_pipeline"],
+            [sys.executable, "-m", "app.rl_agent.sequential_experiment"],
             cwd=str(PROJECT_ROOT / "backend"),
             env=env,
             stdout=_log_handle,
@@ -220,7 +220,7 @@ def start() -> dict[str, Any]:
         )
         _started_at = datetime.now(timezone.utc).isoformat()
         _last_return_code = None
-        _last_message = "Full real-data RL training started with adaptive stopping, model comparison, and live telemetry."
+        _last_message = "Sequential training started: each model receives a fresh 40-alert live cycle."
         return {"status": "started", "message": _last_message, "pid": _process.pid, "started_at": _started_at}
 
 
@@ -250,7 +250,7 @@ def stop() -> dict[str, Any]:
                     pass
             _process.wait(timeout=5)
         _last_return_code = _process.returncode
-        _last_message = "Full real-data training was stopped by the user."
+        _last_message = "Sequential model training was stopped by the user."
         if _log_handle is not None:
             try:
                 _log_handle.close()
@@ -269,10 +269,10 @@ def status() -> dict[str, Any]:
             results = _results()
             if running:
                 state = "running"
-                message = "Training real processed data with adaptive stopping, model comparison, and live telemetry."
+                message = "Sequential model training with a fresh 40-alert cycle after each candidate."
             elif _last_return_code == 0:
                 state = "completed"
-                message = _last_message or "Training, model versioning, and live inference completed."
+                message = _last_message or "Model comparison, champion selection, and live inference completed."
             elif _last_return_code is not None:
                 state = "stopped" if "stopped" in _last_message.lower() else "failed"
                 message = _last_message
