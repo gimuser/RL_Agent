@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import time
 from pathlib import Path
 from typing import Callable, Optional
@@ -63,7 +64,7 @@ def _counterfactual_rewards(labels: np.ndarray) -> np.ndarray:
 
 
 def evaluate_policy(model: DoubleDQN, csv_path: str) -> dict:
-    """Evaluate a policy without writing final test artifacts."""
+    """Evaluate the current policy against held-out incidents."""
     df = pd.read_csv(csv_path, low_memory=False)
     df, _ = sort_incidents(df)
 
@@ -96,10 +97,7 @@ def evaluate_policy(model: DoubleDQN, csv_path: str) -> dict:
             rows += 1
             action_counts[ACTIONS[action]] += 1
 
-            stats = class_stats.setdefault(
-                label,
-                {"rows": 0.0, "reward": 0.0, "optimal": 0.0},
-            )
+            stats = class_stats.setdefault(label, {"rows": 0.0, "reward": 0.0, "optimal": 0.0})
             stats["rows"] += 1
             stats["reward"] += reward
             stats["optimal"] += best
@@ -123,6 +121,7 @@ def evaluate_policy(model: DoubleDQN, csv_path: str) -> dict:
         "incidents": int(df[INCIDENT_ID].astype(str).nunique()),
         "total_reward": total_reward,
         "average_reward": average_reward,
+        "oracle_average_reward": optimal_reward / rows if rows else 0.0,
         "reward_efficiency": reward_efficiency,
         "policy_optimality": policy_optimality,
         "action_distribution": action_counts,
@@ -146,6 +145,7 @@ def train(
     min_delta: float = 1e-3,
     checkpoint_path: str | None = None,
     progress_callback: Optional[Callable[[dict], None]] = None,
+    max_total_updates: int | None = None,
 ):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -153,6 +153,9 @@ def train(
     df = pd.read_csv(train_csv, low_memory=False)
     states, next_states, labels, dones, _, _, timestamp_col = prepare_transitions(df)
     n_rows = len(states)
+    updates_per_epoch = math.ceil(n_rows / batch_size) if n_rows else 0
+    automatic_update_budget = max(1, updates_per_epoch * max(1, epochs))
+    update_budget = int(max_total_updates) if max_total_updates else automatic_update_budget
 
     model = DoubleDQN(
         input_dim=len(FEATURES),
@@ -166,6 +169,7 @@ def train(
     best_epoch = 0
     best_validation: dict | None = None
     epochs_without_improvement = 0
+    total_updates_used = 0
 
     root = Path(__file__).resolve().parents[3]
     models_dir = root / "models"
@@ -177,6 +181,7 @@ def train(
 
     config = {
         "epochs": epochs,
+        "max_epochs": epochs,
         "min_epochs": min_epochs,
         "patience": patience,
         "min_delta": min_delta,
@@ -192,13 +197,15 @@ def train(
         "incident_level_episodes": True,
         "early_stopping": validation_csv is not None,
         "timestamp_column": timestamp_col,
+        "updates_per_epoch": updates_per_epoch,
+        "max_total_updates": update_budget,
+        "update_budget_mode": "automatic_from_dataset_size_and_epoch_ceiling",
     }
     metrics_path.write_text(json.dumps({"config": config, "metrics": []}, indent=2), encoding="utf-8")
 
     print("=" * 70)
     print("INCIDENT-LEVEL OFFLINE RL TRAINING")
     print("=" * 70)
-    print(f"Dataset          : {train_csv}")
     print(f"Rows             : {n_rows:,}")
     print(f"Incidents        : {df[INCIDENT_ID].astype(str).nunique():,}")
     print(f"Max epochs       : {epochs}")
@@ -206,23 +213,30 @@ def train(
     print(f"Patience         : {patience}")
     print(f"Min delta        : {min_delta}")
     print(f"Batch size       : {batch_size}")
+    print(f"Updates / epoch  : {updates_per_epoch}")
+    print(f"Update budget    : {update_budget}")
     print(f"Learning rate    : {learning_rate}")
     print(f"Validation data  : {validation_csv or 'disabled'}")
 
     for epoch in range(1, epochs + 1):
         if stop_event is not None and getattr(stop_event, "is_set", lambda: False)():
             raise TrainingStopped(f"Training stopped before epoch {epoch}.")
+        if total_updates_used >= update_budget:
+            break
 
         epoch_start = time.perf_counter()
         indices = np.random.permutation(n_rows)
         total_loss = 0.0
         updates = 0
+        policy_reward_sum = 0.0
+        oracle_reward_sum = 0.0
         action_counts = {name: 0 for name in ACTIONS.values()}
-        reward_sum = 0.0
 
         for start_idx in range(0, n_rows, batch_size):
             if stop_event is not None and getattr(stop_event, "is_set", lambda: False)():
                 raise TrainingStopped(f"Training stopped during epoch {epoch}.")
+            if total_updates_used >= update_budget:
+                break
 
             batch_idx = indices[start_idx:start_idx + batch_size]
             batch_states = states[batch_idx]
@@ -234,11 +248,15 @@ def train(
             loss = model.update_counterfactual(batch_states, reward_matrix, batch_next, batch_dones)
             total_loss += loss
             updates += 1
+            total_updates_used += 1
 
-            actions = np.argmax(reward_matrix, axis=1).astype(np.int64)
-            chosen_rewards = reward_matrix[np.arange(len(actions)), actions]
-            reward_sum += float(chosen_rewards.sum())
-            for action in actions:
+            q_values = model.q_values(batch_states)
+            policy_actions = np.argmax(q_values, axis=1).astype(np.int64)
+            policy_rewards = reward_matrix[np.arange(len(policy_actions)), policy_actions]
+            oracle_rewards = reward_matrix.max(axis=1)
+            policy_reward_sum += float(policy_rewards.sum())
+            oracle_reward_sum += float(oracle_rewards.sum())
+            for action in policy_actions:
                 action_counts[ACTIONS[int(action)]] += 1
 
         if target_update > 0 and epoch % target_update == 0:
@@ -246,14 +264,13 @@ def train(
 
         elapsed = time.perf_counter() - epoch_start
         average_loss = total_loss / max(updates, 1)
-        average_reward = reward_sum / n_rows if n_rows else 0.0
+        average_policy_reward = policy_reward_sum / n_rows if n_rows else 0.0
+        average_oracle_reward = oracle_reward_sum / n_rows if n_rows else 0.0
+        policy_reward_efficiency = average_policy_reward / average_oracle_reward if average_oracle_reward else 0.0
         validation = evaluate_policy(model, validation_csv) if validation_csv else None
 
         if validation:
-            validation_score = (
-                0.70 * validation["policy_optimality"]
-                + 0.30 * validation["reward_efficiency"]
-            )
+            validation_score = 0.70 * validation["policy_optimality"] + 0.30 * validation["reward_efficiency"]
             improved = validation_score > best_score + min_delta
             if improved:
                 best_score = validation_score
@@ -273,8 +290,13 @@ def train(
             "rows": n_rows,
             "incidents": int(df[INCIDENT_ID].astype(str).nunique()),
             "updates": updates,
+            "total_updates": total_updates_used,
+            "updates_per_epoch": updates_per_epoch,
             "loss": average_loss,
-            "average_reward": average_reward,
+            "average_reward": average_policy_reward,
+            "policy_reward": average_policy_reward,
+            "oracle_average_reward": average_oracle_reward,
+            "reward_efficiency": policy_reward_efficiency,
             "action_counts": action_counts,
             "time_seconds": elapsed,
             "validation": validation,
@@ -284,20 +306,20 @@ def train(
             "improved": improved,
         }
         metrics.append(row)
-        metrics_path.write_text(json.dumps({"config": config, "metrics": metrics}, indent=2), encoding="utf-8")
+        payload = {"config": config, "metrics": metrics, "best_epoch": best_epoch, "actual_epochs": epoch}
+        metrics_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+        print(
+            f"Epoch {epoch:04d}/{epochs:04d} | updates={updates} | total_updates={total_updates_used} | "
+            f"loss={average_loss:.6f} | policy_reward={average_policy_reward:.6f} | "
+            f"oracle_reward={average_oracle_reward:.6f} | efficiency={policy_reward_efficiency:.4f}"
+        )
 
         if validation:
             print(
-                f"Epoch {epoch:04d}/{epochs:04d} | updates={updates} | "
-                f"loss={average_loss:.6f} | train_reward={average_reward:.6f} | "
-                f"val_opt={validation['policy_optimality']:.4f} | "
-                f"val_eff={validation['reward_efficiency']:.4f} | "
-                f"patience={epochs_without_improvement}/{patience}"
-            )
-        else:
-            print(
-                f"Epoch {epoch:04d}/{epochs:04d} | updates={updates} | "
-                f"loss={average_loss:.6f} | train_reward={average_reward:.6f}"
+                f"    validation: optimality={validation['policy_optimality']:.4f} "
+                f"efficiency={validation['reward_efficiency']:.4f} "
+                f"score={validation_score:.4f} patience={epochs_without_improvement}/{patience}"
             )
 
         if progress_callback:
@@ -305,6 +327,10 @@ def train(
 
         if validation and epoch >= min_epochs and epochs_without_improvement >= patience:
             print(f"[EARLY STOP] Validation policy stabilized at epoch {epoch}; best epoch={best_epoch}.")
+            break
+
+        if total_updates_used >= update_budget:
+            print(f"[UPDATE BUDGET] Automatic update budget reached at {total_updates_used:,} updates.")
             break
 
     if candidate_checkpoint and candidate_checkpoint.exists():
@@ -317,6 +343,9 @@ def train(
         "best_epoch": best_epoch,
         "best_validation": best_validation,
         "actual_epochs": final_epoch,
+        "total_updates_used": total_updates_used,
+        "updates_per_epoch": updates_per_epoch,
+        "max_total_updates": update_budget,
     }
     metrics_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
