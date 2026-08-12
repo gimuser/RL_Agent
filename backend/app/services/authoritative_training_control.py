@@ -20,6 +20,7 @@ LOG_PATH = MODELS_DIR / "full_real_training.log"
 
 _lock = Lock()
 _process: subprocess.Popen[str] | None = None
+_log_handle = None
 _started_at: str | None = None
 _last_return_code: int | None = None
 _last_message: str = ""
@@ -49,16 +50,20 @@ def _history() -> list[dict[str, Any]]:
         loss = item.get("loss")
         if not isinstance(epoch, (int, float)) or not isinstance(loss, (int, float)):
             continue
-        output.append({
-            "epoch": epoch,
-            "loss": loss,
-            "avg_reward": item.get("average_reward", item.get("avg_reward")),
-            "updates": item.get("updates"),
-            "rows": item.get("rows"),
-            "incidents": item.get("incidents"),
-            "action_distribution": item.get("action_counts") or item.get("action_distribution") or item.get("actions"),
-            "time_seconds": item.get("time_seconds"),
-        })
+        output.append(
+            {
+                "epoch": epoch,
+                "loss": loss,
+                "avg_reward": item.get("average_reward", item.get("avg_reward")),
+                "updates": item.get("updates"),
+                "rows": item.get("rows"),
+                "incidents": item.get("incidents"),
+                "action_distribution": item.get("action_counts")
+                or item.get("action_distribution")
+                or item.get("actions"),
+                "time_seconds": item.get("time_seconds"),
+            }
+        )
     return output
 
 
@@ -72,11 +77,17 @@ def _results() -> dict[str, Any]:
     features = split.get("features")
 
     model_exists = MODEL_PATH.exists()
-    model_size = MODEL_PATH.stat().st_size if model_exists else None
-    model_modified = (
-        datetime.fromtimestamp(MODEL_PATH.stat().st_mtime, tz=timezone.utc).isoformat()
-        if model_exists else None
-    )
+    model_size = None
+    model_modified = None
+    if model_exists:
+        try:
+            model_size = MODEL_PATH.stat().st_size
+            model_modified = datetime.fromtimestamp(
+                MODEL_PATH.stat().st_mtime,
+                tz=timezone.utc,
+            ).isoformat()
+        except OSError:
+            model_exists = False
 
     return {
         "source": "authoritative_files",
@@ -124,65 +135,96 @@ def _results() -> dict[str, Any]:
 
 
 def _sync_process_state() -> None:
-    global _process, _last_return_code, _last_message
+    global _process, _log_handle, _last_return_code, _last_message
     if _process is None:
         return
+
     code = _process.poll()
     if code is None:
         return
+
     _last_return_code = code
     if code == 0:
         _last_message = "Authoritative real-data training process completed."
+    elif code < 0:
+        _last_message = f"Training process terminated by signal {-code}."
     else:
         _last_message = f"Training process exited with return code {code}."
+
+    if _log_handle is not None:
+        try:
+            _log_handle.close()
+        except Exception:
+            pass
+        _log_handle = None
+
     _process = None
 
 
 def start() -> dict[str, Any]:
-    global _process, _started_at, _last_return_code, _last_message
+    global _process, _log_handle, _started_at, _last_return_code, _last_message
     with _lock:
         _sync_process_state()
         if _process is not None and _process.poll() is None:
-            return {"status": "running", "message": "Full real-data training is already running."}
+            return {
+                "status": "running",
+                "message": "Full real-data training is already running.",
+            }
 
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        # Clear stale metrics before a new run. The trainer will repopulate this
-        # file after the first completed epoch.
-        if TRAIN_METRICS.exists():
-            TRAIN_METRICS.write_text("{\"config\": {}, \"metrics\": []}\n", encoding="utf-8")
+
+        # Remove stale per-run training telemetry only. The final model is left intact
+        # until a new run successfully replaces it.
+        TRAIN_METRICS.write_text(
+            "{\"config\": {}, \"metrics\": []}\n",
+            encoding="utf-8",
+        )
 
         env = os.environ.copy()
         env["PYTHONPATH"] = str(PROJECT_ROOT / "backend") + os.pathsep + env.get("PYTHONPATH", "")
 
-        log_handle = LOG_PATH.open("w", encoding="utf-8")
+        _log_handle = LOG_PATH.open("w", encoding="utf-8")
         _process = subprocess.Popen(
             [sys.executable, "-m", "app.rl_agent.real_pipeline"],
             cwd=str(PROJECT_ROOT / "backend"),
             env=env,
-            stdout=log_handle,
+            stdout=_log_handle,
             stderr=subprocess.STDOUT,
             text=True,
+            start_new_session=True,
         )
+
         _started_at = datetime.now(timezone.utc).isoformat()
         _last_return_code = None
         _last_message = "Full real-data RL training started."
 
-        return {"status": "started", "message": _last_message}
+        return {
+            "status": "started",
+            "message": _last_message,
+            "pid": _process.pid,
+            "started_at": _started_at,
+        }
 
 
 def stop() -> dict[str, Any]:
-    global _process, _last_message, _last_return_code
+    global _process, _log_handle, _last_message, _last_return_code
     with _lock:
         _sync_process_state()
         if _process is None or _process.poll() is not None:
-            return {"status": "idle", "message": "No managed full training process is running."}
+            return {
+                "status": "idle",
+                "message": "No managed full training process is running.",
+            }
 
         pid = _process.pid
         try:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
         except Exception:
-            _process.terminate()
+            try:
+                _process.terminate()
+            except Exception:
+                pass
 
         try:
             _process.wait(timeout=8)
@@ -190,41 +232,74 @@ def stop() -> dict[str, Any]:
             try:
                 os.killpg(os.getpgid(pid), signal.SIGKILL)
             except Exception:
-                _process.kill()
+                try:
+                    _process.kill()
+                except Exception:
+                    pass
             _process.wait(timeout=5)
 
         _last_return_code = _process.returncode
-        _process = None
         _last_message = "Full real-data training was stopped by the user."
-        return {"status": "stopped", "message": _last_message}
+
+        if _log_handle is not None:
+            try:
+                _log_handle.close()
+            except Exception:
+                pass
+            _log_handle = None
+
+        _process = None
+        return {
+            "status": "stopped",
+            "message": _last_message,
+        }
 
 
 def status() -> dict[str, Any]:
     with _lock:
-        _sync_process_state()
-        running = _process is not None and _process.poll() is None
-        results = _results()
+        try:
+            _sync_process_state()
+            running = _process is not None and _process.poll() is None
+            results = _results()
 
-        if running:
-            message = "Training real processed data with the authoritative incident-level RL pipeline."
-            state = "running"
-        elif _last_return_code == 0:
-            message = _last_message or "Training completed."
-            state = "completed"
-        elif _last_return_code is not None:
-            message = _last_message
-            state = "stopped" if "stopped" in _last_message.lower() else "failed"
-        elif results["training"]["history"]:
-            message = "Persisted authoritative training results available."
-            state = "completed"
-        else:
-            message = "No authoritative full-training run is currently active."
-            state = "idle"
+            if running:
+                state = "running"
+                message = (
+                    "Training real processed data with the authoritative "
+                    "incident-level RL pipeline."
+                )
+            elif _last_return_code == 0:
+                state = "completed"
+                message = _last_message or "Training completed."
+            elif _last_return_code is not None:
+                state = "stopped" if "stopped" in _last_message.lower() else "failed"
+                message = _last_message
+            elif results["training"]["history"]:
+                state = "completed"
+                message = "Persisted authoritative training results available."
+            else:
+                state = "idle"
+                message = "No authoritative full-training run is currently active."
 
-        return {
-            "status": state,
-            "message": message,
-            "started_at": _started_at,
-            "pid": _process.pid if running and _process is not None else None,
-            "results": results,
-        }
+            return {
+                "status": state,
+                "message": message,
+                "started_at": _started_at,
+                "pid": _process.pid if running and _process is not None else None,
+                "results": results,
+            }
+        except Exception as exc:
+            # Never let telemetry failure become a generic HTTP 500.
+            return {
+                "status": "error",
+                "message": f"Training telemetry error: {exc}",
+                "started_at": _started_at,
+                "pid": _process.pid if _process is not None else None,
+                "results": {
+                    "source": "authoritative_files",
+                    "dataset": {},
+                    "training": {"history": []},
+                    "evaluation": {},
+                    "model": {"exists": MODEL_PATH.exists()},
+                },
+            }
