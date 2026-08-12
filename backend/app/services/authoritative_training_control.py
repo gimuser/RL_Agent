@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import signal
 import subprocess
@@ -29,12 +30,25 @@ _last_message: str = ""
 _post_training: dict[str, Any] | None = None
 
 
+def _json_safe(value: Any) -> Any:
+    """Return JSON-compatible telemetry, replacing NaN/Infinity recursively."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 def _load_json(path: Path) -> dict[str, Any] | None:
     try:
         if not path.exists():
             return None
         value = json.loads(path.read_text(encoding="utf-8"))
-        return value if isinstance(value, dict) else None
+        if not isinstance(value, dict):
+            return None
+        return _json_safe(value)
     except Exception:
         return None
 
@@ -95,7 +109,7 @@ def _results() -> dict[str, Any]:
         except OSError:
             model_exists = False
 
-    return {
+    return _json_safe({
         "source": "authoritative_files",
         "dataset": {
             "name": "train_processed.csv",
@@ -160,7 +174,7 @@ def _results() -> dict[str, Any]:
         },
         "live_inference": inference,
         "post_training": _post_training,
-    }
+    })
 
 
 def _sync_process_state() -> None:
@@ -220,7 +234,7 @@ def start() -> dict[str, Any]:
         )
         _started_at = datetime.now(timezone.utc).isoformat()
         _last_return_code = None
-        _last_message = "Sequential training started: each model receives a fresh 40-alert live cycle."
+        _last_message = "Sequential model training started with adaptive stopping, candidate comparison, fresh live cycles, and human-review routing."
         return {"status": "started", "message": _last_message, "pid": _process.pid, "started_at": _started_at}
 
 
@@ -250,7 +264,7 @@ def stop() -> dict[str, Any]:
                     pass
             _process.wait(timeout=5)
         _last_return_code = _process.returncode
-        _last_message = "Sequential model training was stopped by the user."
+        _last_message = "Full real-data training was stopped by the user."
         if _log_handle is not None:
             try:
                 _log_handle.close()
@@ -269,10 +283,10 @@ def status() -> dict[str, Any]:
             results = _results()
             if running:
                 state = "running"
-                message = "Sequential model training with a fresh 40-alert cycle after each candidate."
+                message = "Training real processed data with adaptive stopping, model comparison, fresh live cycles, and live telemetry."
             elif _last_return_code == 0:
                 state = "completed"
-                message = _last_message or "Model comparison, champion selection, and live inference completed."
+                message = _last_message or "Training, model versioning, and live inference completed."
             elif _last_return_code is not None:
                 state = "stopped" if "stopped" in _last_message.lower() else "failed"
                 message = _last_message
@@ -282,13 +296,13 @@ def status() -> dict[str, Any]:
             else:
                 state = "idle"
                 message = "No authoritative full-training run is currently active."
-            return {
+            return _json_safe({
                 "status": state,
                 "message": message,
                 "started_at": _started_at,
                 "pid": _process.pid if running and _process is not None else None,
                 "results": results,
-            }
+            })
         except Exception as exc:
             return {
                 "status": "error",
