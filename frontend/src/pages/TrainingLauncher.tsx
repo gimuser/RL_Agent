@@ -5,107 +5,24 @@ import { useNavigate } from "react-router-dom";
 import { startAuthoritativeFullTraining } from "../services/training.service";
 
 const MODELS = [
-  { name: "dqn_lr_0005", title: "Double DQN · Conservative", lr: "0.0005", detail: "Smaller learning steps; stability-first candidate.", tag: "STABLE" },
-  { name: "dqn_lr_001", title: "Double DQN · Balanced", lr: "0.001", detail: "Baseline candidate for balanced learning speed and stability.", tag: "BASELINE" },
-  { name: "dqn_lr_002", title: "Double DQN · Fast", lr: "0.002", detail: "Faster updates; included to test whether learning accelerates without degrading validation.", tag: "FAST" },
+  { name: "double_dqn", title: "Double DQN", tag: "BASELINE", detail: "Incident-level counterfactual Double DQN baseline.", warning: "" },
+  { name: "cql", title: "Conservative Q-Learning · CQL", tag: "CONSERVATIVE", detail: "Penalizes unsupported Q-values and is suited to the current offline action setup.", warning: "" },
+  { name: "iql", title: "Implicit Q-Learning · IQL", tag: "OFFLINE", detail: "Expectile value learning with advantage-weighted policy extraction.", warning: "Current dataset has no logged agent actions; this run records a reward-derived behavior proxy." },
+  { name: "bcq", title: "Batch-Constrained Q-Learning · BCQ", tag: "OFFLINE", detail: "Constrains policy actions using an explicit behavior model.", warning: "Current dataset has no logged agent actions; this run records a reward-derived behavior proxy." },
 ];
 
 export function TrainingLauncher() {
-  const navigate = useNavigate();
-  const [selected, setSelected] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
+  const navigate = useNavigate(); const [selected,setSelected]=useState<string[]>([]); const [busy,setBusy]=useState(false); const [error,setError]=useState("");
   const allSelected = selected.length === MODELS.length;
-  const selectionLabel = useMemo(() => selected.length === 0 ? "No model selected" : `${selected.length} candidate${selected.length === 1 ? "" : "s"} selected`, [selected.length]);
-
-  function toggle(name: string) {
-    setSelected((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
-  }
-
-  function toggleAll() {
-    setSelected(allSelected ? [] : MODELS.map((item) => item.name));
-  }
-
-  async function start() {
-    if (!selected.length) {
-      setError("Select at least one model candidate before starting training.");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      await startAuthoritativeFullTraining(selected);
-      navigate("/training/live");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="lux-training">
-      <section className="lux-hero">
-        <div>
-          <div className="lux-kicker">RL CONTROL ROOM · EXPERIMENT SETUP</div>
-          <h1>Choose the models to train</h1>
-          <p>Select exactly which candidates should participate in this experiment. There is no hidden automatic model choice. Each selected candidate trains with adaptive stopping, then receives its own fresh 40-alert live cycle.</p>
-        </div>
-        <div className="lux-hero-actions">
-          <button className="lux-button lux-button--ghost" onClick={toggleAll}>{allSelected ? "Clear selection" : "Select all 3"}</button>
-          <button className="lux-button lux-button--primary" disabled={busy || !selected.length} onClick={() => void start()}>{busy ? "Launching…" : "Train selected models"}</button>
-        </div>
-      </section>
-
-      {error && <div className="lux-alert">{error}</div>}
-
-      <section className="lux-card">
-        <div className="lux-card-head">
-          <div><div className="lux-card-label">MODEL SELECTION</div><h2>{selectionLabel}</h2></div>
-          <span className="lux-pill">Training starts only after selection</span>
-        </div>
-        <div className="lux-model-selector-grid">
-          {MODELS.map((model) => {
-            const active = selected.includes(model.name);
-            return (
-              <button key={model.name} type="button" className={`lux-model-choice ${active ? "lux-model-choice--selected" : ""}`} onClick={() => toggle(model.name)}>
-                <div className="lux-model-choice__top">
-                  <span className="lux-model-choice__tag">{model.tag}</span>
-                  <span className="lux-model-choice__check">{active ? "✓" : ""}</span>
-                </div>
-                <strong>{model.title}</strong>
-                <span className="lux-model-choice__lr">Learning rate {model.lr}</span>
-                <p>{model.detail}</p>
-                <small>{active ? "Selected for this run" : "Click to include"}</small>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="lux-main-grid">
-        <article className="lux-card">
-          <div className="lux-card-label">AUTOMATIC TRAINING RULES</div>
-          <h2>What happens after you choose</h2>
-          <div className="lux-rule"><b>01</b><div><strong>Adaptive epochs</strong><p>4,000 is only the safety ceiling. Training stops early when validation and policy behavior stabilize or validation persistently declines.</p></div></div>
-          <div className="lux-rule"><b>02</b><div><strong>Best checkpoint</strong><p>The best validation checkpoint is restored before the candidate is evaluated live.</p></div></div>
-          <div className="lux-rule"><b>03</b><div><strong>Fresh live cycle</strong><p>Every completed candidate receives all 40 isolated alerts as a new MongoDB decision cycle.</p></div></div>
-        </article>
-        <article className="lux-card">
-          <div className="lux-card-label">CURRENT SCOPE</div>
-          <h2>Runnable candidates</h2>
-          <p className="lux-muted">These three candidates are currently wired into the sequential Double-DQN experiment runner.</p>
-          <div className="lux-mini-grid" style={{ marginTop: 14 }}>
-            <div><span>Candidate pool</span><strong>3 Double DQN</strong></div>
-            <div><span>Minimum</span><strong>1 selected</strong></div>
-            <div><span>Maximum</span><strong>3 selected</strong></div>
-            <div><span>Live holdout</span><strong>40 alerts / candidate</strong></div>
-          </div>
-          <div className="lux-explain"><strong>CQL / IQL / BCQ</strong><p>Their experimental adapters exist separately, but they are not silently mixed into this run until their data requirements are satisfied and their trainers are explicitly wired into the same experiment contract.</p></div>
-        </article>
-      </section>
-    </div>
-  );
+  const selectionLabel = useMemo(() => selected.length === 0 ? "No model selected" : `${selected.length} model${selected.length===1?"":"s"} selected`, [selected.length]);
+  const toggle=(name:string)=>setSelected(current=>current.includes(name)?current.filter(x=>x!==name):[...current,name]);
+  const toggleAll=()=>setSelected(allSelected?[]:MODELS.map(x=>x.name));
+  async function start(){if(!selected.length){setError("Select at least one algorithm before starting training.");return}setBusy(true);setError("");try{await startAuthoritativeFullTraining(selected);navigate("/training/live")}catch(e){setError(e instanceof Error?e.message:String(e));setBusy(false)}}
+  return <div className="lux-training">
+    <section className="lux-hero"><div><div className="lux-kicker">RL CONTROL ROOM · MODEL LAB</div><h1>Choose the algorithms to train</h1><p>Select the actual offline-RL algorithms for this experiment. Each selected algorithm gets its own adaptive training run, fresh 40-alert cycle, model version, and validation record.</p></div><div className="lux-hero-actions"><button className="lux-button lux-button--ghost" onClick={toggleAll}>{allSelected?"Clear selection":"Select all 4"}</button><button className="lux-button lux-button--primary" disabled={busy||!selected.length} onClick={()=>void start()}>{busy?"Launching…":"Train selected models"}</button></div></section>
+    {error&&<div className="lux-alert">{error}</div>}
+    <section className="lux-card"><div className="lux-card-head"><div><div className="lux-card-label">ALGORITHM SELECTION</div><h2>{selectionLabel}</h2></div><span className="lux-pill">No hidden model selection</span></div><div className="lux-model-selector-grid lux-model-selector-grid--four">{MODELS.map(model=>{const active=selected.includes(model.name);return <button key={model.name} type="button" className={`lux-model-choice ${active?"lux-model-choice--selected":""}`} onClick={()=>toggle(model.name)}><div className="lux-model-choice__top"><span className="lux-model-choice__tag">{model.tag}</span><span className="lux-model-choice__check">{active?"✓":""}</span></div><strong>{model.title}</strong><p>{model.detail}</p>{model.warning&&<small className="lux-model-choice__warning">{model.warning}</small>}<small>{active?"Selected for this experiment":"Click to include"}</small></button>})}</div></section>
+    <section className="lux-main-grid"><article className="lux-card"><div className="lux-card-label">AUTOMATIC EXECUTION</div><h2>What happens after selection</h2><div className="lux-rule"><b>01</b><div><strong>Adaptive convergence</strong><p>4,000 is only a safety ceiling. Warm-up, patience, flat-validation detection, and persistent-decline detection stop a converged model early.</p></div></div><div className="lux-rule"><b>02</b><div><strong>Fresh 40-alert cycle</strong><p>Every selected algorithm gets an untouched MongoDB cycle built from the immutable live source/processed/lineage files.</p></div></div><div className="lux-rule"><b>03</b><div><strong>Champion selection</strong><p>Validation chooses the winner. The unseen test set is evaluated only after the champion is selected.</p></div></div></article><article className="lux-card"><div className="lux-card-label">RESOURCE SAFETY</div><h2>Single-flight training</h2><p className="lux-muted">Only one experiment process may run at a time. The Stop control terminates the managed process group and cleans orphaned sequential runners before another run can start.</p><div className="lux-mini-grid" style={{marginTop:14}}><div><span>Algorithms</span><strong>4</strong></div><div><span>Minimum</span><strong>1 selected</strong></div><div><span>Maximum</span><strong>4 selected</strong></div><div><span>Live holdout</span><strong>40 / algorithm</strong></div></div><div className="lux-explain"><strong>IQL / BCQ data note</strong><p>The current dataset has no historical agent-action field. Those algorithms therefore use an explicit reward-derived behavior proxy and the run artifacts record that limitation.</p></div></article></section>
+  </div>;
 }
-
 export default TrainingLauncher;
