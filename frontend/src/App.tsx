@@ -11,7 +11,7 @@ import { HistoryPage } from "./pages/History";
 import { LoginPage } from "./pages/Login";
 import { MetricsPage } from "./pages/Metrics";
 import { SettingsPage } from "./pages/Settings";
-import { TrainingPage } from "./pages/Training";
+import { TrainingLuxuryPage } from "./pages/TrainingLuxury";
 
 export default function App() {
   return (
@@ -24,7 +24,7 @@ export default function App() {
           <Route path="/alerts/:id" element={<AlertDetailsPage />} />
           <Route path="/agent" element={<AgentPage />} />
           <Route path="/decisions" element={<DecisionsPage />} />
-          <Route path="/training" element={<TrainingPage />} />
+          <Route path="/training" element={<TrainingLuxuryPage />} />
           <Route path="/analysts" element={<AnalystsPage />} />
           <Route path="/metrics" element={<MetricsPage />} />
           <Route path="/history" element={<HistoryPage />} />
