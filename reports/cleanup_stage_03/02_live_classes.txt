@@ -1,2 +1,0 @@
-backend/app/api/live_alerts.py:35 CLASS InferencePayload
-backend/app/api/live_cycle.py:12 CLASS NewCyclePayload

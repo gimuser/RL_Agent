@@ -1,8 +1,0 @@
-scripts/create_branches.sh
-scripts/evaluate.sh
-scripts/final_rl_quality_audit.py
-scripts/preprocess.sh
-scripts/seed_database.py
-scripts/setup.sh
-scripts/train.sh
-scripts/verify_project_contract.sh

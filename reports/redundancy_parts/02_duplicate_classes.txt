@@ -1,5 +1,0 @@
-=== DUPLICATE CLASSES ===
-Alert
-  backend/app/schemas/alert_schema.py
-  backend/app/models/alert.py
-
