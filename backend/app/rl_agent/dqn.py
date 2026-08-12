@@ -1,246 +1,384 @@
+from __future__ import annotations
+
 import random
+from typing import Optional
+
+import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-
-from .networks import QNetwork, DuelingQNetwork
-from .memory import ReplayBuffer
-from .policy import EpsilonGreedyPolicy
+from torch import nn
 
 
-class DQNAgent:
-    """
-    Deep Q-Network (DQN) Agent.
-
-    This agent interacts with the environment by selecting actions
-    using an epsilon-greedy policy. It stores experiences in a replay
-    buffer and learns by minimizing the temporal-difference (TD) loss.
-
-    Attributes:
-        state_dim (int): Dimension of the input state.
-        action_dim (int): Number of possible actions.
-        gamma (float): Discount factor.
-        epsilon (float): Exploration rate.
-        batch_size (int): Number of samples used during training.
-    """
+class DoubleDQN:
 
     def __init__(
         self,
-        state_dim,
-        action_dim,
-        learning_rate=1e-3,
-        gamma=0.99,
-        batch_size=64,
-        memory_size=10000,
-        target_update=100,
-        architecture: str = "standard",
-        dqn_type: str = "standard",
+        input_dim: int,
+        n_actions: int,
+        learning_rate: float = 1e-3,
+        gamma: float = 0.95,
+        hidden_dim: int = 128,
+        device: Optional[str] = None,
     ):
 
-        self.device = torch.device("cpu")
-
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-
-        self.gamma = gamma
-        self.batch_size = batch_size
-        self.target_update = target_update
-        self.dqn_type = dqn_type  # 'standard' or 'double'
-
-        if architecture == "dueling":
-            self.model = DuelingQNetwork(state_dim, action_dim).to(self.device)
-            self.target_model = DuelingQNetwork(state_dim, action_dim).to(self.device)
-        else:
-            self.model = QNetwork(state_dim, action_dim).to(self.device)
-            self.target_model = QNetwork(state_dim, action_dim).to(self.device)
-
-        self.target_model.load_state_dict(
-            self.model.state_dict()
+        self.device = torch.device(
+            device or ("cuda" if torch.cuda.is_available() else "cpu")
         )
 
-        self.optimizer = optim.Adam(
-            self.model.parameters(),
+        self.gamma = gamma
+        self.n_actions = n_actions
+
+        self.online = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, n_actions),
+        ).to(self.device)
+
+        self.target = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, n_actions),
+        ).to(self.device)
+
+        self.target.load_state_dict(self.online.state_dict())
+
+        self.optimizer = torch.optim.Adam(
+            self.online.parameters(),
             lr=learning_rate,
         )
 
-        self.criterion = nn.MSELoss()
+        self.loss_fn = nn.SmoothL1Loss()
 
-        self.memory = ReplayBuffer(
-            capacity=memory_size
+    @torch.no_grad()
+    def q_values(self, states: np.ndarray) -> np.ndarray:
+
+        x = torch.as_tensor(
+            states,
+            dtype=torch.float32,
+            device=self.device,
         )
 
-        self.policy = EpsilonGreedyPolicy()
+        return self.online(x).cpu().numpy()
 
-        self.steps = 0
+    @torch.no_grad()
+    def act(self, states: np.ndarray) -> np.ndarray:
 
-    def act(self, state):
-        """
-        Select an action for the given state.
+        q = self.q_values(states)
 
-        Args:
-            state: Current environment state.
+        return np.argmax(q, axis=1)
 
-        Returns:
-            int: Selected action index.
-        """
-
-        if not isinstance(state, torch.Tensor):
-            state = torch.FloatTensor(state)
-
-        state = state.unsqueeze(0)
-
-        if random.random() < self.policy.epsilon:
-            return random.randint(
-                0,
-                self.action_dim - 1,
-            )
-
-        with torch.no_grad():
-
-            q_values = self.model(state)
-
-            return torch.argmax(
-                q_values,
-                dim=1,
-            ).item()
-
-    def remember(
+    def update_counterfactual(
         self,
-        state,
-        action,
-        reward,
-        next_state,
-        done,
+        states,
+        reward_matrix,
+        next_states,
+        dones,
     ):
         """
-        Store one transition inside the replay buffer.
+        Offline counterfactual Bellman update.
 
-        Args:
-            state: Current state.
-            action: Executed action.
-            reward: Received reward.
-            next_state: Next environment state.
-            done: Episode termination flag.
+        reward_matrix[:, action] contains the real reward for every
+        valid action for each state.
         """
-
-        self.memory.add(
-            state,
-            action,
-            reward,
-            next_state,
-            done,
+        states = torch.as_tensor(
+            states,
+            dtype=torch.float32,
+            device=self.device,
         )
 
-    def update(self):
-        """
-        Perform one optimization step using a mini-batch sampled
-        from the replay buffer.
+        reward_matrix = torch.as_tensor(
+            reward_matrix,
+            dtype=torch.float32,
+            device=self.device,
+        )
 
-        Returns:
-            float | None:
-                Training loss if an update was performed,
-                otherwise None.
-        """
+        next_states = torch.as_tensor(
+            next_states,
+            dtype=torch.float32,
+            device=self.device,
+        )
 
-        if len(self.memory) < self.batch_size:
-            return None
+        dones = torch.as_tensor(
+            dones,
+            dtype=torch.float32,
+            device=self.device,
+        )
 
-        batch = self.memory.sample(self.batch_size)
-
-        states, actions, rewards, next_states, dones = zip(*batch)
-
-        states = torch.FloatTensor(states)
-        actions = torch.LongTensor(actions).unsqueeze(1)
-        rewards = torch.FloatTensor(rewards).unsqueeze(1)
-        next_states = torch.FloatTensor(next_states)
-        dones = torch.FloatTensor(dones).unsqueeze(1)
-
-        current_q = self.model(states).gather(1, actions)
+        q = self.online(states)
 
         with torch.no_grad():
-            if self.dqn_type == "double":
-                # Double DQN: action selected by online network, value from target network
-                next_actions = self.model(next_states).argmax(dim=1, keepdim=True)
-                next_q = self.target_model(next_states).gather(1, next_actions)
-            else:
-                # Standard DQN: use target network max over actions
-                next_q = self.target_model(next_states).max(dim=1, keepdim=True).values
-            target_q = rewards + self.gamma * next_q * (1 - dones)
+            next_online = self.online(next_states)
+            next_actions = next_online.argmax(
+                dim=1,
+                keepdim=True,
+            )
 
-        loss = self.criterion(
-            current_q,
-            target_q,
+            next_target = self.target(next_states)
+
+            next_q = next_target.gather(
+                1,
+                next_actions,
+            ).squeeze(1)
+
+            bootstrap = (
+                (1.0 - dones) * self.gamma * next_q
+            )
+
+            targets = (
+                reward_matrix
+                + bootstrap.unsqueeze(1)
+            )
+
+        loss = self.loss_fn(
+            q,
+            targets,
         )
 
         self.optimizer.zero_grad()
         loss.backward()
+
+        torch.nn.utils.clip_grad_norm_(
+            self.online.parameters(),
+            5.0,
+        )
+
         self.optimizer.step()
 
-        self.policy.decay()
+        return float(loss.item())
 
-        self.steps += 1
+    def update(
+        self,
+        states,
+        actions,
+        rewards,
+        next_states,
+        dones,
+    ):
 
-        if self.steps % self.target_update == 0:
-            self.target_model.load_state_dict(
-                self.model.state_dict()
+        states = torch.as_tensor(
+            states,
+            dtype=torch.float32,
+            device=self.device,
+        )
+
+        actions = torch.as_tensor(
+            actions,
+            dtype=torch.long,
+            device=self.device,
+        )
+
+        rewards = torch.as_tensor(
+            rewards,
+            dtype=torch.float32,
+            device=self.device,
+        )
+
+        next_states = torch.as_tensor(
+            next_states,
+            dtype=torch.float32,
+            device=self.device,
+        )
+
+        dones = torch.as_tensor(
+            dones,
+            dtype=torch.float32,
+            device=self.device,
+        )
+
+        q = self.online(states)
+
+        q_selected = q.gather(
+            1,
+            actions.unsqueeze(1),
+        ).squeeze(1)
+
+        with torch.no_grad():
+
+            next_online = self.online(next_states)
+
+            next_actions = next_online.argmax(
+                dim=1,
+                keepdim=True,
             )
 
-        return loss.item()
+            next_target = self.target(next_states)
 
-    def save(self, path):
-        """
-        Save the trained model.
+            next_q = next_target.gather(
+                1,
+                next_actions,
+            ).squeeze(1)
 
-        Args:
-            path (str): Destination file path.
-        """
+            target = rewards + (
+                1.0 - dones
+            ) * self.gamma * next_q
+
+        loss = self.loss_fn(
+            q_selected,
+            target,
+        )
+
+        self.optimizer.zero_grad()
+        loss.backward()
+
+        torch.nn.utils.clip_grad_norm_(
+            self.online.parameters(),
+            5.0,
+        )
+
+        self.optimizer.step()
+
+        return float(loss.item())
+
+    def update_target(self):
+
+        self.target.load_state_dict(
+            self.online.state_dict()
+        )
+
+    def save(self, path: str):
 
         torch.save(
-            self.model.state_dict(),
+            {
+                "online": self.online.state_dict(),
+                "target": self.target.state_dict(),
+                "gamma": self.gamma,
+                "n_actions": self.n_actions,
+            },
             path,
         )
 
-    def load(self, path):
-        """
-        Load a previously trained model.
+    def load(self, path: str):
 
-        Args:
-            path (str): Model file path.
-        """
+        checkpoint = torch.load(
+            path,
+            map_location=self.device,
+            weights_only=False,
+        )
 
-        self.model.load_state_dict(
-            torch.load(
-                path,
-                map_location=self.device,
+        self.online.load_state_dict(
+            checkpoint["online"]
+        )
+
+        self.target.load_state_dict(
+            checkpoint.get(
+                "target",
+                checkpoint["online"],
             )
         )
 
-        self.target_model.load_state_dict(
-            self.model.state_dict()
+
+# ==========================================================================
+# BACKWARD-COMPATIBLE DQNAgent API
+# ==========================================================================
+#
+# Existing FastAPI/application code imports:
+#
+#     from app.rl_agent.dqn import DQNAgent
+#
+# The accepted DoubleDQN remains the authoritative implementation.
+# This facade only adapts the older application API to DoubleDQN.
+# ==========================================================================
+
+class DQNAgent:
+    """
+    Application compatibility facade over the accepted DoubleDQN model.
+    """
+
+    def __init__(
+        self,
+        state_dim: int,
+        action_dim: int,
+        gamma: float = 0.95,
+        lr: float = 3e-4,
+        **kwargs,
+    ):
+        self.state_dim = int(state_dim)
+        self.action_dim = int(action_dim)
+        self.gamma = float(gamma)
+        self.lr = float(lr)
+
+        self._agent = DoubleDQN(
+            input_dim=self.state_dim,
+            n_actions=self.action_dim,
+            learning_rate=self.lr,
+            gamma=self.gamma,
+            hidden_dim=int(
+                kwargs.get("hidden_dim", 128)
+            ),
         )
 
+        # Application code may access .model.
+        self.model = self._agent.online
 
-if __name__ == "__main__":
+        self.target_model = self._agent.target
 
-    import numpy as np
-
-    agent = DQNAgent(
-        state_dim=4,
-        action_dim=2,
-    )
-
-    state = np.random.rand(4)
-    next_state = np.random.rand(4)
-
-    action = agent.act(state)
-
-    agent.remember(
+    def act(
+        self,
         state,
-        action,
-        1.0,
-        next_state,
-        False,
-    )
+        evaluate: bool = True,
+    ):
+        """
+        Return one action for a single state or a batch.
 
-    print("Selected Action:", action)
-    print("DQN Agent initialized successfully.")
+        Application compatibility:
+            single state -> int
+            batch         -> numpy array
+        """
+
+        import numpy as np
+
+        x = np.asarray(
+            state,
+            dtype=np.float32,
+        )
+
+        if x.ndim == 1:
+            return int(
+                self._agent.act(
+                    x.reshape(1, -1)
+                )[0]
+            )
+
+        return self._agent.act(x)
+
+    def predict(self, state):
+        return self.act(
+            state,
+            evaluate=True,
+        )
+
+    def q_values(self, states):
+        return self._agent.q_values(states)
+
+    def update(
+        self,
+        states,
+        actions,
+        rewards,
+        next_states,
+        dones,
+    ):
+        return self._agent.update(
+            states,
+            actions,
+            rewards,
+            next_states,
+            dones,
+        )
+
+    def update_target(self):
+        return self._agent.update_target()
+
+    def save(self, path):
+        return self._agent.save(path)
+
+    def load(self, path):
+        result = self._agent.load(path)
+        self.model = self._agent.online
+        self.target_model = self._agent.target
+        return result
+
+

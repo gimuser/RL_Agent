@@ -1,89 +1,30 @@
-"""Severity-based reward logic."""
-"""
-backend/app/reward/severity_reward.py
-
-Calcul de la récompense principale selon :
-
-- IncidentGrade
-- Action choisie par l'agent
-
-Action :
-    0 -> Close / Ignore
-    1 -> Escalate
-"""
+"""Reward calculation using the verified real IncidentGrade mapping."""
 
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
 
-from .reward_config import reward_config
+from .real_reward import reward_for, grade_from_numeric
 
 
 @dataclass
 class SeverityReward:
-    """
-    Reward basé sur la sévérité réelle
-    de l'incident.
-    """
-
-    config = reward_config
 
     def compute(
         self,
         incident: Dict[str, Any],
-        action: int
+        action: int,
     ) -> float:
 
-        grade = str(
-            incident.get(
-                "IncidentGrade",
-                ""
+        raw_grade = incident.get("IncidentGrade")
+
+        if raw_grade is None:
+            raise ValueError(
+                "IncidentGrade is required for historical reward calculation."
             )
-        ).strip()
 
-        # ---------------------------------------------------
-        # TRUE POSITIVE
-        # ---------------------------------------------------
+        if isinstance(raw_grade, str):
+            grade = raw_grade.strip()
+        else:
+            grade = grade_from_numeric(int(raw_grade))
 
-        if grade == "TruePositive":
-
-            # Bonne décision
-            if action == 1:
-
-                return self.config.true_positive_reward
-
-            # False Negative
-            return self.config.missed_true_positive_penalty
-
-        # ---------------------------------------------------
-        # FALSE POSITIVE
-        # ---------------------------------------------------
-
-        elif grade == "FalsePositive":
-
-            # Bonne décision
-            if action == 0:
-
-                return self.config.false_positive_reward
-
-            # Escalade inutile
-            return self.config.false_positive_escalation_penalty
-
-        # ---------------------------------------------------
-        # BENIGN POSITIVE
-        # ---------------------------------------------------
-
-        elif grade == "BenignPositive":
-
-            # Bonne décision
-            if action == 0:
-
-                return self.config.benign_positive_reward
-
-            # Escalade inutile
-            return self.config.wrong_benign_penalty
-
-        # ---------------------------------------------------
-        # UNKNOWN INCIDENT
-        # ---------------------------------------------------
-
-        return 0.0
+        return reward_for(grade, int(action))

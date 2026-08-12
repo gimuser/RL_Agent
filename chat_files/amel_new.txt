@@ -1,0 +1,1569 @@
+====================================================================================================
+RL_AGENT - AMEL FILE CONTENT
+====================================================================================================
+
+This file contains the current contents of the files assigned to this developer.
+Each file is separated clearly by a FILE block.
+
+NUMBER OF FILES: 24
+
+
+####################################################################################################
+FILE: backend/app/api/__init__.py
+####################################################################################################
+
+"""API package for the SOAR RL agent."""
+
+
+
+####################################################################################################
+FILE: backend/app/api/agent.py
+####################################################################################################
+
+"""Agent-related API routes.
+
+Provides a small router to query agent status and request an action for an
+incoming event. Uses `app.services.agent_service` for behavior.
+"""
+
+from fastapi import APIRouter, HTTPException
+from app.data_pipeline.contract import DataContractError
+from app.services.agent_service import get_agent_status, act_on_event
+from app.services.model_service import ModelUnavailableError
+
+router = APIRouter(prefix="/api/agent", tags=["Agent"])
+
+
+@router.get("/status")
+def api_agent_status():
+	return get_agent_status()
+
+
+@router.post("/act")
+def api_act(payload: dict):
+    try:
+        return act_on_event(payload)
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except DataContractError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+__all__ = ["router"]
+
+
+
+####################################################################################################
+FILE: backend/app/api/alerts.py
+####################################################################################################
+
+# app/api/alerts.py
+from fastapi import APIRouter, HTTPException
+from app.schemas import Alert, AlertCreate
+from app.services.alert_service import get_all_alerts, get_alert_by_id, create_alert, update_alert, delete_alert
+
+# حيدنا prefix="/alerts" من هنا لحقاش غادي نزيدوه فـ router.py
+router = APIRouter(tags=["Alerts"])
+
+@router.get("", response_model=list[Alert])
+def get_alerts(skip: int = 0, limit: int = 10):
+    return get_all_alerts(skip=skip, limit=limit)
+
+@router.post("", response_model=Alert)
+def add_alert(alert: AlertCreate):
+    return create_alert(alert)
+
+@router.get("/{alert_id}", response_model=Alert)
+def get_alert(alert_id: int):
+    alert = get_alert_by_id(alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
+
+@router.put("/{alert_id}", response_model=Alert)
+def edit_alert(alert_id: int, alert: AlertCreate):
+    updated = update_alert(alert_id, alert)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return updated
+
+@router.delete("/{alert_id}")
+def remove_alert(alert_id: int):
+    deleted = delete_alert(alert_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"message": "Alert deleted successfully"}
+
+
+####################################################################################################
+FILE: backend/app/api/api_status.py
+####################################################################################################
+
+from fastapi import APIRouter, Request
+from time import time
+from typing import Any
+
+router = APIRouter(prefix="/api/system", tags=["System Health"])
+
+
+@router.get("/apis")
+def apis_status(request: Request) -> dict[str, Any]:
+    """Return the current status of tracked API components.
+
+    Reads the status store populated by the API activity middleware and
+    background monitor. If tracking is not enabled, an explanatory message
+    is returned.
+    """
+    statuses = getattr(request.app.state, "api_statuses", None)
+    if statuses is None:
+        return {"message": "API activity tracking not enabled", "components": []}
+
+    components = []
+    now = time()
+    for name, entry in statuses.items():
+        components.append(
+            {
+                "name": entry.get("name"),
+                "prefix": entry.get("prefix"),
+                "status": entry.get("status"),
+                "last_seen": entry.get("last_seen"),
+                "last_checked": entry.get("last_checked"),
+                "request_count": entry.get("request_count", 0),
+                "age_seconds": None if entry.get("last_seen") is None else round(now - entry.get("last_seen"), 2),
+            }
+        )
+
+    return {"components": components}
+
+
+
+####################################################################################################
+FILE: backend/app/api/dashboard.py
+####################################################################################################
+
+from fastapi import APIRouter
+from app.schemas import DashboardSummary
+from app.services.dashboard_service import get_enhanced_dashboard_summary
+
+# إزالة prefix="/dashboard"
+router = APIRouter(tags=["Dashboard"])
+
+
+@router.get("/summary", response_model=DashboardSummary)
+def get_dashboard_summary():
+    """Récupère le résumé complet des métriques pour le Dashboard."""
+    return get_enhanced_dashboard_summary()
+
+
+####################################################################################################
+FILE: backend/app/api/database_monitoring.py
+####################################################################################################
+
+from fastapi import APIRouter
+from pymongo.errors import PyMongoError
+from app.database.database import client, db
+
+router = APIRouter(prefix="/api/database", tags=["Database Monitoring"])
+
+@router.get("/health")
+def db_health():
+    try:
+        client.admin.command("ping")
+        return {"status": "healthy", "database": "MongoDB"}
+    except PyMongoError:
+        return {"status": "unhealthy", "database": "MongoDB"}
+
+@router.get("/statistics")
+def db_statistics():
+    collections = db.list_collection_names()
+    total_objects = sum(db[collection].count_documents({}) for collection in collections)
+    stats = db.command("dbstats")
+    return {
+        "collections_count": len(collections),
+        "total_objects": total_objects,
+        "data_size_mb": round(stats.get("dataSize", 0) / 1024 / 1024, 2),
+        "storage_size_mb": round(stats.get("storageSize", 0) / 1024 / 1024, 2),
+    }
+
+@router.get("/storage")
+def db_storage():
+    stats = db.command("dbstats")
+    return {
+        "data_size_mb": round(stats.get("dataSize", 0) / 1024 / 1024, 2),
+        "storage_size_mb": round(stats.get("storageSize", 0) / 1024 / 1024, 2),
+        "index_size_mb": round(stats.get("indexSize", 0) / 1024 / 1024, 2),
+    }
+
+@router.get("/collections")
+def db_collections():
+    return {"collections": db.list_collection_names()}
+
+
+
+####################################################################################################
+FILE: backend/app/api/decisions.py
+####################################################################################################
+
+from fastapi import APIRouter
+from app.schemas import Decision, DecisionCreate
+from app.database.repository import create_decision_in_db, get_decisions_from_db
+
+# إزالة prefix="/decisions"
+router = APIRouter(tags=["Decisions"])
+
+
+@router.get("", response_model=list[Decision])
+def get_decisions(skip: int = 0, limit: int = 10):
+    """Récupère la liste des décisions prises par le RL Agent."""
+    return get_decisions_from_db(skip=skip, limit=limit)
+
+
+@router.post("", response_model=Decision)
+def add_decision(decision: DecisionCreate):
+    """Enregistre une nouvelle décision du RL Agent."""
+    return create_decision_in_db(decision)
+
+
+####################################################################################################
+FILE: backend/app/api/evaluation.py
+####################################################################################################
+
+"""Evaluation API routes.
+
+Expose small endpoints to compute evaluation artifacts using
+`app.services.evaluation_service`.
+"""
+
+from fastapi import APIRouter
+from typing import List
+from app.services.evaluation_service import confusion_matrix, reward_summary
+
+router = APIRouter(prefix="/api/evaluation", tags=["Evaluation"])
+
+
+@router.post("/confusion")
+def api_confusion(preds: List[int], targets: List[int]):
+	return confusion_matrix(preds, targets)
+
+
+@router.post("/reward-summary")
+def api_reward_summary(rewards: List[float]):
+	return reward_summary(rewards)
+
+
+__all__ = ["router"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/api/health.py
+####################################################################################################
+
+from fastapi import APIRouter
+
+router = APIRouter()
+
+
+@router.get("/health")
+def health_check() -> dict[str, str]:
+    return {
+        "status": "ok"
+    }
+
+
+####################################################################################################
+FILE: backend/app/api/metrics.py
+####################################################################################################
+
+"""Metrics API routes.
+
+Expose runtime metrics collected by the in-memory metrics collector so
+the frontend or healthchecks can query counters and gauges.
+"""
+
+from fastapi import APIRouter
+from app.monitoring.metrics import metrics
+from app.schemas.metrics_schema import MetricsSummary
+
+router = APIRouter(prefix="/api/metrics", tags=["Metrics"])
+
+
+@router.get("", response_model=MetricsSummary)
+def get_metrics():
+	return MetricsSummary(**metrics.get_metrics())
+
+
+__all__ = ["router"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/api/pipeline.py
+####################################################################################################
+
+from fastapi import APIRouter
+from app.schemas.pipeline_schema import PipelineStats, PipelineImportResponse
+from app.services.dataset_service import (
+    import_train_dataset,
+    import_test_dataset,
+    get_pipeline_status,
+    get_pipeline_statistics,
+)
+
+router = APIRouter(prefix="/api/pipeline", tags=["Pipeline"])
+
+@router.post("/import-train", response_model=PipelineImportResponse)
+def import_train_dataset_api():
+    return import_train_dataset()
+
+@router.post("/import-test", response_model=PipelineImportResponse)
+def import_test_dataset_api():
+    return import_test_dataset()
+
+@router.get("/status")
+def get_pipeline_status_api():
+    return get_pipeline_status()
+
+@router.get("/statistics", response_model=PipelineStats)
+def get_pipeline_statistics_api():
+    return get_pipeline_statistics()
+
+
+
+####################################################################################################
+FILE: backend/app/api/rewards.py
+####################################################################################################
+
+from fastapi import APIRouter
+from app.schemas import Reward, RewardCreate
+from app.database.repository import (
+    create_reward_in_db,
+    get_rewards_from_db,
+    get_reward_statistics_from_db,
+)
+
+# إزالة prefix="/rewards"
+router = APIRouter(tags=["Rewards"])
+
+
+@router.get("", response_model=list[Reward])
+def get_rewards(skip: int = 0, limit: int = 10):
+    """Récupère la liste des récompenses calculées."""
+    return get_rewards_from_db(skip=skip, limit=limit)
+
+
+@router.post("", response_model=Reward)
+def add_reward(reward: RewardCreate):
+    """Enregistre une nouvelle récompense calculée."""
+    return create_reward_in_db(reward)
+
+
+@router.get("/statistics")
+def get_reward_stats():
+    """Statistiques globales sur les récompenses."""
+    return get_reward_statistics_from_db()
+
+
+
+####################################################################################################
+FILE: backend/app/api/router.py
+####################################################################################################
+
+# app/api/router.py
+from fastapi import APIRouter
+from app.api.alerts import router as alerts_router
+from app.api.health import router as health_router
+from app.api.pipeline import router as pipeline_router
+from app.api.decisions import router as decisions_router
+from app.api.training import router as training_router
+from app.api.rewards import router as rewards_router
+from app.api.database_monitoring import router as db_router
+from app.api.dashboard import router as dashboard_router
+from app.api.agent import router as agent_router
+from app.api.evaluation import router as evaluation_router
+from app.api.metrics import router as metrics_router
+from app.api.api_status import router as api_status_router
+
+router = APIRouter()
+
+# 1. Alerts & System Health
+router.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
+router.include_router(health_router, prefix="/api/system", tags=["System Health"])
+# API status / activity tracking endpoint
+router.include_router(api_status_router)
+router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
+router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
+router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+
+# 2. Routers الخرى اللي نجحات سابقاً
+router.include_router(pipeline_router)
+router.include_router(training_router)
+router.include_router(db_router)
+router.include_router(agent_router)
+router.include_router(evaluation_router)
+router.include_router(metrics_router)
+
+
+####################################################################################################
+FILE: backend/app/api/training.py
+####################################################################################################
+
+from fastapi import APIRouter
+from app.services.training_service import (
+    get_training_status,
+    start_training as start_training_service,
+    stop_training as stop_training_service,
+    get_checkpoints,
+    get_history,
+    get_metrics,
+)
+from app.services.experiment_service import get_experiment_status, start_experiment_background, stop_experiment
+
+router = APIRouter(prefix="/api/training", tags=["Training"])
+
+@router.get("/status")
+def training_status():
+    return get_training_status()
+
+@router.post("/start")
+def start_training():
+    return start_training_service()
+
+@router.post("/stop")
+def stop_training():
+    return stop_training_service()
+
+@router.get("/checkpoints")
+def api_get_checkpoints():
+    return {"checkpoints": get_checkpoints()}
+
+@router.get("/history")
+def api_get_history():
+    return {"history": get_history()}
+
+@router.get("/metrics")
+def api_get_metrics(limit: int = 100):
+    return {"metrics": get_metrics(limit)}
+
+
+@router.post("/experiment")
+def api_start_experiment(models: list[dict]):
+    return start_experiment_background(models)
+
+
+@router.post("/experiment/{run_id}/stop")
+def api_stop_experiment(run_id: str):
+    return stop_experiment(run_id)
+
+
+@router.get("/experiment/{run_id}/status")
+def api_experiment_status(run_id: str):
+    return get_experiment_status(run_id)
+
+
+
+####################################################################################################
+FILE: backend/app/services/__init__.py
+####################################################################################################
+
+"""Business services package."""
+
+
+
+####################################################################################################
+FILE: backend/app/services/agent_service.py
+####################################################################################################
+
+"""Model-backed agent API helpers.
+
+The API may recommend an action from a compatible trained model, but it never
+executes an external SOAR action.  Missing model artifacts are surfaced to the
+caller instead of being replaced with a random decision.
+"""
+
+from typing import Any
+
+from app.services.model_service import get_model_status, predict
+
+
+AGENT_STATE: dict[str, Any] = {"last_action": None}
+
+
+def get_agent_status() -> dict[str, Any]:
+    model = get_model_status()
+    return {
+        "status": model["status"],
+        "last_action": AGENT_STATE["last_action"],
+        "model": model,
+    }
+
+
+def act_on_event(event: dict[str, Any]) -> dict[str, Any]:
+    """Produce a model recommendation from a contract-valid alert payload."""
+    recommendation = predict(event)
+    AGENT_STATE["last_action"] = recommendation["action"]
+    return recommendation
+
+
+__all__ = ["get_agent_status", "act_on_event"]
+
+
+
+####################################################################################################
+FILE: backend/app/services/alert_service.py
+####################################################################################################
+
+from app.database.repository import (
+    get_alerts_from_db, create_alert_in_db, get_alert_by_id_from_db, 
+    update_alert_in_db, delete_alert_from_db
+)
+from app.schemas.alert_schema import Alert, AlertCreate
+from typing import Optional
+
+def get_all_alerts(skip: int = 0, limit: int = 10):
+    return get_alerts_from_db(skip=skip, limit=limit)
+
+def create_alert(alert: AlertCreate) -> Alert:
+    return create_alert_in_db(alert)
+
+def get_alert_by_id(alert_id: int) -> Optional[Alert]:
+    return get_alert_by_id_from_db(alert_id)
+
+def update_alert(alert_id: int, alert: AlertCreate):
+    return update_alert_in_db(alert_id, alert)
+
+def delete_alert(alert_id: int):
+    return delete_alert_from_db(alert_id)
+
+
+####################################################################################################
+FILE: backend/app/services/api_activity.py
+####################################################################################################
+
+import asyncio
+import time
+from typing import Dict
+from datetime import datetime
+from fastapi import FastAPI, Request
+from app.config.settings import settings
+
+
+def init_api_status_store(app: FastAPI) -> None:
+    # Initialize a dict in app.state to hold status for each component
+    app.state.api_statuses = {}
+    now = time.time()
+    for comp in settings.api_components:
+        app.state.api_statuses[comp["name"]] = {
+            "name": comp["name"],
+            "prefix": comp["prefix"],
+            "status": "unknown",
+            "last_seen": None,
+            "last_checked": now,
+            "request_count": 0,
+        }
+
+
+async def api_activity_middleware(request: Request, call_next):
+    # Update last_seen for the matching component (by prefix)
+    path = request.url.path
+    for comp in settings.api_components:
+        if path.startswith(comp["prefix"]):
+            statuses: Dict | None = getattr(request.app.state, "api_statuses", None)
+            entry = statuses.get(comp["name"]) if statuses is not None else None
+            if entry is not None:
+                entry["last_seen"] = time.time()
+                entry["status"] = "up"
+                entry["request_count"] = entry.get("request_count", 0) + 1
+            break
+
+    response = await call_next(request)
+    return response
+
+
+async def api_status_monitor_task(app: FastAPI):
+    # Background task that marks components 'down' if not seen recently
+    interval = max(1, settings.api_status_poll_interval)
+    timeout = max(1, settings.api_status_timeout_seconds)
+    from app.database.database import api_statuses_collection  # local import to avoid startup cycles
+
+    while True:
+        now = time.time()
+        statuses: Dict = getattr(app.state, "api_statuses", {})
+        for name, entry in statuses.items():
+            last = entry.get("last_seen")
+
+            # Active checks for some components
+            try:
+                from app.database.database import client, training_collection
+
+                if entry.get("name") == "database":
+                    # Active DB ping
+                    try:
+                        await asyncio.to_thread(client.admin.command, "ping")
+                        entry["status"] = "up"
+                        entry["last_seen"] = now
+                    except Exception:
+                        entry["status"] = "down"
+                elif entry.get("name") == "training":
+                    # Consider training 'up' if the training collection reports running
+                    try:
+                        status_doc = await asyncio.to_thread(
+                            training_collection.find_one,
+                            {"type": "status"},
+                            sort=[("updated_at", -1)],
+                        )
+                        if status_doc and status_doc.get("status") == "running":
+                            entry["status"] = "up"
+                            entry["last_seen"] = now
+                        else:
+                            # fall back to passive last_seen evaluation below
+                            pass
+                    except Exception:
+                        pass
+            except Exception:
+                # ignore active-check failures
+                pass
+
+            if last is None:
+                # Still unknown — mark down only if app has been running for
+                # longer than timeout so short-lived startups don't show red.
+                if (now - entry.get("last_checked", now)) > timeout:
+                    entry["status"] = "down"
+            else:
+                if (now - last) > timeout:
+                    entry["status"] = "down"
+                else:
+                    entry["status"] = "up"
+
+            entry["last_checked"] = now
+
+            # Persist to DB if enabled
+            if getattr(settings, "persist_api_statuses", False):
+                try:
+                    # Upsert a document per component by name
+                    api_statuses_collection.update_one(
+                        {"name": entry["name"]},
+                        {
+                            "$set": {
+                                "name": entry["name"],
+                                "prefix": entry["prefix"],
+                                "status": entry["status"],
+                                "last_seen": entry["last_seen"],
+                                "last_checked": entry["last_checked"],
+                                "request_count": entry.get("request_count", 0),
+                                "updated_at": datetime.utcfromtimestamp(entry.get("last_checked", now)),
+                            }
+                        },
+                        upsert=True,
+                    )
+                except Exception:
+                    # Don't fail the monitor on DB errors
+                    pass
+        await asyncio.sleep(interval)
+
+
+def start_status_monitor(app: FastAPI):
+    if not settings.enable_api_activity_tracking:
+        return
+    # Start background task after middleware is already attached.
+    loop = asyncio.get_event_loop()
+    task = loop.create_task(api_status_monitor_task(app))
+    app.state.api_status_monitor_task = task
+
+
+async def stop_status_monitor(app: FastAPI):
+    task = getattr(app.state, "api_status_monitor_task", None)
+    if task is not None:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
+
+####################################################################################################
+FILE: backend/app/services/dashboard_service.py
+####################################################################################################
+
+from app.database.database import (
+    client,
+    alerts_collection,
+    decisions_collection,
+    rewards_collection,
+    evaluations_collection,
+    training_collection,
+)
+from app.schemas.dashboard_schema import DashboardSummary
+
+
+def get_enhanced_dashboard_summary() -> DashboardSummary:
+    try:
+        total_alerts = alerts_collection.count_documents({})
+        total_decisions = decisions_collection.count_documents({})
+        total_rewards = rewards_collection.count_documents({})
+    except Exception:
+        return DashboardSummary(
+            total_alerts=None,
+            processed_alerts=None,
+            total_decisions=None,
+            total_rewards=None,
+            average_reward=None,
+            average_latency=None,
+            accuracy=None,
+            database_status="UNAVAILABLE",
+            training_status="UNKNOWN",
+            current_episode=None,
+        )
+
+    pipeline = [{"$group": {"_id": None, "avg_reward": {"$avg": "$reward_value"}}}]
+    avg_reward_res = list(rewards_collection.aggregate(pipeline))
+    average_reward = (
+        float(avg_reward_res[0]["avg_reward"])
+        if avg_reward_res and avg_reward_res[0].get("avg_reward") is not None
+        else None
+    )
+
+    avg_latency = None
+    accuracy = None
+    try:
+        eval_pipeline = [{"$group": {"_id": None, "avg_latency": {"$avg": "$latency_ms"}, "avg_accuracy": {"$avg": "$accuracy"}}}]
+        eval_res = list(evaluations_collection.aggregate(eval_pipeline))
+        if eval_res:
+            if eval_res[0].get("avg_latency") is not None:
+                avg_latency = float(eval_res[0]["avg_latency"])
+            if eval_res[0].get("avg_accuracy") is not None:
+                accuracy = float(eval_res[0]["avg_accuracy"])
+    except Exception:
+        pass
+
+    try:
+        client.admin.command("ping")
+        db_status = "healthy"
+    except Exception:
+        db_status = "unhealthy"
+
+    try:
+        status_doc = training_collection.find_one({"type": "status"}, sort=[("updated_at", -1)])
+        training_status = status_doc.get("status", "IDLE") if status_doc else "IDLE"
+        history_doc = training_collection.find_one({"type": "history"}, sort=[("epoch", -1)])
+        current_episode = int(history_doc["epoch"]) if history_doc and history_doc.get("epoch") is not None else None
+    except Exception:
+        training_status = "UNKNOWN"
+        current_episode = None
+
+    return DashboardSummary(
+        total_alerts=total_alerts,
+        processed_alerts=total_decisions,
+        total_decisions=total_decisions,
+        total_rewards=total_rewards,
+        average_reward=round(average_reward, 2) if average_reward is not None else None,
+        average_latency=round(avg_latency, 2) if avg_latency is not None else None,
+        accuracy=round(accuracy, 4) if accuracy is not None else None,
+        database_status=db_status,
+        training_status=training_status,
+        current_episode=current_episode,
+    )
+
+
+
+####################################################################################################
+FILE: backend/app/services/dataset_service.py
+####################################################################################################
+
+"""Read-only access to the immutable processed dataset splits.
+
+The historical API called this operation an "import", but the authoritative
+CSV files are already part of the project.  These functions therefore validate
+and audit the requested split; they never create replacement data or invent
+statistics.
+"""
+
+from datetime import UTC, datetime
+
+from app.data_pipeline.contract import DatasetAudit, audit_processed_split
+from app.database.database import pipeline_collection
+
+PIPELINE_STATE = {
+    "status": "UNAVAILABLE",
+    "last_run": None,
+    "total_rows": None,
+    "total_columns": None,
+    "missing_values": None,
+    "split": None,
+}
+
+
+def _log_pipeline_event(event_type: str, audit: DatasetAudit) -> None:
+    """Persist an audit when MongoDB is available without masking file results."""
+    try:
+        pipeline_collection.insert_one(
+            {
+                "type": event_type,
+                "rows": audit.rows,
+                "columns": audit.columns,
+                "missing_values": audit.missing_values,
+                "timestamp": datetime.now(UTC),
+            }
+        )
+    except Exception:
+        # The data result is still valid when optional monitoring storage is
+        # unavailable; callers can observe DB health through its own endpoint.
+        return None
+
+
+def _validate_split(split: str) -> DatasetAudit:
+    audit = audit_processed_split(split)  # type: ignore[arg-type]
+    PIPELINE_STATE.update(
+        {
+            "status": "READY",
+            "last_run": datetime.now(UTC).isoformat(),
+            "total_rows": audit.rows,
+            "total_columns": audit.columns,
+            "missing_values": audit.missing_values,
+            "split": split,
+        }
+    )
+    _log_pipeline_event(f"{split}_validated", audit)
+    return audit
+
+
+def import_train_dataset():
+    audit = _validate_split("train")
+    return {
+        "message": "Train processed dataset validated",
+        "imported_count": audit.rows,
+    }
+
+
+def import_test_dataset():
+    audit = _validate_split("test")
+    return {
+        "message": "Test processed dataset validated",
+        "imported_count": audit.rows,
+    }
+
+
+def get_pipeline_status():
+    if PIPELINE_STATE["split"] is None:
+        try:
+            _validate_split("train")
+        except Exception:
+            return {"status": "UNAVAILABLE", "last_run": None}
+    return {
+        "status": PIPELINE_STATE["status"],
+        "last_run": PIPELINE_STATE["last_run"],
+    }
+
+
+def get_pipeline_statistics():
+    if PIPELINE_STATE["split"] is None:
+        _validate_split("train")
+    return {
+        "total_rows": PIPELINE_STATE["total_rows"],
+        "total_columns": PIPELINE_STATE["total_columns"],
+        "missing_values": PIPELINE_STATE["missing_values"],
+    }
+
+
+
+####################################################################################################
+FILE: backend/app/services/evaluation_service.py
+####################################################################################################
+
+"""Evaluation service logic.
+
+Provide basic evaluation helpers such as confusion matrix computation and
+reward metric aggregation. These are intentionally small helpers that the
+rest of the codebase can call for quick metrics.
+"""
+
+from typing import Sequence, Dict, Any
+
+
+def confusion_matrix(preds: Sequence[int], targets: Sequence[int]) -> Dict[str, int]:
+	"""Compute simple binary confusion counts for 0/1 labels.
+
+	Returns counts for TP, TN, FP, FN. Works for larger integer labels in a
+	best-effort way by treating matching/non-matching as positive/negative.
+	"""
+	tp = tn = fp = fn = 0
+	for p, t in zip(preds, targets):
+		if p == t:
+			if p == 1:
+				tp += 1
+			else:
+				tn += 1
+		else:
+			if p == 1:
+				fp += 1
+			else:
+				fn += 1
+
+	return {"tp": tp, "tn": tn, "fp": fp, "fn": fn}
+
+
+def reward_summary(rewards: Sequence[float]) -> Dict[str, float]:
+	if not rewards:
+		return {"count": 0, "mean": 0.0, "sum": 0.0}
+
+	count = len(rewards)
+	total = sum(rewards)
+	mean = total / count
+	return {"count": count, "mean": mean, "sum": total}
+
+
+__all__ = ["confusion_matrix", "reward_summary"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/services/experiment_service.py
+####################################################################################################
+
+"""Sequential multi-model experiment orchestration over the real processed data."""
+
+from __future__ import annotations
+
+import gc
+import json
+import logging
+import resource
+import threading
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import torch
+
+from app.config.settings import settings
+from app.data_pipeline.contract import FEATURE_COLUMNS, audit_processed_split, feature_schema
+from app.rl_agent.trainer import Trainer
+
+logger = logging.getLogger(__name__)
+
+EXPERIMENTS_DIR = settings.model_dir / "experiments"
+EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
+EXPERIMENTS: dict[str, dict] = {}
+
+
+def _model_path(name: str) -> Path:
+    return settings.model_dir / f"{name}.pt"
+
+
+def _metadata_path(name: str) -> Path:
+    return settings.model_dir / f"{name}.metadata.json"
+
+
+def _json_default(value: Any) -> Any:
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    raise TypeError()
+
+
+def _save_model_artifact(model: torch.nn.Module, name: str, training: dict, evaluation: dict) -> dict:
+    model_path = _model_path(name)
+    metadata_path = _metadata_path(name)
+    metadata = {
+        "model_name": name,
+        "algorithm": "dqn",
+        "architecture": training.get("architecture", "standard"),
+        "dqn_type": training.get("dqn_type", "standard"),
+        "state_dim": int(training.get("state_dim", len(FEATURE_COLUMNS))),
+        "action_dim": int(training.get("action_dim", 3)),
+        "feature_columns": list(FEATURE_COLUMNS),
+        "training_dataset": str(settings.processed_data_dir / "train_processed.csv"),
+        "training_rows": int(training.get("dataset_rows", 0)),
+        "training_passes": int(training.get("training_passes", 0)),
+        "environment_steps": int(training.get("environment_steps", 0)),
+        "gradient_updates": int(training.get("gradient_updates", 0)),
+        "test_dataset": str(settings.processed_data_dir / "test_processed.csv"),
+        "test_rows": int(evaluation.get("test_rows", 0)),
+        "evaluation": evaluation,
+        "training_duration_seconds": float(training.get("elapsed_seconds", 0.0)),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "feature_schema": feature_schema(),
+    }
+    tmp_model = model_path.with_suffix(model_path.suffix + ".tmp")
+    tmp_meta = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
+    try:
+        torch.save(model.state_dict(), tmp_model)
+        tmp_meta.write_text(json.dumps(metadata, indent=2, default=_json_default), encoding="utf-8")
+        tmp_model.replace(model_path)
+        tmp_meta.replace(metadata_path)
+    finally:
+        for path in (tmp_model, tmp_meta):
+            if path.exists():
+                path.unlink(missing_ok=True)
+    return {"model_path": str(model_path), "metadata_path": str(metadata_path), "metadata": metadata}
+
+
+def _release_memory() -> None:
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+def _current_ram_mb() -> float:
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+
+
+def start_experiment_background(models: list[dict[str, Any]]) -> dict[str, Any]:
+    run_id = uuid.uuid4().hex
+    stop_event = threading.Event()
+    state: dict[str, Any] = {
+        "run_id": run_id,
+        "status": "queued",
+        "models": [],
+        "created_at": datetime.now(UTC).isoformat(),
+        "training_dataset": str(settings.processed_data_dir / "train_processed.csv"),
+        "test_dataset": str(settings.processed_data_dir / "test_processed.csv"),
+        "stop_event": stop_event,
+    }
+    EXPERIMENTS[run_id] = state
+
+    def _worker() -> None:
+        state["status"] = "running"
+        train_audit = audit_processed_split("train")
+        test_audit = audit_processed_split("test")
+        state["training_rows"] = train_audit.rows
+        state["test_rows"] = test_audit.rows
+        state["total_models"] = len(models)
+        results: list[dict[str, Any]] = []
+        for idx, cfg in enumerate(models, start=1):
+            if stop_event.is_set():
+                state["status"] = "stopped"
+                break
+            model_entry = {
+                "name": cfg.get("name"),
+                "status": "training",
+                "index": idx,
+                "total": len(models),
+                "training_progress": {},
+            }
+            state["current_model"] = cfg.get("name")
+            state["model_index"] = idx
+            state["total_models"] = len(models)
+            state["models"].append(model_entry)
+            try:
+                training_passes = int(cfg.get("training_passes", getattr(settings, "training_passes", 1)))
+                trainer = Trainer(agent_config={
+                    "learning_rate": cfg.get("learning_rate", 1e-3),
+                    "gamma": cfg.get("gamma", 0.99),
+                    "batch_size": cfg.get("batch_size", 64),
+                    "memory_size": cfg.get("memory_size", 50000),
+                    "target_update": cfg.get("target_update", 1000),
+                    "architecture": cfg.get("architecture", "standard"),
+                    "dqn_type": cfg.get("dqn_type", "standard"),
+                })
+                def on_progress(prog: dict) -> None:
+                    model_entry["training_progress"].update({
+                        "environment_steps": prog.get("environment_steps"),
+                        "dataset_rows": prog.get("dataset_rows"),
+                        "gradient_updates": prog.get("gradient_updates"),
+                        "last_loss": prog.get("last_loss"),
+                        "last_reward": prog.get("last_reward"),
+                        "replay_size": prog.get("replay_size"),
+                        "replay_capacity": prog.get("replay_capacity"),
+                        "epsilon": prog.get("epsilon"),
+                    })
+                    state["training"] = {
+                        "dataset": "train_processed.csv",
+                        "rows": train_audit.rows,
+                        "environment_steps": prog.get("environment_steps"),
+                        "episodes": idx,
+                        "gradient_updates": prog.get("gradient_updates"),
+                        "epsilon": prog.get("epsilon"),
+                        "mean_reward": prog.get("last_reward"),
+                        "mean_loss": prog.get("last_loss"),
+                    }
+                    state["ram_usage_mb"] = _current_ram_mb()
+                    if _current_ram_mb() > settings.training_ram_limit_mb:
+                        stop_event.set()
+                        state["status"] = "stopped"
+                        state["stop_reason"] = "Training stopped because RAM safety threshold was reached."
+
+                training = trainer.train(
+                    training_passes=training_passes,
+                    max_steps=settings.training_max_steps,
+                    seed=settings.training_seed,
+                    stop_event=stop_event,
+                    on_progress=on_progress,
+                )
+                if stop_event.is_set():
+                    raise RuntimeError("Training stopped before completion")
+                evaluation = trainer.evaluate(max_steps=settings.evaluation_max_steps)
+                if trainer.agent is None:
+                    raise RuntimeError("Training did not initialize an agent")
+                artifact = _save_model_artifact(trainer.agent.model, str(cfg.get("name") or "dqn_model"), {**training, **cfg}, evaluation)
+                model_entry.update({
+                    "status": "completed",
+                    "training": training,
+                    "evaluation": evaluation,
+                    "artifact": artifact,
+                })
+                state["evaluation"] = evaluation
+                state["checkpoint"] = artifact["model_path"]
+                results.append(model_entry)
+                _release_memory()
+            except Exception as exc:
+                model_entry.update({"status": "failed", "error": str(exc)})
+                state["error"] = str(exc)
+                state["status"] = "failed"
+                _release_memory()
+                break
+        if state.get("status") != "failed" and state.get("status") != "stopped":
+            state["status"] = "completed"
+        if results:
+            best = None
+            for entry in results:
+                eval_metrics = entry.get("evaluation") or {}
+                score = eval_metrics.get("average_historical_reward", -1e9)
+                if best is None or score > best.get("evaluation", {}).get("average_historical_reward", -1e9):
+                    best = entry
+            state["best"] = best
+        state["results"] = results
+
+    thread = threading.Thread(target=_worker, daemon=True, name=f"experiment-{run_id}")
+    thread.start()
+    state["status"] = "started"
+    return {"run_id": run_id, "status": "started"}
+
+
+def stop_experiment(run_id: str) -> dict[str, Any]:
+    entry = EXPERIMENTS.get(run_id)
+    if not entry:
+        return {"status": "not_found"}
+    stop_event = entry.get("stop_event")
+    if stop_event is not None:
+        stop_event.set()
+        entry["status"] = "stopping"
+    return {"status": "stopping", "run_id": run_id}
+
+
+def get_experiment_status(run_id: str) -> dict:
+    return EXPERIMENTS.get(run_id, {"status": "not_found"})
+
+
+
+
+####################################################################################################
+FILE: backend/app/services/model_service.py
+####################################################################################################
+
+"""Validated DQN model lifecycle and inference service."""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+from datetime import UTC, datetime
+from functools import lru_cache
+from pathlib import Path
+from time import perf_counter
+from typing import Any
+
+import numpy as np
+import torch
+
+from app.config.settings import settings
+from app.data_pipeline.contract import FEATURE_COLUMNS, SCHEMA_VERSION, feature_schema, observation_from_alert
+from app.reward.outcomes import ACTION_NAMES
+from app.rl_agent.networks import QNetwork
+
+
+logger = logging.getLogger(__name__)
+ALGORITHM = "dqn"
+ACTION_DIM = len(ACTION_NAMES)
+
+
+class ModelUnavailableError(RuntimeError):
+    """The model cannot safely serve an inference request."""
+
+
+def _json_default(value: Any) -> Any:
+    """Convert scalar values emitted by numerical libraries in model metadata."""
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    raise TypeError(f"Unsupported model metadata value: {type(value).__name__}")
+
+
+def _artifact_paths() -> tuple[Path, Path]:
+    return settings.model_path, settings.model_metadata_path
+
+
+def _read_metadata() -> dict[str, Any]:
+    _, metadata_path = _artifact_paths()
+    try:
+        with metadata_path.open(encoding="utf-8") as file:
+            metadata = json.load(file)
+    except FileNotFoundError as exc:
+        raise ModelUnavailableError("Model metadata is not available") from exc
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ModelUnavailableError(f"Model metadata cannot be read: {exc}") from exc
+
+    expected = {
+        "algorithm": ALGORITHM,
+        "feature_schema_version": SCHEMA_VERSION,
+        "state_dim": len(FEATURE_COLUMNS),
+        "action_dim": ACTION_DIM,
+    }
+    for key, value in expected.items():
+        if metadata.get(key) != value:
+            raise ModelUnavailableError(f"Model metadata has incompatible {key}: {metadata.get(key)!r}")
+    return metadata
+
+
+@lru_cache(maxsize=1)
+def _load_model_cached(model_mtime_ns: int, metadata_mtime_ns: int) -> tuple[QNetwork, dict[str, Any]]:
+    del model_mtime_ns, metadata_mtime_ns
+    model_path, _ = _artifact_paths()
+    metadata = _read_metadata()
+    if not model_path.is_file():
+        raise ModelUnavailableError("No trained model artifact is available")
+    try:
+        # `weights_only=True` avoids unsafe arbitrary-object deserialization.
+        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
+        model = QNetwork(len(FEATURE_COLUMNS), ACTION_DIM)
+        model.load_state_dict(state_dict)
+        model.eval()
+    except (OSError, RuntimeError, ValueError, TypeError) as exc:
+        raise ModelUnavailableError(f"Trained model cannot be loaded: {exc}") from exc
+    return model, metadata
+
+
+def load_model() -> tuple[QNetwork, dict[str, Any]]:
+    model_path, metadata_path = _artifact_paths()
+    if not model_path.is_file() or not metadata_path.is_file():
+        raise ModelUnavailableError("No trained model is loaded; run dataset-backed training first")
+    return _load_model_cached(model_path.stat().st_mtime_ns, metadata_path.stat().st_mtime_ns)
+
+
+def invalidate_model_cache() -> None:
+    _load_model_cached.cache_clear()
+
+
+def save_trained_model(
+    model: QNetwork,
+    *,
+    training_metadata: dict[str, Any],
+    evaluation: dict[str, Any],
+) -> dict[str, Any]:
+    """Persist a DQN artifact and compatible metadata as one lifecycle event."""
+    model_path, metadata_path = _artifact_paths()
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "model_version": datetime.now(UTC).strftime("dqn-%Y%m%dT%H%M%SZ"),
+        "trained_at": datetime.now(UTC).isoformat(),
+        "algorithm": ALGORITHM,
+        "feature_schema_version": SCHEMA_VERSION,
+        "feature_schema": feature_schema(),
+        "state_dim": len(FEATURE_COLUMNS),
+        "action_dim": ACTION_DIM,
+        "actions": ACTION_NAMES,
+        "training": training_metadata,
+        "evaluation": evaluation,
+    }
+    temporary_model = model_path.with_suffix(model_path.suffix + ".tmp")
+    temporary_metadata = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
+    try:
+        torch.save(model.state_dict(), temporary_model)
+        temporary_metadata.write_text(
+            json.dumps(metadata, indent=2, sort_keys=True, default=_json_default),
+            encoding="utf-8",
+        )
+        os.replace(temporary_model, model_path)
+        os.replace(temporary_metadata, metadata_path)
+    finally:
+        for path in (temporary_model, temporary_metadata):
+            if path.exists():
+                path.unlink(missing_ok=True)
+    invalidate_model_cache()
+    logger.info("Saved trained DQN model version %s", metadata["model_version"])
+    return metadata
+
+
+def get_model_status() -> dict[str, Any]:
+    model_path, metadata_path = _artifact_paths()
+    base = {
+        "algorithm": ALGORITHM,
+        "feature_schema_version": SCHEMA_VERSION,
+        "model_path": str(model_path),
+        "metadata_path": str(metadata_path),
+    }
+    if not model_path.is_file() or not metadata_path.is_file():
+        return {
+            **base,
+            "status": "UNAVAILABLE",
+            "message": "No trained model artifact and metadata are available.",
+        }
+    try:
+        _, metadata = load_model()
+    except ModelUnavailableError as exc:
+        return {**base, "status": "ERROR", "message": str(exc)}
+    return {
+        **base,
+        "status": "READY",
+        "model_version": metadata.get("model_version"),
+        "trained_at": metadata.get("trained_at"),
+        "evaluation": metadata.get("evaluation"),
+        "training": metadata.get("training"),
+    }
+
+
+def predict(alert: dict[str, Any]) -> dict[str, Any]:
+    """Return an RL recommendation only; it never executes an external action."""
+    model, metadata = load_model()
+    observation = observation_from_alert(alert)
+    started = perf_counter()
+    with torch.no_grad():
+        scores = model(torch.as_tensor(observation, dtype=torch.float32).unsqueeze(0)).squeeze(0)
+        probabilities = torch.softmax(scores, dim=0)
+        action = int(torch.argmax(scores).item())
+    latency_ms = (perf_counter() - started) * 1000
+    return {
+        "action_index": action,
+        "action": ACTION_NAMES[action],
+        "confidence": round(float(probabilities[action].item()), 6),
+        "model_version": metadata["model_version"],
+        "feature_schema_version": SCHEMA_VERSION,
+        "inference_latency_ms": round(latency_ms, 3),
+        "recommendation_status": "PENDING_HUMAN_VALIDATION",
+        "execution_status": "NOT_EXECUTED",
+        "observation": np.asarray(observation, dtype=float).round(8).tolist(),
+    }
+
+
+
+####################################################################################################
+FILE: backend/app/services/training_service.py
+####################################################################################################
+
+"""Background orchestration for the dataset-backed DQN trainer.
+
+Only metrics produced by :class:`Trainer` are retained.  MongoDB persistence is
+best-effort monitoring: a missing database does not manufacture history or
+prevent a local training run from producing its model artifact.
+"""
+
+from __future__ import annotations
+
+import threading
+from datetime import UTC, datetime
+from typing import Any
+
+from app.config.settings import settings
+from app.database.database import checkpoints_collection, training_collection, training_metrics_collection
+from app.rl_agent.trainer import Trainer
+from app.services.model_service import save_trained_model
+
+
+STATE: dict[str, Any] = {
+    "status": "IDLE",
+    "current_epoch": 0,
+    "history": [],
+    "last_error": None,
+    "model_version": None,
+}
+TRAINING_CTRL: dict[str, Any] = {
+    "thread": None,
+    "stop_event": None,
+    "lock": threading.Lock(),
+}
+_PERSISTENCE_AVAILABLE: bool | None = None
+
+
+def _persist(operation) -> bool:
+    """Persist one monitoring record, disabling repeated failures per process."""
+    global _PERSISTENCE_AVAILABLE
+    if _PERSISTENCE_AVAILABLE is False:
+        return False
+    try:
+        operation()
+    except Exception:
+        _PERSISTENCE_AVAILABLE = False
+        return False
+    _PERSISTENCE_AVAILABLE = True
+    return True
+
+
+def _upsert_training_status(status: str, current_epoch: int) -> None:
+    STATE["status"] = status
+    STATE["current_epoch"] = current_epoch
+    _persist(
+        lambda: training_collection.insert_one(
+            {
+                "type": "status",
+                "status": status,
+                "current_epoch": current_epoch,
+                "updated_at": datetime.now(UTC),
+            }
+        )
+    )
+
+
+def _record_episode(record: dict[str, Any]) -> None:
+    """Record one completed training pass and any optimiser loss."""
+    # normalize record keys for backward compatibility
+    STATE["history"].append(record)
+    pass_number = int(record.get("pass", record.get("episode", 0)))
+    _upsert_training_status("RUNNING", pass_number)
+    if record.get("loss") is None:
+        return
+    metric = {
+        "pass": pass_number,
+        "loss": float(record["loss"]),
+        "average_reward": record.get("average_reward"),
+        "steps": int(record.get("steps", 0)),
+        "epsilon": float(record.get("epsilon", 0.0)),
+        "timestamp": datetime.now(UTC),
+    }
+    _persist(lambda: training_collection.insert_one({"type": "history", **metric}))
+    _persist(lambda: training_metrics_collection.insert_one(metric))
+
+
+def _run_training_async(algorithm: str, training_passes: int | None, stop_event: threading.Event) -> None:
+    try:
+        trainer = Trainer(algorithm=algorithm)
+        result = trainer.train(
+            training_passes=training_passes,
+            max_steps=settings.training_max_steps,
+            seed=settings.training_seed,
+            stop_event=stop_event,
+            on_episode=_record_episode,
+        )
+        if result.get("training_passes", 0) == 0:
+            _upsert_training_status("STOPPED" if result["stopped"] else "FAILED", 0)
+            return
+
+        evaluation = trainer.evaluate(max_steps=settings.evaluation_max_steps)
+        metadata = save_trained_model(
+            trainer.agent.model,
+            training_metadata=result,
+            evaluation=evaluation,
+        )
+        STATE["model_version"] = metadata["model_version"]
+        # Expose useful training counters for monitoring and the frontend.
+        for key in ("dataset_rows", "environment_steps", "gradient_updates", "elapsed_seconds"):
+            if key in result:
+                STATE[key] = result[key]
+        _persist(
+            lambda: checkpoints_collection.insert_one(
+                {
+                    "name": settings.model_path.name,
+                    "path": str(settings.model_path),
+                    "model_version": metadata["model_version"],
+                    "created_at": datetime.now(UTC),
+                }
+            )
+        )
+        _upsert_training_status(
+            "STOPPED" if result["stopped"] else "COMPLETED",
+            int(result.get("training_passes", 0)),
+        )
+    except Exception as exc:
+        STATE["last_error"] = str(exc)
+        _upsert_training_status("FAILED", STATE["current_epoch"])
+    finally:
+        with TRAINING_CTRL["lock"]:
+            TRAINING_CTRL["thread"] = None
+            TRAINING_CTRL["stop_event"] = None
+
+
+def get_training_status() -> dict[str, Any]:
+    base = {
+        "status": STATE["status"],
+        "current_epoch": STATE["current_epoch"],
+        "last_error": STATE["last_error"],
+        "model_version": STATE["model_version"],
+        "persistence": "AVAILABLE" if _PERSISTENCE_AVAILABLE else "UNAVAILABLE",
+    }
+    # Include optional counters when available
+    for optional in ("dataset_rows", "environment_steps", "gradient_updates", "elapsed_seconds"):
+        if optional in STATE:
+            base[optional] = STATE[optional]
+    return base
+
+
+def start_training(algorithm: str = "dqn", episodes: int | None = None) -> dict[str, str]:
+    """Start real train-split interaction in a background thread."""
+    with TRAINING_CTRL["lock"]:
+        thread = TRAINING_CTRL["thread"]
+        if thread is not None and thread.is_alive():
+            return {"message": "Training already in progress"}
+
+        selected_episodes = settings.training_episodes if episodes is None else episodes
+        # If configured training_episodes is <= 0, let the trainer compute
+        # the number of episodes needed to cover the full dataset.
+        if isinstance(selected_episodes, int) and selected_episodes < 1:
+            selected_episodes_arg = None
+        else:
+            selected_episodes_arg = selected_episodes
+        STATE.update({"current_epoch": 0, "history": [], "last_error": None, "model_version": None})
+        stop_event = threading.Event()
+        thread = threading.Thread(
+            target=_run_training_async,
+            args=(algorithm, selected_episodes_arg, stop_event),
+            daemon=True,
+            name="dataset-backed-dqn-training",
+        )
+        TRAINING_CTRL["thread"] = thread
+        TRAINING_CTRL["stop_event"] = stop_event
+        _upsert_training_status("RUNNING", 0)
+        thread.start()
+    return {"message": "Training started"}
+
+
+def stop_training() -> dict[str, str]:
+    """Request a cooperative stop; no fabricated final metric is written."""
+    with TRAINING_CTRL["lock"]:
+        stop_event = TRAINING_CTRL["stop_event"]
+        thread = TRAINING_CTRL["thread"]
+        if stop_event is None or thread is None or not thread.is_alive():
+            return {"message": "No training run is active"}
+        stop_event.set()
+        _upsert_training_status("STOPPING", STATE["current_epoch"])
+    return {"message": "Training stop requested"}
+
+
+def get_checkpoints() -> list[str]:
+    """Return only compatible model-service artifacts, never legacy pickle files."""
+    if settings.model_path.is_file() and settings.model_metadata_path.is_file():
+        return [settings.model_path.name]
+    return []
+
+
+def get_history() -> list[dict[str, Any]]:
+    """Expose episodes with optimiser losses; episodes before replay warmup omit loss."""
+    return [
+        {"epoch": item["episode"], "loss": item["loss"]}
+        for item in STATE["history"]
+        if item["loss"] is not None
+    ]
+
+
+def get_metrics(limit: int = 100) -> list[dict[str, Any]]:
+    records = [item for item in STATE["history"] if item["loss"] is not None]
+    return [
+        {
+            "epoch": item["episode"],
+            "loss": item["loss"],
+            "average_reward": item["average_reward"],
+            "steps": item["steps"],
+            "epsilon": item["epsilon"],
+        }
+        for item in records[-max(0, limit) :]
+    ]
+
+

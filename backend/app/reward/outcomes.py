@@ -11,7 +11,7 @@ HUMAN_REVIEW = 2
 ACTION_NAMES = {
     CLOSE: "close_recommendation",
     ESCALATE: "escalate_for_human_review",
-    HUMAN_REVIEW: "request_human_validation",
+    HUMAN_REVIEW: "human_review",
 }
 
 # The processed dataset encodes the target as numeric IncidentGrade values.

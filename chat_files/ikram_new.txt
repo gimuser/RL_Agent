@@ -1,0 +1,1887 @@
+====================================================================================================
+RL_AGENT - IKRAM FILE CONTENT
+====================================================================================================
+
+This file contains the current contents of the files assigned to this developer.
+Each file is separated clearly by a FILE block.
+
+NUMBER OF FILES: 27
+
+
+####################################################################################################
+FILE: backend/app/environment/__init__.py
+####################################################################################################
+
+"""Reinforcement learning environment package."""
+
+
+
+####################################################################################################
+FILE: backend/app/environment/action_space.py
+####################################################################################################
+
+"""Action space definitions.
+
+Provide a minimal DiscreteActionSpace compatible with simple agent code.
+"""
+
+from random import randint
+from typing import List
+
+
+class DiscreteActionSpace:
+	def __init__(self, n: int = 2, actions: List[str] | None = None):
+		self.n = n
+		self.actions = actions or [str(i) for i in range(n)]
+
+	def sample(self) -> int:
+		return randint(0, self.n - 1)
+
+	def contains(self, action: int) -> bool:
+		return 0 <= int(action) < self.n
+
+
+__all__ = ["DiscreteActionSpace"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/environment/episode_manager.py
+####################################################################################################
+
+"""Episode lifecycle helpers.
+
+Simple episode manager to track episode numbers and resets for training.
+"""
+
+from typing import Iterator
+
+
+class EpisodeManager:
+	def __init__(self, start: int = 0):
+		self.current = start
+
+	def next_episode(self) -> int:
+		self.current += 1
+		return self.current
+
+	def reset(self):
+		self.current = 0
+
+	def __iter__(self) -> Iterator[int]:
+		while True:
+			yield self.next_episode()
+
+
+__all__ = ["EpisodeManager"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/environment/gym_env.py
+####################################################################################################
+
+"""Public Gymnasium environment exports.
+
+`SimpleEnv` used to fabricate random alerts and rewards. It has deliberately
+been replaced by the dataset-backed environment; callers must select a split
+of the repository's real processed data.
+"""
+
+from .triage_env import AlertTriageEnv
+
+SimpleEnv = AlertTriageEnv  # backwards-compatible import name; no synthetic behavior
+
+__all__ = ["AlertTriageEnv", "SimpleEnv"]
+
+
+
+####################################################################################################
+FILE: backend/app/environment/observation_space.py
+####################################################################################################
+
+"""Observation space definitions.
+
+Provide a tiny helper describing observation shapes for synthetic envs.
+"""
+
+from typing import Tuple
+
+
+class ObservationSpace:
+	def __init__(self, shape: Tuple[int, ...]):
+		self.shape = shape
+
+	def sample(self):
+		from random import random
+		return [random() for _ in range(self.shape[0])]
+
+
+__all__ = ["ObservationSpace"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/environment/reset.py
+####################################################################################################
+
+"""Reset helpers for the environment.
+
+Provide convenience functions to initialize environment state objects used by
+the `SimpleEnv` implementation and related helpers.
+"""
+
+from typing import List
+
+
+def reset_state(state_size: int = 8) -> List[float]:
+	"""Return a fresh initial observation/state vector."""
+	from random import random
+
+	return [random() for _ in range(state_size)]
+
+
+__all__ = ["reset_state"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/environment/reward_wrapper.py
+####################################################################################################
+
+"""Reward wrapper helpers.
+
+Small utilities to compute or normalize reward values coming from the
+environment/decision pipeline.
+"""
+
+from typing import Dict, Any
+
+
+def compute_reward_value(decision: Dict[str, Any], metrics: Dict[str, Any]) -> float:
+	"""Compute a simple scalar reward from a decision and metrics.
+
+	This is intentionally tiny: combine a provided reward_value if present,
+	otherwise synthesize a small value from simple metrics.
+	"""
+	if "reward_value" in metrics:
+		return float(metrics["reward_value"])
+
+	# fallback: positive reward for reduced latency, negative for increases
+	latency = float(metrics.get("latency_reduction", 0.0))
+	fp_penalty = float(metrics.get("false_positive_penalty", 0.0))
+
+	return max(-10.0, min(10.0, latency * 10.0 - fp_penalty))
+
+
+__all__ = ["compute_reward_value"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/environment/state_builder.py
+####################################################################################################
+
+"""State-building helpers.
+
+This module contains a tiny helper to construct a numeric state vector from a
+source event (like an alert). The real project would build rich features;
+here we implement a safe, deterministic fallback for testing and integration.
+"""
+
+from typing import Any, Dict, List
+
+
+def build_state_from_event(event: Dict[str, Any], state_size: int = 8) -> List[float]:
+	"""Build a fixed-size numeric vector from an event dictionary.
+
+	The function extracts a few numeric-ish fields when present and fills the
+	remainder with hashed values to ensure consistent length.
+	"""
+	values: List[float] = []
+
+	# Pull numeric fields if present
+	for key in ("severity", "incident_score", "latency_ms"):
+		if key in event and isinstance(event[key], (int, float)):
+			values.append(float(event[key]))
+
+	# Use string fields hashed into floats for the rest
+	def _hash_str(s: str) -> float:
+		return float(abs(hash(s)) % 1000) / 1000.0
+
+	for key in ("source", "category", "threat_family"):
+		if key in event:
+			values.append(_hash_str(str(event[key])))
+
+	# Pad or trim to required size
+	if len(values) >= state_size:
+		return values[:state_size]
+
+	while len(values) < state_size:
+		values.append(0.0)
+
+	return values
+
+
+__all__ = ["build_state_from_event"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/environment/terminal_condition.py
+####################################################################################################
+
+"""Terminal condition helpers.
+
+Provide a small utility to decide episode termination based on step counts or
+other simple criteria. Kept minimal for unit tests and small local runs.
+"""
+
+from typing import Dict, Any
+
+
+def is_terminal(step_count: int, max_steps: int = 100, info: Dict[str, Any] | None = None) -> bool:
+	"""Return True when the episode should terminate.
+
+	Additional criteria can be passed in `info` but are optional.
+	"""
+	if step_count >= max_steps:
+		return True
+
+	if info and info.get("done", False):
+		return True
+
+	return False
+
+
+__all__ = ["is_terminal"]
+
+
+
+
+####################################################################################################
+FILE: backend/app/environment/triage_env.py
+####################################################################################################
+
+"""Dataset-backed Gymnasium environment for offline triage training."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import gymnasium as gym
+import numpy as np
+from gymnasium import spaces
+
+from app.data_pipeline.contract import FEATURE_COLUMNS, observations_for_split
+from app.reward.outcomes import ACTION_NAMES, historical_outcome_reward, validate_action_mapping
+
+
+class AlertTriageEnv(gym.Env[np.ndarray, int]):
+    """Sequential environment over existing processed incidents.
+
+    This is an offline, dataset-backed RL environment. Each transition uses a
+    real row from the processed CSV, and the next state is the next processed
+    row in the split. No synthetic alerts are generated.
+    """
+
+    metadata = {"render_modes": []}
+
+    def __init__(self, split: str = "train", max_steps: int = 1_000, start_index: int = 0):
+        if split not in {"train", "test"}:
+            raise ValueError("split must be 'train' or 'test'")
+        if max_steps < 1:
+            raise ValueError("max_steps must be >= 1")
+        self.split = split
+        self.observations, self.labels = observations_for_split(split)  # type: ignore[arg-type]
+        if self.observations.shape[1] != len(FEATURE_COLUMNS):
+            raise ValueError(f"State dimension mismatch: expected {len(FEATURE_COLUMNS)}, got {self.observations.shape[1]}")
+        validate_action_mapping(len(ACTION_NAMES))
+        self.max_steps = min(int(max_steps), len(self.observations))
+        self.default_start_index = start_index % len(self.observations)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.observations.shape[1],), dtype=np.float32)
+        self.action_space = spaces.Discrete(len(ACTION_NAMES))
+        self._index = self.default_start_index
+        self._steps = 0
+        self._episode_reward = 0.0
+        self._episode_actions: list[int] = []
+
+    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
+        super().reset(seed=seed)
+        start = self.default_start_index
+        if options and "start_index" in options:
+            start = int(options["start_index"]) % len(self.observations)
+        self._index = start
+        self._steps = 0
+        self._episode_reward = 0.0
+        self._episode_actions = []
+        return self.observations[self._index].copy(), {"split": self.split, "index": self._index, "feature_columns": list(FEATURE_COLUMNS)}
+
+    def step(self, action: int):
+        if not self.action_space.contains(action):
+            raise ValueError(f"Invalid action: {action}")
+        grade = int(self.labels[self._index])
+        reward = historical_outcome_reward(grade, int(action))
+        info = {
+            "split": self.split,
+            "index": self._index,
+            "incident_grade": grade,
+            "action_name": ACTION_NAMES[int(action)],
+        }
+        self._steps += 1
+        self._episode_reward += float(reward)
+        self._episode_actions.append(int(action))
+        self._index += 1
+        terminated = self._index >= len(self.observations)
+        truncated = self._steps >= self.max_steps and not terminated
+        next_index = min(self._index, len(self.observations) - 1)
+        next_state = self.observations[next_index].copy()
+        return next_state, float(reward), terminated, truncated, info
+
+
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/README.md
+####################################################################################################
+
+# Reinforcement Learning Agent
+
+## Overview
+
+This module implements the intelligent decision-making component of the SOAR platform using Reinforcement Learning.
+
+The agent learns to select the most appropriate action based on the current security alert state.
+
+---
+
+# Implemented Algorithms
+
+## DQN (Deep Q-Network)
+
+The DQN agent estimates Q-values for each possible action using a neural network.
+
+Main features:
+
+- Replay Buffer
+- Epsilon-Greedy Exploration
+- Neural Network approximation
+- Model checkpoint saving
+
+---
+
+## PPO (Proximal Policy Optimization)
+
+The PPO agent is based on the Actor-Critic architecture.
+
+Main features:
+
+- Actor Network
+- Critic Network
+- Policy Gradient Optimization
+- Clipped Objective Function (simplified version)
+
+---
+
+# Project Structure
+
+```
+rl_agent/
+
+│── dqn.py
+│── ppo.py
+│── networks.py
+│── memory.py
+│── policy.py
+│── trainer.py
+│── evaluator.py
+│── inference.py
+│── checkpoint.py
+│── metrics.py
+│── utils.py
+```
+
+---
+
+# Training
+
+Training is performed using:
+
+```
+python backend/app/rl_agent/trainer.py
+```
+
+---
+
+# Testing
+
+Run unit tests:
+
+```
+python -m backend.app.tests.test_networks
+
+python -m backend.app.tests.test_dqn
+
+python -m backend.app.tests.test_ppo
+```
+
+---
+
+# Metrics
+
+Training metrics include:
+
+- Episode
+- Reward
+- Average Reward
+- Loss
+- Epsilon
+
+Metrics are saved in:
+
+```
+logs/training_metrics.csv
+```
+
+---
+
+# Model Checkpoints
+
+The trained model checkpoints are stored in:
+
+```
+models/checkpoints/
+```
+
+---
+
+# Future Improvements
+
+- Double DQN
+- Generalized Advantage Estimation (GAE)
+- Entropy Bonus
+- TensorBoard Integration
+- Environment Integration
+- FastAPI Integration
+
+---
+
+Developed as part of the SOAR Reinforcement Learning module.
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/__init__.py
+####################################################################################################
+
+
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/a2c.py
+####################################################################################################
+
+"""A2C agent implementation."""
+
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/callbacks.py
+####################################################################################################
+
+"""Training callbacks."""
+
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/checkpoint.py
+####################################################################################################
+
+import os
+import pickle
+
+
+class CheckpointManager:
+    """
+    Manage saving and loading RL model checkpoints
+    and the best trained model.
+    """
+
+    def __init__(self, checkpoint_dir="models/checkpoints"):
+        self.checkpoint_dir = checkpoint_dir
+        self.best_model_path = "models/best_model.pth"
+
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        os.makedirs("models", exist_ok=True)
+
+    def save(
+        self,
+        model,
+        optimizer,
+        episode,
+        filename="checkpoint.pth",
+    ):
+        """
+        Save a training checkpoint.
+        """
+
+        path = os.path.join(
+            self.checkpoint_dir,
+            filename,
+        )
+
+        data = {
+            "episode": episode,
+        }
+
+        if hasattr(model, "state_dict"):
+            data["model_state_dict"] = model.state_dict()
+        else:
+            data["model"] = model
+
+        if optimizer is not None and hasattr(optimizer, "state_dict"):
+            data["optimizer_state_dict"] = optimizer.state_dict()
+        else:
+            data["optimizer"] = optimizer
+
+        with open(path, "wb") as f:
+            pickle.dump(data, f)
+
+        print(f"Checkpoint saved: {path}")
+
+    def load(
+        self,
+        model,
+        optimizer,
+        filename="checkpoint.pth",
+    ):
+        """
+        Load a training checkpoint.
+        """
+
+        path = os.path.join(
+            self.checkpoint_dir,
+            filename,
+        )
+
+        if not os.path.exists(path):
+            print("No checkpoint found.")
+            return 0
+
+        with open(path, "rb") as f:
+            checkpoint = pickle.load(f)
+
+        if hasattr(model, "load_state_dict") and "model_state_dict" in checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
+
+        if optimizer is not None and hasattr(optimizer, "load_state_dict") and "optimizer_state_dict" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        print(f"Checkpoint loaded: {path}")
+
+        return checkpoint["episode"]
+
+    def save_best_model(self, model):
+        """
+        Save the best performing model.
+        """
+
+        if hasattr(model, "state_dict"):
+            with open(self.best_model_path, "wb") as f:
+                pickle.dump(model.state_dict(), f)
+        else:
+            with open(self.best_model_path, "wb") as f:
+                pickle.dump(model, f)
+
+        print(
+            f"Best model saved: {self.best_model_path}"
+        )
+
+    def load_best_model(self, model):
+        """
+        Load the best performing model.
+        """
+
+        if not os.path.exists(self.best_model_path):
+            print("No best model found.")
+            return False
+
+        with open(self.best_model_path, "rb") as f:
+            best_state = pickle.load(f)
+
+        if hasattr(model, "load_state_dict"):
+            model.load_state_dict(best_state)
+        else:
+            return False
+
+        print(
+            f"Best model loaded: {self.best_model_path}"
+        )
+
+        return True
+
+
+if __name__ == "__main__":
+
+    from networks import QNetwork
+    import torch.optim as optim
+
+    model = QNetwork(10, 4)
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=0.001,
+    )
+
+    manager = CheckpointManager()
+
+    manager.save(
+        model,
+        optimizer,
+        episode=1,
+    )
+
+    manager.load(
+        model,
+        optimizer,
+    )
+
+    manager.save_best_model(model)
+
+    manager.load_best_model(model)
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/dqn.py
+####################################################################################################
+
+import random
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from .networks import QNetwork, DuelingQNetwork
+from .memory import ReplayBuffer
+from .policy import EpsilonGreedyPolicy
+
+
+class DQNAgent:
+    """
+    Deep Q-Network (DQN) Agent.
+
+    This agent interacts with the environment by selecting actions
+    using an epsilon-greedy policy. It stores experiences in a replay
+    buffer and learns by minimizing the temporal-difference (TD) loss.
+
+    Attributes:
+        state_dim (int): Dimension of the input state.
+        action_dim (int): Number of possible actions.
+        gamma (float): Discount factor.
+        epsilon (float): Exploration rate.
+        batch_size (int): Number of samples used during training.
+    """
+
+    def __init__(
+        self,
+        state_dim,
+        action_dim,
+        learning_rate=1e-3,
+        gamma=0.99,
+        batch_size=64,
+        memory_size=10000,
+        target_update=100,
+        architecture: str = "standard",
+        dqn_type: str = "standard",
+    ):
+
+        self.device = torch.device("cpu")
+
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+
+        self.gamma = gamma
+        self.batch_size = batch_size
+        self.target_update = target_update
+        self.dqn_type = dqn_type  # 'standard' or 'double'
+
+        if architecture == "dueling":
+            self.model = DuelingQNetwork(state_dim, action_dim).to(self.device)
+            self.target_model = DuelingQNetwork(state_dim, action_dim).to(self.device)
+        else:
+            self.model = QNetwork(state_dim, action_dim).to(self.device)
+            self.target_model = QNetwork(state_dim, action_dim).to(self.device)
+
+        self.target_model.load_state_dict(
+            self.model.state_dict()
+        )
+
+        self.optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=learning_rate,
+        )
+
+        self.criterion = nn.MSELoss()
+
+        self.memory = ReplayBuffer(
+            capacity=memory_size
+        )
+
+        self.policy = EpsilonGreedyPolicy()
+
+        self.steps = 0
+
+    def act(self, state):
+        """
+        Select an action for the given state.
+
+        Args:
+            state: Current environment state.
+
+        Returns:
+            int: Selected action index.
+        """
+
+        if not isinstance(state, torch.Tensor):
+            state = torch.FloatTensor(state)
+
+        state = state.unsqueeze(0)
+
+        if random.random() < self.policy.epsilon:
+            return random.randint(
+                0,
+                self.action_dim - 1,
+            )
+
+        with torch.no_grad():
+
+            q_values = self.model(state)
+
+            return torch.argmax(
+                q_values,
+                dim=1,
+            ).item()
+
+    def remember(
+        self,
+        state,
+        action,
+        reward,
+        next_state,
+        done,
+    ):
+        """
+        Store one transition inside the replay buffer.
+
+        Args:
+            state: Current state.
+            action: Executed action.
+            reward: Received reward.
+            next_state: Next environment state.
+            done: Episode termination flag.
+        """
+
+        self.memory.add(
+            state,
+            action,
+            reward,
+            next_state,
+            done,
+        )
+
+    def update(self):
+        """
+        Perform one optimization step using a mini-batch sampled
+        from the replay buffer.
+
+        Returns:
+            float | None:
+                Training loss if an update was performed,
+                otherwise None.
+        """
+
+        if len(self.memory) < self.batch_size:
+            return None
+
+        batch = self.memory.sample(self.batch_size)
+
+        states, actions, rewards, next_states, dones = zip(*batch)
+
+        states = torch.FloatTensor(states)
+        actions = torch.LongTensor(actions).unsqueeze(1)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1)
+        next_states = torch.FloatTensor(next_states)
+        dones = torch.FloatTensor(dones).unsqueeze(1)
+
+        current_q = self.model(states).gather(1, actions)
+
+        with torch.no_grad():
+            if self.dqn_type == "double":
+                # Double DQN: action selected by online network, value from target network
+                next_actions = self.model(next_states).argmax(dim=1, keepdim=True)
+                next_q = self.target_model(next_states).gather(1, next_actions)
+            else:
+                # Standard DQN: use target network max over actions
+                next_q = self.target_model(next_states).max(dim=1, keepdim=True).values
+            target_q = rewards + self.gamma * next_q * (1 - dones)
+
+        loss = self.criterion(
+            current_q,
+            target_q,
+        )
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        self.policy.decay()
+
+        self.steps += 1
+
+        if self.steps % self.target_update == 0:
+            self.target_model.load_state_dict(
+                self.model.state_dict()
+            )
+
+        return loss.item()
+
+    def save(self, path):
+        """
+        Save the trained model.
+
+        Args:
+            path (str): Destination file path.
+        """
+
+        torch.save(
+            self.model.state_dict(),
+            path,
+        )
+
+    def load(self, path):
+        """
+        Load a previously trained model.
+
+        Args:
+            path (str): Model file path.
+        """
+
+        self.model.load_state_dict(
+            torch.load(
+                path,
+                map_location=self.device,
+            )
+        )
+
+        self.target_model.load_state_dict(
+            self.model.state_dict()
+        )
+
+
+if __name__ == "__main__":
+
+    import numpy as np
+
+    agent = DQNAgent(
+        state_dim=4,
+        action_dim=2,
+    )
+
+    state = np.random.rand(4)
+    next_state = np.random.rand(4)
+
+    action = agent.act(state)
+
+    agent.remember(
+        state,
+        action,
+        1.0,
+        next_state,
+        False,
+    )
+
+    print("Selected Action:", action)
+    print("DQN Agent initialized successfully.")
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/evaluator.py
+####################################################################################################
+
+class Evaluator:
+    """
+    Evaluate the performance of a Reinforcement Learning agent.
+    """
+
+    def __init__(self):
+        self.rewards = []
+
+    def add_reward(self, reward):
+        """
+        Store a reward from one episode.
+        """
+        self.rewards.append(reward)
+
+    def average_reward(self):
+        """
+        Compute the average reward.
+        """
+        if len(self.rewards) == 0:
+            return 0.0
+
+        return sum(self.rewards) / len(self.rewards)
+
+    def total_reward(self):
+        """
+        Compute the cumulative reward.
+        """
+        return sum(self.rewards)
+
+    def reset(self):
+        """
+        Clear all stored rewards.
+        """
+        self.rewards.clear()
+
+
+if __name__ == "__main__":
+
+    evaluator = Evaluator()
+
+    evaluator.add_reward(10)
+    evaluator.add_reward(15)
+    evaluator.add_reward(20)
+
+    print("Average Reward :", evaluator.average_reward())
+    print("Total Reward   :", evaluator.total_reward())
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/inference.py
+####################################################################################################
+
+import torch
+
+
+class InferenceEngine:
+    """
+    Runs inference using a trained RL model.
+    """
+
+    def __init__(self, model):
+        self.model = model
+        self.model.eval()
+
+    def predict(self, state):
+        """
+        Predict the best action for a given state.
+        """
+        with torch.no_grad():
+            q_values = self.model(state)
+            action = torch.argmax(q_values).item()
+        return action
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/memory.py
+####################################################################################################
+
+from collections import deque
+import random
+
+
+class ReplayBuffer:
+    """
+    Replay Buffer for storing agent experiences.
+    """
+
+    def __init__(self, capacity: int = 10000):
+        self.buffer = deque(maxlen=capacity)
+
+    def add(self, state, action, reward, next_state, done):
+        self.buffer.append(
+            (state, action, reward, next_state, done)
+        )
+
+    def sample(self, batch_size: int):
+        return random.sample(self.buffer, batch_size)
+
+    def __len__(self):
+        return len(self.buffer)
+    
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/metrics.py
+####################################################################################################
+
+import csv
+import os
+
+
+class TrainingMetrics:
+    """
+    Store and save training metrics.
+    """
+
+    def __init__(self):
+        self.episodes = []
+        self.rewards = []
+        self.losses = []
+        self.epsilons = []
+
+    def add(self, episode, reward, loss=None, epsilon=None):
+
+        self.episodes.append(episode)
+        self.rewards.append(reward)
+
+        self.losses.append(
+            0.0 if loss is None else float(loss)
+        )
+
+        self.epsilons.append(
+            0.0 if epsilon is None else float(epsilon)
+        )
+
+    def average_reward(self):
+
+        if not self.rewards:
+            return 0.0
+
+        return sum(self.rewards) / len(self.rewards)
+
+    def total_reward(self):
+
+        return sum(self.rewards)
+
+    def print_summary(self):
+
+        print("\n========== TRAINING SUMMARY ==========")
+        print(f"Episodes       : {len(self.episodes)}")
+        print(f"Total Reward   : {self.total_reward():.2f}")
+        print(f"Average Reward : {self.average_reward():.2f}")
+
+        if self.losses:
+            print(f"Last Loss      : {self.losses[-1]:.6f}")
+
+        if self.epsilons:
+            print(f"Last Epsilon   : {self.epsilons[-1]:.4f}")
+
+        print("======================================\n")
+
+    def save_csv(self, filename="logs/training_metrics.csv"):
+
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        with open(filename, "w", newline="") as file:
+
+            writer = csv.writer(file)
+
+            writer.writerow(
+                [
+                    "Episode",
+                    "Reward",
+                    "Loss",
+                    "Epsilon",
+                ]
+            )
+
+            for row in zip(
+                self.episodes,
+                self.rewards,
+                self.losses,
+                self.epsilons,
+            ):
+                writer.writerow(row)
+
+        print(f"Metrics saved to {filename}")
+
+
+if __name__ == "__main__":
+
+    metrics = TrainingMetrics()
+
+    metrics.add(1, 12.5, 0.08, 1.0)
+    metrics.add(2, 15.2, 0.05, 0.99)
+    metrics.add(3, 20.4, 0.03, 0.98)
+
+    metrics.print_summary()
+
+    metrics.save_csv()
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/networks.py
+####################################################################################################
+
+import torch
+import torch.nn as nn
+
+
+class QNetwork(nn.Module):
+    """
+    Deep Q-Network (DQN)
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, action_size)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class DuelingQNetwork(nn.Module):
+    """
+    Dueling DQN network: separate value and advantage streams.
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+        self.feature = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+        )
+        self.value_stream = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1))
+        self.advantage_stream = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, action_size))
+
+    def forward(self, x):
+        features = self.feature(x)
+        value = self.value_stream(features)
+        adv = self.advantage_stream(features)
+        q = value + adv - adv.mean(dim=1, keepdim=True)
+        return q
+
+
+class ActorNetwork(nn.Module):
+    """
+    PPO Actor Network
+    """
+
+    def __init__(self, state_size: int, action_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, action_size),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class CriticNetwork(nn.Module):
+    """
+    PPO Critic Network
+    """
+
+    def __init__(self, state_size: int):
+        super().__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/policy.py
+####################################################################################################
+
+import random
+import torch
+
+
+class EpsilonGreedyPolicy:
+    """
+    Epsilon-Greedy Policy for action selection.
+    """
+
+    def __init__(
+        self,
+        epsilon=1.0,
+        epsilon_min=0.01,
+        epsilon_decay=0.995,
+    ):
+        self.epsilon = epsilon
+        self.epsilon_min = epsilon_min
+        self.epsilon_decay = epsilon_decay
+
+    def select_action(self, q_values):
+        """
+        Select an action using epsilon-greedy strategy.
+        """
+
+        if random.random() < self.epsilon:
+            return random.randint(0, len(q_values) - 1)
+
+        return torch.argmax(q_values).item()
+
+    def decay(self):
+        """
+        Reduce exploration over time.
+        """
+
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/ppo.py
+####################################################################################################
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from .networks import ActorNetwork, CriticNetwork
+
+
+class PPOAgent:
+    """
+    Proximal Policy Optimization (PPO) Agent.
+
+    This implementation uses an Actor-Critic architecture.
+    """
+
+    def __init__(
+        self,
+        state_dim,
+        action_dim,
+        lr=3e-4,
+        gamma=0.99,
+        eps_clip=0.2,
+        k_epochs=4,
+    ):
+        self.gamma = gamma
+        self.eps_clip = eps_clip
+        self.k_epochs = k_epochs
+
+        self.actor = ActorNetwork(state_dim, action_dim)
+        self.critic = CriticNetwork(state_dim)
+
+        self.optimizer = optim.Adam(
+            list(self.actor.parameters()) +
+            list(self.critic.parameters()),
+            lr=lr,
+        )
+
+        self.states = []
+        self.actions = []
+        self.log_probs = []
+        self.rewards = []
+        self.dones = []
+
+    def act(self, state):
+        """
+        Select an action using the current policy.
+
+        Args:
+            state: Environment state.
+
+        Returns:
+            tuple:
+                (action, log_probability)
+        """
+
+        if not isinstance(state, torch.Tensor):
+            state = torch.FloatTensor(state)
+
+        if state.dim() == 1:
+            state = state.unsqueeze(0)
+
+        with torch.no_grad():
+            probs = self.actor(state)
+
+        probs = torch.clamp(probs, 1e-8, 1.0)
+        probs = probs / probs.sum(dim=-1, keepdim=True)
+
+        distribution = torch.distributions.Categorical(probs)
+
+        action = distribution.sample()
+
+        log_prob = distribution.log_prob(action)
+
+        return action.item(), log_prob
+
+    def remember(
+        self,
+        state,
+        action,
+        log_prob,
+        reward,
+        done,
+    ):
+        """
+        Store one transition.
+        """
+
+        self.states.append(np.asarray(state, dtype=np.float32))
+        self.actions.append(action)
+        self.log_probs.append(log_prob.detach())
+        self.rewards.append(float(reward))
+        self.dones.append(done)
+
+    def compute_returns(self):
+        """
+        Compute discounted returns.
+        """
+
+        returns = []
+        discounted_reward = 0.0
+
+        for reward, done in zip(
+            reversed(self.rewards),
+            reversed(self.dones),
+        ):
+
+            if done:
+                discounted_reward = 0.0
+
+            discounted_reward = (
+                reward +
+                self.gamma * discounted_reward
+            )
+
+            returns.insert(0, discounted_reward)
+
+        return torch.tensor(
+            returns,
+            dtype=torch.float32,
+        )
+
+    def compute_advantages(
+        self,
+        returns,
+        values,
+    ):
+        """
+        Compute normalized advantages.
+        """
+
+        advantages = returns - values.detach()
+
+        if len(advantages) > 1:
+
+            std = advantages.std(unbiased=False)
+
+            if std > 1e-8:
+                advantages = (
+                    advantages - advantages.mean()
+                ) / (std + 1e-8)
+
+        return advantages
+
+    def update(self):
+        """
+        Update Actor and Critic networks.
+        """
+
+        if len(self.states) < 2:
+            print("Not enough samples for PPO update.")
+            return
+
+        states = torch.tensor(
+            np.array(self.states),
+            dtype=torch.float32,
+        )
+
+        actions = torch.tensor(
+            self.actions,
+            dtype=torch.long,
+        )
+
+        old_log_probs = torch.stack(
+            self.log_probs
+        ).detach()
+
+        returns = self.compute_returns()
+
+        for _ in range(self.k_epochs):
+
+            values = self.critic(states).squeeze(-1)
+
+            advantages = self.compute_advantages(
+                returns,
+                values,
+            )
+
+            probs = self.actor(states)
+
+            probs = torch.clamp(
+                probs,
+                min=1e-8,
+                max=1.0,
+            )
+
+            probs = probs / probs.sum(
+                dim=-1,
+                keepdim=True,
+            )
+
+            distribution = torch.distributions.Categorical(
+                probs
+            )
+
+            new_log_probs = distribution.log_prob(
+                actions
+            )
+
+            entropy = distribution.entropy().mean()
+
+            ratios = torch.exp(
+                new_log_probs - old_log_probs
+            )
+
+            surr1 = ratios * advantages
+
+            surr2 = torch.clamp(
+                ratios,
+                1 - self.eps_clip,
+                1 + self.eps_clip,
+            ) * advantages
+
+            actor_loss = -torch.min(
+                surr1,
+                surr2,
+            ).mean()
+
+            critic_loss = nn.functional.mse_loss(
+                values,
+                returns,
+            )
+
+            loss = (
+                actor_loss
+                + 0.5 * critic_loss
+                - 0.01 * entropy
+            )
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+        self.states.clear()
+        self.actions.clear()
+        self.log_probs.clear()
+        self.rewards.clear()
+        self.dones.clear()
+
+        print("PPO Update Completed.")
+
+
+if __name__ == "__main__":
+
+    agent = PPOAgent(
+        state_dim=10,
+        action_dim=4,
+    )
+
+    # نجمعو أكثر من transition باش الـ update يخدم
+    for _ in range(5):
+
+        state = np.random.randn(10)
+
+        action, log_prob = agent.act(state)
+
+        agent.remember(
+            state,
+            action,
+            log_prob,
+            reward=np.random.rand(),
+            done=False,
+        )
+
+    agent.dones[-1] = True
+
+    agent.update()
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/replay_buffer.py
+####################################################################################################
+
+"""Replay buffer implementation."""
+
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/rl_agent.py
+####################################################################################################
+
+import torch
+
+from .dqn import DQNAgent
+from .ppo import PPOAgent
+
+class RLAgent:
+    """
+    Main Reinforcement Learning Agent
+    """
+
+    def __init__(
+        self,
+        algorithm="dqn",
+        state_dim=4,
+        action_dim=2,
+    ):
+        self.algorithm = algorithm.lower()
+
+        if self.algorithm == "dqn":
+            self.agent = DQNAgent(
+                state_dim=state_dim,
+                action_dim=action_dim,
+            )
+
+        elif self.algorithm == "ppo":
+            self.agent = PPOAgent(
+                state_dim=state_dim,
+                action_dim=action_dim,
+            )
+
+        else:
+            raise ValueError(
+                f"Unknown algorithm: {algorithm}"
+            )
+
+    def act(self, state):
+        return self.agent.act(state)
+
+    def remember(self, *args):
+        if hasattr(self.agent, "remember"):
+            self.agent.remember(*args)
+
+    def update(self):
+        if hasattr(self.agent, "update"):
+            self.agent.update()
+
+    def predict(self, state):
+        return self.act(state)
+
+    def save(self, path):
+        if hasattr(self.agent, "model"):
+            torch.save(
+                self.agent.model.state_dict(),
+                path,
+            )
+        elif hasattr(self.agent, "actor"):
+            torch.save(
+                self.agent.actor.state_dict(),
+                path,
+            )
+
+    def load(self, path):
+        if hasattr(self.agent, "model"):
+            self.agent.model.load_state_dict(
+                torch.load(path)
+            )
+
+        elif hasattr(self.agent, "actor"):
+            self.agent.actor.load_state_dict(
+                torch.load(path)
+            )
+
+
+if __name__ == "__main__":
+
+    state = [0.5, 0.2, 0.1, 0.9]
+
+    agent = RLAgent(
+        algorithm="dqn",
+        state_dim=4,
+        action_dim=2,
+    )
+
+    action = agent.predict(state)
+
+    print("Selected Action:", action)
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/trainer.py
+####################################################################################################
+
+"""Dataset-backed DQN trainer for the processed CSV contract."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from threading import Event
+from time import perf_counter
+
+import torch
+
+from app.config.settings import settings
+from app.data_pipeline.contract import FEATURE_COLUMNS
+from app.environment.triage_env import AlertTriageEnv
+from app.reward.outcomes import ACTION_NAMES, expected_action, validate_action_mapping
+from app.rl_agent.dqn import DQNAgent
+from app.rl_agent.utils import set_seed
+
+
+class Trainer:
+    """Reinforcement Learning Trainer."""
+
+    def __init__(self, algorithm="dqn", state_dim: int | None = None, action_dim: int | None = None, agent_config: dict | None = None):
+        self.algorithm = algorithm.lower()
+        if self.algorithm != "dqn":
+            raise ValueError("Only the validated DQN training path is currently supported")
+        self.agent_config = agent_config or {}
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.agent: DQNAgent | None = None
+
+    def _resolve_dimensions(self, env: AlertTriageEnv) -> tuple[int, int]:
+        state_dim = int(env.observation_space.shape[0])
+        action_dim = int(env.action_space.n)
+        if self.state_dim is None:
+            self.state_dim = state_dim
+        if self.action_dim is None:
+            self.action_dim = action_dim
+        if self.state_dim != state_dim:
+            raise ValueError(f"Configured state_dim {self.state_dim} does not match environment state_dim {state_dim}")
+        if self.action_dim != action_dim:
+            raise ValueError(f"Configured action_dim {self.action_dim} does not match environment action_dim {action_dim}")
+        validate_action_mapping(action_dim)
+        return self.state_dim, self.action_dim
+
+    def train(
+        self,
+        *,
+        training_passes: int | None,
+        max_steps: int,
+        seed: int,
+        stop_event: Event | None = None,
+        on_episode: Callable[[dict], None] | None = None,
+        on_progress: Callable[[dict], None] | None = None,
+    ) -> dict:
+        """Train by traversing the real training split one pass at a time."""
+        if max_steps < 1:
+            raise ValueError("max_steps must be >= 1")
+        set_seed(seed)
+        env = AlertTriageEnv(split="train", max_steps=10**9)
+        state_dim, action_dim = self._resolve_dimensions(env)
+        total_rows = int(len(env.observations))
+        effective_max_steps = min(total_rows, int(max_steps))
+        if training_passes is None:
+            training_passes = int(getattr(settings, "training_passes", 1))
+        training_passes = int(training_passes)
+        if training_passes < 1:
+            raise ValueError("training_passes must be >= 1")
+        self.agent = DQNAgent(state_dim=state_dim, action_dim=action_dim, **self.agent_config)
+        self.on_progress = on_progress
+        episode_records: list[dict] = []
+        stopped = False
+        environment_steps = 0
+        gradient_updates = 0
+        start_time = perf_counter()
+        progress_interval = max(1, int(getattr(settings, "training_progress_interval", 1000)))
+        for pass_idx in range(training_passes):
+            if stop_event and stop_event.is_set():
+                stopped = True
+                break
+            env_pass = AlertTriageEnv(split="train", max_steps=effective_max_steps)
+            state, _ = env_pass.reset(seed=seed, options={"start_index": 0})
+            total_reward = 0.0
+            losses: list[float] = []
+            steps = 0
+            while True:
+                if stop_event and stop_event.is_set():
+                    stopped = True
+                    break
+                action = self.agent.act(state)
+                next_state, reward, terminated, truncated, _ = env_pass.step(action)
+                self.agent.remember(state, action, reward, next_state, terminated or truncated)
+                loss = self.agent.update()
+                if loss is not None:
+                    losses.append(float(loss))
+                    gradient_updates += 1
+                total_reward += float(reward)
+                steps += 1
+                environment_steps += 1
+                if (environment_steps % progress_interval) == 0 and (on_progress or getattr(self, "on_progress", None)):
+                    prog = {
+                        "pass": pass_idx + 1,
+                        "environment_steps": int(environment_steps),
+                        "dataset_rows": int(total_rows),
+                        "gradient_updates": int(gradient_updates),
+                        "last_loss": float(losses[-1]) if losses else None,
+                        "last_reward": float(total_reward / steps) if steps else None,
+                        "replay_size": int(len(self.agent.memory)),
+                        "replay_capacity": int(self.agent.memory.buffer.maxlen),
+                        "epsilon": float(self.agent.policy.epsilon),
+                    }
+                    try:
+                        if callable(getattr(self, "on_progress", None)):
+                            self.on_progress(prog)
+                    except Exception:
+                        pass
+                state = next_state
+                if terminated or truncated:
+                    break
+            record = {
+                "pass": pass_idx + 1,
+                "steps": steps,
+                "total_reward": total_reward,
+                "average_reward": total_reward / steps if steps else None,
+                "loss": sum(losses) / len(losses) if losses else None,
+                "epsilon": float(self.agent.policy.epsilon),
+                "replay_buffer_size": len(self.agent.memory),
+                "replay_capacity": int(self.agent.memory.buffer.maxlen),
+            }
+            episode_records.append(record)
+            if on_episode:
+                on_episode(record)
+            if stopped:
+                break
+        elapsed = perf_counter() - start_time
+        return {
+            "training_passes": int(training_passes),
+            "episodes": len(episode_records),
+            "stopped": stopped,
+            "passes": episode_records,
+            "state_dim": int(state_dim),
+            "action_dim": int(action_dim),
+            "feature_columns": list(FEATURE_COLUMNS),
+            "dataset_rows": int(total_rows),
+            "environment_steps": int(environment_steps),
+            "gradient_updates": int(gradient_updates),
+            "elapsed_seconds": float(elapsed),
+            "action_names": ACTION_NAMES,
+        }
+
+    def evaluate(self, max_steps: int | None = None) -> dict:
+        if max_steps is None:
+            env = AlertTriageEnv(split="test", max_steps=10**9)
+        else:
+            env = AlertTriageEnv(split="test", max_steps=min(int(max_steps), len(AlertTriageEnv(split="test", max_steps=10**9).observations)))
+        state, _ = env.reset(options={"start_index": 0})
+        if self.agent is None:
+            raise RuntimeError("Trainer must be trained before evaluation")
+        predictions: list[int] = []
+        expected: list[int] = []
+        rewards: list[float] = []
+        latencies: list[float] = []
+        action_counts: dict[int, int] = {idx: 0 for idx in ACTION_NAMES}
+        correct = 0
+        total_reward = 0.0
+        samples = 0
+        with torch.no_grad():
+            while True:
+                q_values = self.agent.model(torch.as_tensor(state, dtype=torch.float32).unsqueeze(0))
+                start = perf_counter()
+                action = int(torch.argmax(q_values, dim=1).item())
+                latencies.append((perf_counter() - start) * 1000.0)
+                next_state, reward, terminated, truncated, info = env.step(action)
+                target_action = expected_action(int(info["incident_grade"]))
+                predictions.append(action)
+                expected.append(target_action)
+                rewards.append(float(reward))
+                action_counts[action] = action_counts.get(action, 0) + 1
+                correct += int(action == target_action)
+                total_reward += float(reward)
+                samples += 1
+                state = next_state
+                if terminated or truncated:
+                    break
+        confusion_matrix = {action: {target: 0 for target in ACTION_NAMES} for action in ACTION_NAMES}
+        for pred, target in zip(predictions, expected, strict=False):
+            confusion_matrix[pred][target] += 1
+        precision_values: list[float] = []
+        recall_values: list[float] = []
+        f1_values: list[float] = []
+        for label in ACTION_NAMES:
+            tp = confusion_matrix[label][label]
+            fp = sum(confusion_matrix[other][label] for other in ACTION_NAMES if other != label)
+            fn = sum(confusion_matrix[label][other] for other in ACTION_NAMES if other != label)
+            precision = tp / (tp + fp) if (tp + fp) else 0.0
+            recall = tp / (tp + fn) if (tp + fn) else 0.0
+            f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+            precision_values.append(precision)
+            recall_values.append(recall)
+            f1_values.append(f1)
+        return {
+            "split": "test",
+            "samples": int(samples),
+            "test_rows": int(len(env.observations)),
+            "policy_action_accuracy": correct / samples if samples else None,
+            "average_historical_reward": total_reward / samples if samples else None,
+            "total_historical_reward": total_reward,
+            "action_distribution": action_counts,
+            "confusion_matrix": confusion_matrix,
+            "precision": sum(precision_values) / len(precision_values) if precision_values else None,
+            "recall": sum(recall_values) / len(recall_values) if recall_values else None,
+            "f1": sum(f1_values) / len(f1_values) if f1_values else None,
+            "inference_latency_mean": float(sum(latencies) / len(latencies)) if latencies else None,
+            "inference_latency_p95": float(torch.tensor(latencies).quantile(0.95).item()) if latencies else None,
+        }
+
+
+
+####################################################################################################
+FILE: backend/app/rl_agent/utils.py
+####################################################################################################
+
+import random
+import numpy as np
+import torch
+
+
+def set_seed(seed=42):
+    """
+    Set random seed for reproducibility.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
+def to_tensor(array):
+    """
+    Convert a numpy array to a torch tensor.
+    """
+    return torch.FloatTensor(array)
+
+
+def save_model(model, path):
+    """
+    Save a PyTorch model.
+    """
+    torch.save(model.state_dict(), path)
+
+
+def load_model(model, path):
+    """
+    Load a PyTorch model.
+    """
+    model.load_state_dict(torch.load(path))
+    model.eval()
+
+
+if __name__ == "_main_":
+    set_seed(42)
+    print("Utilities loaded successfully.")
+

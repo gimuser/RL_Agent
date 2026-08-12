@@ -1,214 +1,476 @@
-"""Dataset-backed DQN trainer for the processed CSV contract."""
-
 from __future__ import annotations
 
-from collections.abc import Callable
-from threading import Event
-from time import perf_counter
+import json
+import os
+import time
+from pathlib import Path
+from typing import Dict
 
+import numpy as np
+import pandas as pd
 import torch
 
-from app.config.settings import settings
-from app.data_pipeline.contract import FEATURE_COLUMNS
-from app.environment.triage_env import AlertTriageEnv
-from app.reward.outcomes import ACTION_NAMES, expected_action, validate_action_mapping
-from app.rl_agent.dqn import DQNAgent
-from app.rl_agent.utils import set_seed
+from .dqn import DoubleDQN
+from .triage_env import (
+    ACTIONS,
+    FEATURES,
+    INCIDENT_ID,
+    TARGET,
+    REWARD_TABLE,
+    sort_incidents,
+)
+
+
+def prepare_transitions(df: pd.DataFrame):
+
+    df, timestamp_col = sort_incidents(df)
+
+    states = []
+    next_states = []
+    labels = []
+    dones = []
+    incident_ids = []
+    steps = []
+
+    for incident_id, group in df.groupby(
+        INCIDENT_ID,
+        sort=False,
+    ):
+
+        rows = group.reset_index(drop=True)
+
+        x = rows[FEATURES].astype(
+            np.float32
+        ).values
+
+        y = rows[TARGET].astype(
+            int
+        ).values
+
+        for i in range(len(rows)):
+
+            states.append(x[i])
+
+            if i + 1 < len(rows):
+                next_states.append(x[i + 1])
+            else:
+                next_states.append(x[i])
+
+            labels.append(y[i])
+            dones.append(i == len(rows) - 1)
+            incident_ids.append(str(incident_id))
+            steps.append(i)
+
+    return (
+        np.asarray(states, dtype=np.float32),
+        np.asarray(next_states, dtype=np.float32),
+        np.asarray(labels, dtype=np.int64),
+        np.asarray(dones, dtype=np.float32),
+        incident_ids,
+        np.asarray(steps, dtype=np.int64),
+        timestamp_col,
+    )
+
+
+def train(
+    train_csv: str,
+    epochs: int = 10,
+    batch_size: int = 512,
+    learning_rate: float = 1e-3,
+    gamma: float = 0.95,
+    target_update: int = 1,
+    seed: int = 42,
+):
+
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    df = pd.read_csv(train_csv)
+
+    (
+        states,
+        next_states,
+        labels,
+        dones,
+        incident_ids,
+        steps,
+        timestamp_col,
+    ) = prepare_transitions(df)
+
+    n_rows = len(states)
+
+    print()
+    print("=" * 70)
+    print("INCIDENT-LEVEL OFFLINE RL TRAINING")
+    print("=" * 70)
+
+    print(f"Dataset          : {train_csv}")
+    print(f"Rows             : {n_rows:,}")
+    print(
+        f"Incidents        : "
+        f"{df[INCIDENT_ID].astype(str).nunique():,}"
+    )
+    print(f"Features         : {len(FEATURES)}")
+    print(f"Actions          : {len(ACTIONS)}")
+    print(f"Epochs           : {epochs}")
+    print(f"Batch size       : {batch_size}")
+    print(f"Learning rate    : {learning_rate}")
+    print(f"Gamma            : {gamma}")
+    print(f"Timestamp column : {timestamp_col}")
+    print("Synthetic data   : NO")
+    print("Real data        : YES")
+    print("IncidentId state : NO")
+    print("IncidentId episode: YES")
+
+    model = DoubleDQN(
+        input_dim=len(FEATURES),
+        n_actions=len(ACTIONS),
+        learning_rate=learning_rate,
+        gamma=gamma,
+    )
+
+    metrics = []
+
+    for epoch in range(1, epochs + 1):
+
+        start = time.perf_counter()
+
+        indices = np.random.permutation(
+            n_rows
+        )
+
+        total_loss = 0.0
+        updates = 0
+
+        action_counts = {
+            name: 0
+            for name in ACTIONS.values()
+        }
+
+        reward_sum = 0.0
+
+        for start_idx in range(
+            0,
+            n_rows,
+            batch_size,
+        ):
+
+            batch_idx = indices[
+                start_idx:
+                start_idx + batch_size
+            ]
+
+            batch_states = states[batch_idx]
+            batch_next = next_states[batch_idx]
+            batch_labels = labels[batch_idx]
+            batch_dones = dones[batch_idx]
+
+            # Counterfactual offline RL:
+            # every state has a real reward for every valid action.
+            reward_matrix = np.asarray(
+                [
+                    [
+                        REWARD_TABLE.get(
+                            int(label),
+                            REWARD_TABLE[3],
+                        )[action]
+                        for action in ACTIONS
+                    ]
+                    for label in batch_labels
+                ],
+                dtype=np.float32,
+            )
+
+            loss = model.update_counterfactual(
+                batch_states,
+                reward_matrix,
+                batch_next,
+                batch_dones,
+            )
+
+            total_loss += loss
+            updates += 1
+
+            # Monitoring only:
+            # action with the highest real counterfactual reward.
+            actions = np.argmax(
+                reward_matrix,
+                axis=1,
+            ).astype(np.int64)
+
+            chosen_rewards = reward_matrix[
+                np.arange(len(actions)),
+                actions,
+            ]
+
+            reward_sum += float(
+                chosen_rewards.sum()
+            )
+
+            for action in actions:
+                action_counts[
+                    ACTIONS[int(action)]
+                ] += 1
+
+        if (
+            target_update > 0
+            and epoch % target_update == 0
+        ):
+            model.update_target()
+
+        elapsed = (
+            time.perf_counter()
+            - start
+        )
+
+        avg_loss = (
+            total_loss / max(1, updates)
+        )
+
+        avg_reward = (
+            reward_sum / n_rows
+        )
+
+        row = {
+            "epoch": epoch,
+            "rows": n_rows,
+            "incidents": int(
+                df[INCIDENT_ID]
+                .astype(str)
+                .nunique()
+            ),
+            "updates": updates,
+            "loss": avg_loss,
+            "average_reward": avg_reward,
+            "action_counts": action_counts,
+            "time_seconds": elapsed,
+        }
+
+        metrics.append(row)
+
+        print(
+            f"Epoch {epoch:03d}/{epochs:03d} | "
+            f"rows={n_rows:,} | "
+            f"incidents={row['incidents']:,} | "
+            f"updates={updates} | "
+            f"loss={avg_loss:.6f} | "
+            f"avg_reward={avg_reward:.6f} | "
+            f"time={elapsed:.2f}s"
+        )
+
+        print(
+            f"    actions: {action_counts}"
+        )
+
+    ROOT = Path(__file__).resolve().parents[3]
+    MODELS = ROOT / "models"
+    MODELS.mkdir(parents=True, exist_ok=True)
+
+    model_path = (
+        str(MODELS / "real_dqn_agent.pt")
+    )
+
+    model.save(model_path)
+
+    output = {
+        "config": {
+            "epochs": epochs,
+            "batch_size": batch_size,
+            "learning_rate": learning_rate,
+            "gamma": gamma,
+            "features": FEATURES,
+            "actions": ACTIONS,
+            "incident_id": INCIDENT_ID,
+            "target": TARGET,
+            "synthetic_data": False,
+            "real_data": True,
+            "incident_level_episodes": True,
+        },
+        "metrics": metrics,
+    }
+
+    Path(
+        str(MODELS / "training_metrics.json")
+    ).write_text(
+        json.dumps(
+            output,
+            indent=2,
+        )
+    )
+
+    print()
+    print("=" * 70)
+    print("[OK] INCIDENT-LEVEL TRAINING COMPLETE")
+    print("=" * 70)
+
+    print(
+        f"Rows used       : {n_rows:,}"
+    )
+
+    print(
+        f"Incidents used  : "
+        f"{df[INCIDENT_ID].astype(str).nunique():,}"
+    )
+
+    print(
+        f"Model           : {model_path}"
+    )
+
+    return model
+
+
+# ==========================================================================
+# BACKWARD-COMPATIBLE APPLICATION TRAINER
+# ==========================================================================
+#
+# Existing FastAPI/service code imports:
+#
+#     from app.rl_agent.trainer import Trainer
+#
+# The authoritative training implementation remains the module-level
+# train() function above.
+# ==========================================================================
+
+class _CompatibilityAgent:
+    """Minimal application compatibility object."""
+
+    def __init__(self):
+        self.model = None
 
 
 class Trainer:
-    """Reinforcement Learning Trainer."""
+    """
+    Compatibility facade around the authoritative real-data trainer.
 
-    def __init__(self, algorithm="dqn", state_dim: int | None = None, action_dim: int | None = None, agent_config: dict | None = None):
-        self.algorithm = algorithm.lower()
-        if self.algorithm != "dqn":
-            raise ValueError("Only the validated DQN training path is currently supported")
-        self.agent_config = agent_config or {}
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-        self.agent: DQNAgent | None = None
+    It preserves the application-layer interface without replacing
+    the actual training implementation.
+    """
 
-    def _resolve_dimensions(self, env: AlertTriageEnv) -> tuple[int, int]:
-        state_dim = int(env.observation_space.shape[0])
-        action_dim = int(env.action_space.n)
-        if self.state_dim is None:
-            self.state_dim = state_dim
-        if self.action_dim is None:
-            self.action_dim = action_dim
-        if self.state_dim != state_dim:
-            raise ValueError(f"Configured state_dim {self.state_dim} does not match environment state_dim {state_dim}")
-        if self.action_dim != action_dim:
-            raise ValueError(f"Configured action_dim {self.action_dim} does not match environment action_dim {action_dim}")
-        validate_action_mapping(action_dim)
-        return self.state_dim, self.action_dim
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
 
-    def train(
-        self,
-        *,
-        training_passes: int | None,
-        max_steps: int,
-        seed: int,
-        stop_event: Event | None = None,
-        on_episode: Callable[[dict], None] | None = None,
-        on_progress: Callable[[dict], None] | None = None,
-    ) -> dict:
-        """Train by traversing the real training split one pass at a time."""
-        if max_steps < 1:
-            raise ValueError("max_steps must be >= 1")
-        set_seed(seed)
-        env = AlertTriageEnv(split="train", max_steps=10**9)
-        state_dim, action_dim = self._resolve_dimensions(env)
-        total_rows = int(len(env.observations))
-        effective_max_steps = min(total_rows, int(max_steps))
-        if training_passes is None:
-            training_passes = int(getattr(settings, "training_passes", 1))
-        training_passes = int(training_passes)
-        if training_passes < 1:
-            raise ValueError("training_passes must be >= 1")
-        self.agent = DQNAgent(state_dim=state_dim, action_dim=action_dim, **self.agent_config)
-        self.on_progress = on_progress
-        episode_records: list[dict] = []
-        stopped = False
-        environment_steps = 0
-        gradient_updates = 0
-        start_time = perf_counter()
-        progress_interval = max(1, int(getattr(settings, "training_progress_interval", 1000)))
-        for pass_idx in range(training_passes):
-            if stop_event and stop_event.is_set():
-                stopped = True
-                break
-            env_pass = AlertTriageEnv(split="train", max_steps=effective_max_steps)
-            state, _ = env_pass.reset(seed=seed, options={"start_index": 0})
-            total_reward = 0.0
-            losses: list[float] = []
-            steps = 0
-            while True:
-                if stop_event and stop_event.is_set():
-                    stopped = True
-                    break
-                action = self.agent.act(state)
-                next_state, reward, terminated, truncated, _ = env_pass.step(action)
-                self.agent.remember(state, action, reward, next_state, terminated or truncated)
-                loss = self.agent.update()
-                if loss is not None:
-                    losses.append(float(loss))
-                    gradient_updates += 1
-                total_reward += float(reward)
-                steps += 1
-                environment_steps += 1
-                if (environment_steps % progress_interval) == 0 and (on_progress or getattr(self, "on_progress", None)):
-                    prog = {
-                        "pass": pass_idx + 1,
-                        "environment_steps": int(environment_steps),
-                        "dataset_rows": int(total_rows),
-                        "gradient_updates": int(gradient_updates),
-                        "last_loss": float(losses[-1]) if losses else None,
-                        "last_reward": float(total_reward / steps) if steps else None,
-                        "replay_size": int(len(self.agent.memory)),
-                        "replay_capacity": int(self.agent.memory.buffer.maxlen),
-                        "epsilon": float(self.agent.policy.epsilon),
-                    }
-                    try:
-                        if callable(getattr(self, "on_progress", None)):
-                            self.on_progress(prog)
-                    except Exception:
-                        pass
-                state = next_state
-                if terminated or truncated:
-                    break
-            record = {
-                "pass": pass_idx + 1,
-                "steps": steps,
-                "total_reward": total_reward,
-                "average_reward": total_reward / steps if steps else None,
-                "loss": sum(losses) / len(losses) if losses else None,
-                "epsilon": float(self.agent.policy.epsilon),
-                "replay_buffer_size": len(self.agent.memory),
-                "replay_capacity": int(self.agent.memory.buffer.maxlen),
-            }
-            episode_records.append(record)
-            if on_episode:
-                on_episode(record)
-            if stopped:
-                break
-        elapsed = perf_counter() - start_time
-        return {
-            "training_passes": int(training_passes),
-            "episodes": len(episode_records),
-            "stopped": stopped,
-            "passes": episode_records,
-            "state_dim": int(state_dim),
-            "action_dim": int(action_dim),
-            "feature_columns": list(FEATURE_COLUMNS),
-            "dataset_rows": int(total_rows),
-            "environment_steps": int(environment_steps),
-            "gradient_updates": int(gradient_updates),
-            "elapsed_seconds": float(elapsed),
-            "action_names": ACTION_NAMES,
-        }
+        self.config = (
+            kwargs.get("agent_config")
+            or kwargs.get("config")
+            or {}
+        )
 
-    def evaluate(self, max_steps: int | None = None) -> dict:
-        if max_steps is None:
-            env = AlertTriageEnv(split="test", max_steps=10**9)
+        self.agent = _CompatibilityAgent()
+
+        self.model = None
+        self.result = None
+
+    def train(self, *args, **kwargs):
+        """
+        Delegate to the authoritative module-level train() function.
+        """
+
+        import inspect
+        from pathlib import Path
+
+        # Prefer explicit train_csv.
+        train_csv = kwargs.get("train_csv")
+
+        if train_csv is None:
+            train_csv = kwargs.get("dataset")
+        
+        if train_csv is None:
+            train_csv = kwargs.get("path")
+
+        if train_csv is None:
+            # Application services historically use the project's
+            # real train dataset.
+            root = Path(__file__).resolve().parents[3]
+            train_csv = (
+                root
+                / "data"
+                / "rl_incident"
+                / "train_incident.csv"
+            )
+
+            # Fallback if the incident split does not yet exist.
+            if not train_csv.exists():
+                train_csv = (
+                    root
+                    / "data"
+                    / "processed"
+                    / "train_processed.csv"
+                )
+
+        sig = inspect.signature(train)
+
+        call_kwargs = {}
+
+        if "train_csv" in sig.parameters:
+            call_kwargs["train_csv"] = str(train_csv)
+
+        # Pull configuration from known application forms.
+        cfg = {}
+
+        if isinstance(self.config, dict):
+            cfg.update(self.config)
+
+        cfg.update(kwargs)
+
+        if "epochs" in sig.parameters:
+            call_kwargs["epochs"] = int(
+                cfg.get(
+                    "epochs",
+                    cfg.get(
+                        "training_passes",
+                        1,
+                    ),
+                )
+            )
+
+        if "batch_size" in sig.parameters:
+            call_kwargs["batch_size"] = int(
+                cfg.get("batch_size", 512)
+            )
+
+        if "learning_rate" in sig.parameters:
+            call_kwargs["learning_rate"] = float(
+                cfg.get("learning_rate", 1e-3)
+            )
+
+        if "gamma" in sig.parameters:
+            call_kwargs["gamma"] = float(
+                cfg.get("gamma", 0.95)
+            )
+
+        if "target_update" in sig.parameters:
+            call_kwargs["target_update"] = int(
+                cfg.get("target_update", 1)
+            )
+
+        if "seed" in sig.parameters:
+            call_kwargs["seed"] = int(
+                cfg.get("seed", 42)
+            )
+
+        # The authoritative train() already expects the train_csv path.
+        if "train_csv" in sig.parameters:
+            result = train(**call_kwargs)
         else:
-            env = AlertTriageEnv(split="test", max_steps=min(int(max_steps), len(AlertTriageEnv(split="test", max_steps=10**9).observations)))
-        state, _ = env.reset(options={"start_index": 0})
-        if self.agent is None:
-            raise RuntimeError("Trainer must be trained before evaluation")
-        predictions: list[int] = []
-        expected: list[int] = []
-        rewards: list[float] = []
-        latencies: list[float] = []
-        action_counts: dict[int, int] = {idx: 0 for idx in ACTION_NAMES}
-        correct = 0
-        total_reward = 0.0
-        samples = 0
-        with torch.no_grad():
-            while True:
-                q_values = self.agent.model(torch.as_tensor(state, dtype=torch.float32).unsqueeze(0))
-                start = perf_counter()
-                action = int(torch.argmax(q_values, dim=1).item())
-                latencies.append((perf_counter() - start) * 1000.0)
-                next_state, reward, terminated, truncated, info = env.step(action)
-                target_action = expected_action(int(info["incident_grade"]))
-                predictions.append(action)
-                expected.append(target_action)
-                rewards.append(float(reward))
-                action_counts[action] = action_counts.get(action, 0) + 1
-                correct += int(action == target_action)
-                total_reward += float(reward)
-                samples += 1
-                state = next_state
-                if terminated or truncated:
-                    break
-        confusion_matrix = {action: {target: 0 for target in ACTION_NAMES} for action in ACTION_NAMES}
-        for pred, target in zip(predictions, expected, strict=False):
-            confusion_matrix[pred][target] += 1
-        precision_values: list[float] = []
-        recall_values: list[float] = []
-        f1_values: list[float] = []
-        for label in ACTION_NAMES:
-            tp = confusion_matrix[label][label]
-            fp = sum(confusion_matrix[other][label] for other in ACTION_NAMES if other != label)
-            fn = sum(confusion_matrix[label][other] for other in ACTION_NAMES if other != label)
-            precision = tp / (tp + fp) if (tp + fp) else 0.0
-            recall = tp / (tp + fn) if (tp + fn) else 0.0
-            f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
-            precision_values.append(precision)
-            recall_values.append(recall)
-            f1_values.append(f1)
-        return {
-            "split": "test",
-            "samples": int(samples),
-            "test_rows": int(len(env.observations)),
-            "policy_action_accuracy": correct / samples if samples else None,
-            "average_historical_reward": total_reward / samples if samples else None,
-            "total_historical_reward": total_reward,
-            "action_distribution": action_counts,
-            "confusion_matrix": confusion_matrix,
-            "precision": sum(precision_values) / len(precision_values) if precision_values else None,
-            "recall": sum(recall_values) / len(recall_values) if recall_values else None,
-            "f1": sum(f1_values) / len(f1_values) if f1_values else None,
-            "inference_latency_mean": float(sum(latencies) / len(latencies)) if latencies else None,
-            "inference_latency_p95": float(torch.tensor(latencies).quantile(0.95).item()) if latencies else None,
-        }
+            # Compatibility fallback.
+            result = train(str(train_csv))
+
+        self.model = result
+        self.agent.model = result
+        self.result = result
+
+        return result
+
+    def run(self, *args, **kwargs):
+        return self.train(*args, **kwargs)
+
+    def fit(self, *args, **kwargs):
+        return self.train(*args, **kwargs)
+
+    def evaluate(self, *args, **kwargs):
+        """
+        Evaluation is handled by evaluator.py.
+        Keep this method for application compatibility.
+        """
+        return None

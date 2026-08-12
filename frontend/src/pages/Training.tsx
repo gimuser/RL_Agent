@@ -1,104 +1,526 @@
 import { useCallback, useEffect, useState } from "react";
-import { LineChart } from "../components/charts/LineChart";
-import { KpiCard } from "../components/ui/KpiCard";
-import { PageHeader } from "../components/ui/PageHeader";
-import { QueryState } from "../components/ui/QueryState";
-import { StatusBadge } from "../components/ui/StatusBadge";
-import { useToast } from "../components/ui/ToastProvider";
-import { useApi } from "../hooks/useApi";
-import { trainingService } from "../services/training.service";
-import type { ExperimentStatus } from "../types/domain";
+import {
+  getAuthoritativeFullTrainingStatus,
+  startAuthoritativeFullTraining,
+  type AuthoritativeTrainingStatus,
+} from "../services/training.service";
+
+const numberFmt = new Intl.NumberFormat("en-US");
+
+function num(value: unknown) {
+  return typeof value === "number"
+    ? numberFmt.format(value)
+    : "—";
+}
+
+function decimal(value: unknown) {
+  return typeof value === "number"
+    ? value.toFixed(6)
+    : "—";
+}
+
+function pct(value: unknown) {
+  return typeof value === "number"
+    ? `${(value * 100).toFixed(2)}%`
+    : "—";
+}
+
+function Detail({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
 
 export function TrainingPage() {
-  const status = useApi(trainingService.getStatus, { poll: true });
-  const history = useApi(trainingService.getHistory, { poll: true });
-  const checkpoints = useApi(trainingService.getCheckpoints);
-  const metrics = useApi(trainingService.getMetrics, { poll: true });
-  const { notify } = useToast();
-  const [experiment, setExperiment] = useState<ExperimentStatus | null>(null);
-  const [runId, setRunId] = useState<string | null>(null);
+  const [response, setResponse] =
+    useState<AuthoritativeTrainingStatus | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState("");
+
+  const refresh = useCallback(async () => {
+    try {
+      const value =
+        await getAuthoritativeFullTrainingStatus();
+
+      setResponse(value);
+      setError("");
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : String(e),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!runId) return;
-    let cancelled = false;
-    const poll = async () => {
-      const current = await trainingService.getExperimentStatus(runId);
-      if (!cancelled) {
-        setExperiment(current);
-        if (current.status && !["completed", "failed", "stopped", "stopping"].includes(current.status)) {
-          window.setTimeout(() => { void poll(); }, 2000);
-        }
-      }
-    };
-    void poll();
-    return () => { cancelled = true; };
-  }, [runId]);
+    refresh();
 
-  const startExperiment = useCallback(async () => {
-    if (!window.confirm("Start the real multi-model experiment with the processed dataset?")) return;
+    const timer = window.setInterval(
+      refresh,
+      3000,
+    );
+
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  const start = async () => {
+    const confirmed = window.confirm(
+      "Start the complete real-data RL training pipeline?",
+    );
+
+    if (!confirmed) return;
+
     try {
-      const models = [
-        { name: "dqn_baseline", architecture: "standard", dqn_type: "standard", learning_rate: 1e-3, gamma: 0.99, batch_size: 64, memory_size: 50000, target_update: 1000, training_passes: 3 },
-        { name: "dqn_double", architecture: "standard", dqn_type: "double", learning_rate: 5e-4, gamma: 0.99, batch_size: 64, memory_size: 50000, target_update: 1000, training_passes: 3 },
-        { name: "dqn_dueling", architecture: "dueling", dqn_type: "standard", learning_rate: 1e-3, gamma: 0.98, batch_size: 64, memory_size: 50000, target_update: 1000, training_passes: 3 },
-      ];
-      notify({ tone: "info", title: "Experiment started" });
-      const res = await trainingService.startExperiment(models);
-      setRunId(res.run_id);
-      setExperiment({ status: "started", run_id: res.run_id } as ExperimentStatus);
-    } catch (err) {
-      notify({ tone: "error", title: "Experiment failed", description: err instanceof Error ? err.message : String(err) });
-    }
-  }, [notify]);
+      setStarting(true);
+      setError("");
 
-  const runAction = useCallback(async (action: "start" | "stop") => {
-    const verb = action === "start" ? "start" : "stop";
-    if (!window.confirm(`Are you sure you want to ${verb} training?`)) return;
-    try {
-      const response = await trainingService[action]();
-      notify({ tone: "success", title: response.message });
-      await status.refresh();
-    } catch (error) {
-      notify({ tone: "error", title: "Training action failed", description: error instanceof Error ? error.message : "Unable to reach the API." });
-    }
-  }, [notify, status]);
+      await startAuthoritativeFullTraining();
 
-  const currentModel = experiment?.current_model ?? "—";
-  const totalModels = experiment?.total_models ?? 3;
-  const trainingProgress = (experiment?.training ?? {}) as Record<string, unknown>;
-  const evaluationProgress = (experiment?.evaluation ?? {}) as Record<string, unknown>;
-  const trainingEnvironmentSteps = typeof trainingProgress.environment_steps === "number" ? trainingProgress.environment_steps : "—";
-  const trainingGradientUpdates = typeof trainingProgress.gradient_updates === "number" ? trainingProgress.gradient_updates : "—";
-  const trainingEpisodes = typeof trainingProgress.episodes === "number" ? trainingProgress.episodes : "—";
-  const trainingMeanReward = typeof trainingProgress.mean_reward === "number" ? trainingProgress.mean_reward : "—";
-  const trainingMeanLoss = typeof trainingProgress.mean_loss === "number" ? trainingProgress.mean_loss : "—";
-  const evaluationSamples = typeof evaluationProgress.samples === "number" ? evaluationProgress.samples : "—";
-  return <>
-    <PageHeader eyebrow="MODEL TRAINING" title="Training control" description="The frontend now polls the real backend experiment status and displays live training and evaluation progress." actions={<div className="button-group"><button className="button button--primary" type="button" onClick={() => void runAction("start")}>Start training</button><button className="button button--danger" type="button" onClick={() => void runAction("stop")}>Stop training</button></div>} />
-    <QueryState state={status}>{(data) => <section className="kpi-grid kpi-grid--four"><KpiCard label="Training status" value={<StatusBadge value={data.status} />} detail="Reported by training API" icon="⌁" /><KpiCard label="Current model" value={currentModel} detail={`Model ${experiment?.model_index ?? 0}/${totalModels}`} icon="◷" /><KpiCard label="Environment steps" value={String(trainingEnvironmentSteps)} detail="Reported by trainer" icon="◎" /><KpiCard label="Gradient updates" value={String(trainingGradientUpdates)} detail="From live training state" icon="⚙" /></section>}</QueryState>
-    <section className="panel"><div className="panel__header"><div><p className="eyebrow">REAL EXPERIMENT</p><h2>Live experiment status</h2></div></div>
-      <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
-        <button className="button button--primary" onClick={() => void startExperiment()}>Start full experiment</button>
-      </div>
-      <div className="detail-list">
-        <div><dt>Status</dt><dd>{experiment?.status ?? "idle"}</dd></div>
-        <div><dt>Current model</dt><dd>{currentModel}</dd></div>
-        <div><dt>Dataset pass</dt><dd>{String(trainingEpisodes)}</dd></div>
-        <div><dt>Environment steps</dt><dd>{String(trainingEnvironmentSteps)}</dd></div>
-        <div><dt>Mean reward</dt><dd>{String(trainingMeanReward)}</dd></div>
-        <div><dt>Training loss</dt><dd>{String(trainingMeanLoss)}</dd></div>
-        <div><dt>Evaluation samples</dt><dd>{String(evaluationSamples)}</dd></div>
-        <div><dt>Checkpoint</dt><dd>{experiment?.checkpoint ?? '—'}</dd></div>
-      </div>
-    </section>
-    <section className="split-grid">
-      <article className="panel"><div className="panel__header"><div><p className="eyebrow">LOSS CURVE</p><h2>Training loss</h2></div></div><QueryState state={history} empty={(data) => data.history.length === 0}>{(data) => <LineChart label="Training loss by epoch" points={data.history.map((point) => ({ label: `Epoch ${point.epoch}`, value: point.loss }))} />}</QueryState></article>
-      <article className="panel"><div className="panel__header"><div><p className="eyebrow">CHECKPOINTS</p><h2>Available models</h2></div></div><QueryState state={checkpoints} empty={(data) => data.checkpoints.length === 0}>{(data) => <ul className="checkpoint-list">{data.checkpoints.map((checkpoint) => <li key={checkpoint}><span aria-hidden="true">▣</span>{checkpoint}</li>)}</ul>}</QueryState></article>
-    </section>
-    <section className="panel"><div className="panel__header"><div><p className="eyebrow">REWARD & PERFORMANCE</p><h2>Evaluation summary</h2></div></div>
-      <QueryState state={metrics} empty={(d) => d.metrics.length === 0}>
-        {(data) => <LineChart label="Training loss (metrics)" points={data.metrics.map((m) => ({ label: `Epoch ${m.epoch}`, value: m.loss }))} />}
-      </QueryState>
-    </section>
-  </>;
+      await refresh();
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : String(e),
+      );
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const r = response?.results ?? null;
+  const d = r?.dataset;
+  const t = r?.training;
+  const e = r?.evaluation;
+  const m = r?.model;
+
+  const history = t?.history ?? [];
+  const latestHistory = history.length
+    ? history[history.length - 1]
+    : null;
+
+  const liveAverageReward =
+    t?.final_avg_reward ??
+    latestHistory?.avg_reward ??
+    latestHistory?.average_reward ??
+    null;
+
+  const liveActionDistribution =
+    t?.action_distribution ??
+    latestHistory?.action_distribution ??
+    null;
+
+  return (
+    <>
+      <header className="page-header">
+        <div>
+          <p className="eyebrow">MODEL TRAINING</p>
+
+          <h1>Training control</h1>
+
+          <p className="page-header__description">
+            Authoritative real-data incident-level RL
+            pipeline. Every displayed number comes from
+            persisted authoritative training results.
+            Missing values are shown as —.
+          </p>
+        </div>
+
+        <div className="page-header__actions">
+          <button
+            className="button button--primary"
+            type="button"
+            disabled={
+              starting ||
+              response?.status === "running"
+            }
+            onClick={start}
+          >
+            {starting ||
+            response?.status === "running"
+              ? "Full training running..."
+              : "Full training on real dataset"}
+          </button>
+
+          <button
+            className="button"
+            type="button"
+            onClick={refresh}
+          >
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      {error && (
+        <section className="panel" role="alert">
+          <strong>Training API error</strong>
+          <p>{error}</p>
+        </section>
+      )}
+
+      {loading ? (
+        <section className="panel">
+          Loading authoritative training results...
+        </section>
+      ) : (
+        <>
+          <section className="kpi-grid kpi-grid--four">
+            <article className="kpi-card">
+              <span>Training status</span>
+              <strong>{response?.status ?? "—"}</strong>
+              <p>Authoritative pipeline</p>
+            </article>
+
+            <article className="kpi-card">
+              <span>Epochs</span>
+              <strong>{num(t?.epochs)}</strong>
+              <p>Persisted epochs</p>
+            </article>
+
+            <article className="kpi-card">
+              <span>Final loss</span>
+              <strong>{decimal(t?.final_loss)}</strong>
+              <p>Last recorded epoch</p>
+            </article>
+
+            <article className="kpi-card">
+              <span>Mean reward</span>
+              <strong>{decimal(liveAverageReward)}</strong>
+              <p>Last recorded epoch</p>
+            </article>
+          </section>
+
+          <section className="panel">
+            <div className="panel__header">
+              <div>
+                <p className="eyebrow">
+                  AUTHORITATIVE PIPELINE
+                </p>
+                <h2>Training data</h2>
+              </div>
+            </div>
+
+            <dl className="detail-list">
+              <Detail
+                label="Dataset"
+                value={d?.name ?? "—"}
+              />
+
+              <Detail
+                label="Feature count"
+                value={num(d?.feature_count)}
+              />
+
+              <Detail
+                label="Train rows"
+                value={num(d?.train_rows)}
+              />
+
+              <Detail
+                label="Test rows"
+                value={num(d?.test_rows)}
+              />
+
+              <Detail
+                label="Train incidents"
+                value={num(d?.train_incidents)}
+              />
+
+              <Detail
+                label="Test incidents"
+                value={num(d?.test_incidents)}
+              />
+
+              <Detail
+                label="Incident overlap"
+                value={num(d?.incident_overlap)}
+              />
+
+              <Detail
+                label="Batch size"
+                value={num(t?.batch_size)}
+              />
+
+              <Detail
+                label="Final epoch"
+                value={num(t?.final_epoch)}
+              />
+
+              <Detail
+                label="Updates / epoch"
+                value={num(t?.updates_per_epoch)}
+              />
+
+              <Detail
+                label="Synthetic data"
+                value={
+                  typeof d?.synthetic_data === "boolean"
+                    ? String(d.synthetic_data)
+                    : "—"
+                }
+              />
+
+              <Detail
+                label="Unseen incidents"
+                value={
+                  typeof d?.unseen_incidents === "boolean"
+                    ? String(d.unseen_incidents)
+                    : "—"
+                }
+              />
+            </dl>
+          </section>
+
+          <section className="split-grid">
+            <article className="panel">
+              <div className="panel__header">
+                <div>
+                  <p className="eyebrow">
+                    MODEL
+                  </p>
+                  <h2>Current model</h2>
+                </div>
+              </div>
+
+              <dl className="detail-list">
+                <Detail
+                  label="Exists"
+                  value={
+                    typeof m?.exists === "boolean"
+                      ? String(m.exists)
+                      : "—"
+                  }
+                />
+
+                <Detail
+                  label="Path"
+                  value={m?.path ?? "—"}
+                />
+
+                <Detail
+                  label="Size"
+                  value={
+                    typeof m?.size_bytes === "number"
+                      ? `${num(m.size_bytes)} bytes`
+                      : "—"
+                  }
+                />
+
+                <Detail
+                  label="Modified"
+                  value={m?.modified_at ?? "—"}
+                />
+              </dl>
+            </article>
+
+            <article className="panel">
+              <div className="panel__header">
+                <div>
+                  <p className="eyebrow">
+                    FINAL TRAINING POLICY
+                  </p>
+                  <h2>Action distribution</h2>
+                </div>
+              </div>
+
+              <dl className="detail-list">
+                {t?.action_distribution
+                  ? Object.entries(
+                      t.action_distribution,
+                    ).map(([name, value]) => (
+                      <Detail
+                        key={name}
+                        label={name}
+                        value={num(value)}
+                      />
+                    ))
+                  : (
+                    <Detail
+                      label="Actions"
+                      value="—"
+                    />
+                  )}
+              </dl>
+            </article>
+          </section>
+
+          <section className="panel">
+            <div className="panel__header">
+              <div>
+                <p className="eyebrow">
+                  UNSEEN-INCIDENT EVALUATION
+                </p>
+                <h2>Test results</h2>
+              </div>
+            </div>
+
+            <dl className="detail-list">
+              <Detail
+                label="Evaluation samples"
+                value={num(e?.samples)}
+              />
+
+              <Detail
+                label="Throughput"
+                value={
+                  typeof e?.throughput_rows_per_second ===
+                  "number"
+                    ? `${e.throughput_rows_per_second.toFixed(
+                        2,
+                      )} rows/sec`
+                    : "—"
+                }
+              />
+            </dl>
+
+            <div className="divider" />
+
+            <h3>Test action distribution</h3>
+
+            <dl className="detail-list">
+              {e?.action_distribution
+                ? Object.entries(
+                    e.action_distribution,
+                  ).map(([name, value]) => (
+                    <Detail
+                      key={name}
+                      label={name}
+                      value={num(value)}
+                    />
+                  ))
+                : (
+                  <Detail
+                    label="Actions"
+                    value="—"
+                  />
+                )}
+            </dl>
+
+            {e?.per_class && (
+              <>
+                <div className="divider" />
+
+                <h3>
+                  Per-class evaluation
+                </h3>
+
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Class</th>
+                        <th>Rows</th>
+                        <th>
+                          Average reward
+                        </th>
+                        <th>
+                          Optimality
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {Object.entries(
+                        e.per_class,
+                      ).map(
+                        ([name, value]) => (
+                          <tr key={name}>
+                            <td>{name}</td>
+                            <td>
+                              {num(value.rows)}
+                            </td>
+                            <td>
+                              {decimal(
+                                value.average_reward,
+                              )}
+                            </td>
+                            <td>
+                              {pct(
+                                value.optimality,
+                              )}
+                            </td>
+                          </tr>
+                        ),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel__header">
+              <div>
+                <p className="eyebrow">
+                  LOSS CURVE
+                </p>
+                <h2>
+                  Authoritative epoch history
+                </h2>
+              </div>
+            </div>
+
+            {history.length === 0 ? (
+              <p className="muted">
+                No persisted epoch history
+                available.
+              </p>
+            ) : (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Epoch</th>
+                      <th>Loss</th>
+                      <th>Average reward</th>
+                      <th>Updates</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {history.map((row) => (
+                      <tr key={row.epoch}>
+                        <td>
+                          {num(row.epoch)}
+                        </td>
+                        <td>
+                          {decimal(row.loss)}
+                        </td>
+                        <td>
+                          {decimal(
+                            row.avg_reward,
+                          )}
+                        </td>
+                        <td>
+                          {num(row.updates)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </>
+  );
 }
+
+export default TrainingPage;

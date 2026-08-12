@@ -237,30 +237,3 @@ class PPOAgent:
         self.dones.clear()
 
         print("PPO Update Completed.")
-
-
-if __name__ == "__main__":
-
-    agent = PPOAgent(
-        state_dim=10,
-        action_dim=4,
-    )
-
-    # نجمعو أكثر من transition باش الـ update يخدم
-    for _ in range(5):
-
-        state = np.random.randn(10)
-
-        action, log_prob = agent.act(state)
-
-        agent.remember(
-            state,
-            action,
-            log_prob,
-            reward=np.random.rand(),
-            done=False,
-        )
-
-    agent.dones[-1] = True
-
-    agent.update()

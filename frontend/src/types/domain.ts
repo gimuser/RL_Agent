@@ -73,8 +73,13 @@ export interface TrainingHistory {
   history: TrainingHistoryPoint[];
 }
 
+export type TrainingCheckpoint = {
+  name: string;
+  path: string;
+};
+
 export interface TrainingCheckpoints {
-  checkpoints: string[];
+  checkpoints: TrainingCheckpoint[];
 }
 
 export interface PipelineStats {
@@ -109,4 +114,12 @@ export interface ToastMessage {
   tone: "success" | "error" | "info";
   title: string;
   description?: string;
+}
+
+
+export interface AgentStatus {
+  status: string;
+  model_path?: string;
+  observation_columns?: string[];
+  action_space?: Record<string, string>;
 }

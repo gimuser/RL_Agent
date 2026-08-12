@@ -1,0 +1,450 @@
+
+======================================================================
+RL AGENT - PROJECT STARTPOINT REPAIR
+======================================================================
+Project : /home/oualid/Desktop/RL_AGENT
+Date    : Wed Aug 12 01:38:05 PM +01 2026
+Backup  : /home/oualid/Desktop/RL_AGENT/project_startpoint_backup_20260812_133805
+Report  : /home/oualid/Desktop/RL_AGENT/project_startpoint_repair_20260812_133805.txt
+======================================================================
+
+
+======================================================================
+1. VALIDATING PROJECT
+======================================================================
+[OK] backend/main.py exists
+[OK] backend/app exists
+[OK] frontend exists
+[OK] models directory exists
+[OK] real incident dataset directory exists
+
+======================================================================
+2. CREATING SAFE SOURCE BACKUP
+======================================================================
+[OK] Application source backup created
+
+======================================================================
+3. PROTECTING VERIFIED RL ARTIFACTS
+======================================================================
+[OK] models/real_dqn_agent.pt exists (152K)
+[OK] models/training_metrics.json exists (4.0K)
+[OK] models/real_test_metrics.json exists (4.0K)
+[OK] models/test_predictions.csv exists (9.6M)
+[OK] models/real_test_predictions.jsonl exists (23M)
+[OK] All verified RL artifacts are present
+
+======================================================================
+4. VERIFYING REAL INCIDENT DATA
+======================================================================
+[OK] data/rl_incident/train_incident.csv
+[OK] data/rl_incident/test_incident.csv
+[OK] data/rl_incident/train_incidents.txt
+[OK] data/rl_incident/test_incidents.txt
+[OK] data/rl_incident/split_report.json
+
+======================================================================
+5. REPAIRING GIT IGNORE
+======================================================================
+[OK] .gitignore updated
+
+======================================================================
+6. REMOVING backend/.venv.bak FROM GIT TRACKING
+======================================================================
+[WARN] backend/.venv.bak is tracked by Git
+[OK] backend/.venv.bak is not tracked
+
+======================================================================
+7. FIXING ENTRYPOINT ASSUMPTION
+======================================================================
+[OK] Authoritative backend entrypoint: backend/main.py
+[OK] No fake backend/app/main.py created
+
+======================================================================
+8. CREATING AUTHORITATIVE PROJECT CONTRACT CHECK
+======================================================================
+[OK] Authoritative contract checker created
+
+======================================================================
+9. PREPARING backend/.venv
+======================================================================
+[OK] backend/.venv already exists
+Python:
+Python 3.13.14
+Executable:
+/usr/bin/python3.13
+
+======================================================================
+10. PREPARING PYTHON PACKAGE TOOLING
+======================================================================
+Requirement already satisfied: pip in ./backend/.venv/lib/python3.13/site-packages (26.2.1)
+Requirement already satisfied: setuptools in ./backend/.venv/lib/python3.13/site-packages (84.0.0)
+Requirement already satisfied: wheel in ./backend/.venv/lib/python3.13/site-packages (0.48.0)
+Requirement already satisfied: packaging>=24.0 in ./backend/.venv/lib/python3.13/site-packages (from wheel) (26.3)
+[OK] pip/setuptools/wheel ready
+
+======================================================================
+11. INSTALLING BACKEND REQUIREMENTS
+======================================================================
+Installing requirements from backend/requirements.txt ...
+Requirement already satisfied: fastapi==0.115.0 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 1)) (0.115.0)
+Requirement already satisfied: uvicorn==0.32.0 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 2)) (0.32.0)
+Requirement already satisfied: pydantic==2.9.2 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 3)) (2.9.2)
+Requirement already satisfied: pymongo==4.17.0 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 4)) (4.17.0)
+Requirement already satisfied: python-dotenv==1.1.1 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 5)) (1.1.1)
+Requirement already satisfied: pydantic-settings==2.14.2 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 6)) (2.14.2)
+Requirement already satisfied: pytest==9.1.1 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 7)) (9.1.1)
+Requirement already satisfied: numpy in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 8)) (2.5.2)
+Requirement already satisfied: pandas in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 9)) (3.0.5)
+Requirement already satisfied: gymnasium in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 10)) (1.3.0)
+Requirement already satisfied: torch in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 11)) (2.13.0+cpu)
+Requirement already satisfied: scikit-learn>=1.4 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 12)) (1.9.0)
+Requirement already satisfied: joblib>=1.3 in ./backend/.venv/lib/python3.13/site-packages (from -r backend/requirements.txt (line 13)) (1.5.3)
+Requirement already satisfied: starlette<0.39.0,>=0.37.2 in ./backend/.venv/lib/python3.13/site-packages (from fastapi==0.115.0->-r backend/requirements.txt (line 1)) (0.38.6)
+Requirement already satisfied: typing-extensions>=4.8.0 in ./backend/.venv/lib/python3.13/site-packages (from fastapi==0.115.0->-r backend/requirements.txt (line 1)) (4.15.0)
+Requirement already satisfied: annotated-types>=0.6.0 in ./backend/.venv/lib/python3.13/site-packages (from pydantic==2.9.2->-r backend/requirements.txt (line 3)) (0.8.0)
+Requirement already satisfied: pydantic-core==2.23.4 in ./backend/.venv/lib/python3.13/site-packages (from pydantic==2.9.2->-r backend/requirements.txt (line 3)) (2.23.4)
+Requirement already satisfied: click>=7.0 in ./backend/.venv/lib/python3.13/site-packages (from uvicorn==0.32.0->-r backend/requirements.txt (line 2)) (8.4.2)
+Requirement already satisfied: h11>=0.8 in ./backend/.venv/lib/python3.13/site-packages (from uvicorn==0.32.0->-r backend/requirements.txt (line 2)) (0.16.0)
+Requirement already satisfied: dnspython<3.0.0,>=2.6.1 in ./backend/.venv/lib/python3.13/site-packages (from pymongo==4.17.0->-r backend/requirements.txt (line 4)) (2.8.0)
+Requirement already satisfied: typing-inspection>=0.4.0 in ./backend/.venv/lib/python3.13/site-packages (from pydantic-settings==2.14.2->-r backend/requirements.txt (line 6)) (0.4.3)
+Requirement already satisfied: iniconfig>=1.0.1 in ./backend/.venv/lib/python3.13/site-packages (from pytest==9.1.1->-r backend/requirements.txt (line 7)) (2.3.0)
+Requirement already satisfied: packaging>=22 in ./backend/.venv/lib/python3.13/site-packages (from pytest==9.1.1->-r backend/requirements.txt (line 7)) (26.3)
+Requirement already satisfied: pluggy<2,>=1.5 in ./backend/.venv/lib/python3.13/site-packages (from pytest==9.1.1->-r backend/requirements.txt (line 7)) (1.6.0)
+Requirement already satisfied: pygments>=2.7.2 in ./backend/.venv/lib/python3.13/site-packages (from pytest==9.1.1->-r backend/requirements.txt (line 7)) (2.20.0)
+Requirement already satisfied: anyio<5,>=3.4.0 in ./backend/.venv/lib/python3.13/site-packages (from starlette<0.39.0,>=0.37.2->fastapi==0.115.0->-r backend/requirements.txt (line 1)) (4.14.2)
+Requirement already satisfied: idna>=2.8 in ./backend/.venv/lib/python3.13/site-packages (from anyio<5,>=3.4.0->starlette<0.39.0,>=0.37.2->fastapi==0.115.0->-r backend/requirements.txt (line 1)) (3.18)
+Requirement already satisfied: python-dateutil>=2.8.2 in ./backend/.venv/lib/python3.13/site-packages (from pandas->-r backend/requirements.txt (line 9)) (2.9.0.post0)
+Requirement already satisfied: cloudpickle>=1.2.0 in ./backend/.venv/lib/python3.13/site-packages (from gymnasium->-r backend/requirements.txt (line 10)) (3.1.2)
+Requirement already satisfied: farama-notifications>=0.0.1 in ./backend/.venv/lib/python3.13/site-packages (from gymnasium->-r backend/requirements.txt (line 10)) (0.0.6)
+Requirement already satisfied: filelock in ./backend/.venv/lib/python3.13/site-packages (from torch->-r backend/requirements.txt (line 11)) (3.29.0)
+Requirement already satisfied: setuptools>=77.0.3 in ./backend/.venv/lib/python3.13/site-packages (from torch->-r backend/requirements.txt (line 11)) (84.0.0)
+Requirement already satisfied: sympy>=1.13.3 in ./backend/.venv/lib/python3.13/site-packages (from torch->-r backend/requirements.txt (line 11)) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in ./backend/.venv/lib/python3.13/site-packages (from torch->-r backend/requirements.txt (line 11)) (3.6.1)
+Requirement already satisfied: jinja2 in ./backend/.venv/lib/python3.13/site-packages (from torch->-r backend/requirements.txt (line 11)) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in ./backend/.venv/lib/python3.13/site-packages (from torch->-r backend/requirements.txt (line 11)) (2026.4.0)
+Requirement already satisfied: scipy>=1.10.0 in ./backend/.venv/lib/python3.13/site-packages (from scikit-learn>=1.4->-r backend/requirements.txt (line 12)) (1.18.0)
+Requirement already satisfied: narwhals>=2.0.1 in ./backend/.venv/lib/python3.13/site-packages (from scikit-learn>=1.4->-r backend/requirements.txt (line 12)) (2.24.0)
+Requirement already satisfied: threadpoolctl>=3.5.0 in ./backend/.venv/lib/python3.13/site-packages (from scikit-learn>=1.4->-r backend/requirements.txt (line 12)) (3.6.0)
+Requirement already satisfied: six>=1.5 in ./backend/.venv/lib/python3.13/site-packages (from python-dateutil>=2.8.2->pandas->-r backend/requirements.txt (line 9)) (1.17.0)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in ./backend/.venv/lib/python3.13/site-packages (from sympy>=1.13.3->torch->-r backend/requirements.txt (line 11)) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in ./backend/.venv/lib/python3.13/site-packages (from jinja2->torch->-r backend/requirements.txt (line 11)) (3.0.3)
+[OK] requirements file processed
+
+======================================================================
+12. INSTALLING REQUIRED RL / TEST DEPENDENCIES
+======================================================================
+Requirement already satisfied: numpy in ./backend/.venv/lib/python3.13/site-packages (2.5.2)
+Requirement already satisfied: pandas in ./backend/.venv/lib/python3.13/site-packages (3.0.5)
+Requirement already satisfied: scipy in ./backend/.venv/lib/python3.13/site-packages (1.18.0)
+Requirement already satisfied: scikit-learn in ./backend/.venv/lib/python3.13/site-packages (1.9.0)
+Requirement already satisfied: torch in ./backend/.venv/lib/python3.13/site-packages (2.13.0+cpu)
+Requirement already satisfied: gymnasium in ./backend/.venv/lib/python3.13/site-packages (1.3.0)
+Requirement already satisfied: fastapi in ./backend/.venv/lib/python3.13/site-packages (0.115.0)
+Requirement already satisfied: uvicorn in ./backend/.venv/lib/python3.13/site-packages (0.32.0)
+Requirement already satisfied: pydantic in ./backend/.venv/lib/python3.13/site-packages (2.9.2)
+Requirement already satisfied: pymongo in ./backend/.venv/lib/python3.13/site-packages (4.17.0)
+Requirement already satisfied: python-dotenv in ./backend/.venv/lib/python3.13/site-packages (1.1.1)
+Requirement already satisfied: httpx in ./backend/.venv/lib/python3.13/site-packages (0.28.1)
+Requirement already satisfied: httpx2 in ./backend/.venv/lib/python3.13/site-packages (2.10.0)
+Requirement already satisfied: python-dateutil>=2.8.2 in ./backend/.venv/lib/python3.13/site-packages (from pandas) (2.9.0.post0)
+Requirement already satisfied: joblib>=1.4.0 in ./backend/.venv/lib/python3.13/site-packages (from scikit-learn) (1.5.3)
+Requirement already satisfied: narwhals>=2.0.1 in ./backend/.venv/lib/python3.13/site-packages (from scikit-learn) (2.24.0)
+Requirement already satisfied: threadpoolctl>=3.5.0 in ./backend/.venv/lib/python3.13/site-packages (from scikit-learn) (3.6.0)
+Requirement already satisfied: filelock in ./backend/.venv/lib/python3.13/site-packages (from torch) (3.29.0)
+Requirement already satisfied: typing-extensions>=4.10.0 in ./backend/.venv/lib/python3.13/site-packages (from torch) (4.15.0)
+Requirement already satisfied: setuptools>=77.0.3 in ./backend/.venv/lib/python3.13/site-packages (from torch) (84.0.0)
+Requirement already satisfied: sympy>=1.13.3 in ./backend/.venv/lib/python3.13/site-packages (from torch) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in ./backend/.venv/lib/python3.13/site-packages (from torch) (3.6.1)
+Requirement already satisfied: jinja2 in ./backend/.venv/lib/python3.13/site-packages (from torch) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in ./backend/.venv/lib/python3.13/site-packages (from torch) (2026.4.0)
+Requirement already satisfied: cloudpickle>=1.2.0 in ./backend/.venv/lib/python3.13/site-packages (from gymnasium) (3.1.2)
+Requirement already satisfied: farama-notifications>=0.0.1 in ./backend/.venv/lib/python3.13/site-packages (from gymnasium) (0.0.6)
+Requirement already satisfied: starlette<0.39.0,>=0.37.2 in ./backend/.venv/lib/python3.13/site-packages (from fastapi) (0.38.6)
+Requirement already satisfied: annotated-types>=0.6.0 in ./backend/.venv/lib/python3.13/site-packages (from pydantic) (0.8.0)
+Requirement already satisfied: pydantic-core==2.23.4 in ./backend/.venv/lib/python3.13/site-packages (from pydantic) (2.23.4)
+Requirement already satisfied: anyio<5,>=3.4.0 in ./backend/.venv/lib/python3.13/site-packages (from starlette<0.39.0,>=0.37.2->fastapi) (4.14.2)
+Requirement already satisfied: idna>=2.8 in ./backend/.venv/lib/python3.13/site-packages (from anyio<5,>=3.4.0->starlette<0.39.0,>=0.37.2->fastapi) (3.18)
+Requirement already satisfied: click>=7.0 in ./backend/.venv/lib/python3.13/site-packages (from uvicorn) (8.4.2)
+Requirement already satisfied: h11>=0.8 in ./backend/.venv/lib/python3.13/site-packages (from uvicorn) (0.16.0)
+Requirement already satisfied: dnspython<3.0.0,>=2.6.1 in ./backend/.venv/lib/python3.13/site-packages (from pymongo) (2.8.0)
+Requirement already satisfied: certifi in ./backend/.venv/lib/python3.13/site-packages (from httpx) (2026.7.22)
+Requirement already satisfied: httpcore==1.* in ./backend/.venv/lib/python3.13/site-packages (from httpx) (1.0.9)
+Requirement already satisfied: httpcore2==2.10.0 in ./backend/.venv/lib/python3.13/site-packages (from httpx2) (2.10.0)
+Requirement already satisfied: truststore>=0.10 in ./backend/.venv/lib/python3.13/site-packages (from httpx2) (0.10.4)
+Requirement already satisfied: six>=1.5 in ./backend/.venv/lib/python3.13/site-packages (from python-dateutil>=2.8.2->pandas) (1.17.0)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in ./backend/.venv/lib/python3.13/site-packages (from sympy>=1.13.3->torch) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in ./backend/.venv/lib/python3.13/site-packages (from jinja2->torch) (3.0.3)
+[OK] Critical backend/RL/test dependencies installed
+
+======================================================================
+13. VERIFYING PYTHON DEPENDENCIES
+======================================================================
+Python: 3.13.14 (main, Jun 10 2026, 18:10:12) [GCC 15.2.0]
+Executable: /home/oualid/Desktop/RL_AGENT/backend/.venv/bin/python
+
+[OK] numpy: 2.5.2
+[OK] pandas: 3.0.5
+[OK] torch: 2.13.0+cpu
+[OK] sklearn: 1.9.0
+[OK] gymnasium: 1.3.0
+[OK] fastapi: 0.115.0
+[OK] pydantic: 2.9.2
+[OK] uvicorn: 0.32.0
+[OK] pymongo: 4.17.0
+[OK] httpx: 0.28.1
+[OK] Required dependencies import successfully
+
+======================================================================
+14. COMPILING BACKEND SOURCE
+======================================================================
+[OK] backend application compiles
+
+======================================================================
+15. VERIFYING BACKEND IMPORTS
+======================================================================
+Python executable: /home/oualid/Desktop/RL_AGENT/backend/.venv/bin/python
+
+[OK] import app.rl_agent.dqn
+[OK] import app.rl_agent.trainer
+[OK] import app.rl_agent.evaluator
+[OK] import app.rl_agent.evaluate_real
+[OK] import app.rl_agent.real_pipeline
+[OK] import app.rl_agent.triage_env
+[OK] import app.reward.real_reward
+[OK] import app.reward.outcomes
+[OK] import app.services.training_service
+[OK] import app.services.dashboard_service
+[OK] import app.services.agent_service
+[OK] import app.services.model_service
+[OK] import app.services.experiment_service
+[OK] import app.api.training
+[OK] import app.api.router
+[OK] Critical backend imports succeed
+
+======================================================================
+16. VERIFYING REAL DQN MODEL LOAD
+======================================================================
+Q shape : (3, 3)
+Actions : [2, 2, 2]
+Q values: [[ 0.01536745 -0.10959537  0.29197475]
+ [ 0.01536745 -0.10959537  0.29197475]
+ [ 0.01536745 -0.10959537  0.29197475]]
+[OK] Real DQN model loads and produces Q-values/actions
+
+======================================================================
+17. VERIFYING TRAINING METRICS
+======================================================================
+Top-level keys: ['config', 'metrics']
+Metric records: 10
+Config epochs: 10
+Config batch_size: 512
+First record: {'epoch': 1, 'rows': 316600, 'incidents': 128252, 'updates': 619, 'loss': 8.351409893621343, 'average_reward': 1.687856917245736, 'action_counts': {'allow': 195464, 'block': 118951, 'human_review': 2185}, 'time_seconds': 1.9097851410006115}
+Last record : {'epoch': 10, 'rows': 316600, 'incidents': 128252, 'updates': 619, 'loss': 1.0044774253264384, 'average_reward': 1.687856917245736, 'action_counts': {'allow': 195464, 'block': 118951, 'human_review': 2185}, 'time_seconds': 2.170440265999787}
+[OK] Training metrics are structurally valid
+
+======================================================================
+18. VERIFYING REAL TEST METRICS
+======================================================================
+Test rows       : 84726
+Test incidents  : 32064
+Average reward  : 0.8536812784741402
+Reward efficiency: 0.497162908508525
+Policy optimality: 0.5330241012204046
+Synthetic data  : False
+Unseen incidents: True
+[OK] Real test metrics are valid
+
+======================================================================
+19. VERIFYING PREDICTION ARTIFACT CONSISTENCY
+======================================================================
+Expected rows : 84726
+CSV rows      : 84726
+[OK] CSV predictions match test metrics
+JSONL rows    : 84726
+[OK] JSONL predictions match test metrics
+
+======================================================================
+20. VERIFYING INCIDENT-LEVEL SPLIT
+======================================================================
+Train incidents : 128252
+Test incidents  : 32064
+Overlap         : 0
+[OK] Train/test incident split has zero overlap
+
+======================================================================
+21. VERIFYING RL ACTION / FEATURE CONTRACT
+======================================================================
+ACTIONS     : {0: 'allow', 1: 'block', 2: 'human_review'}
+ACTION_NAMES: {0: 'close_recommendation', 1: 'escalate_for_human_review', 2: 'human_review'}
+FEATURES    : 13
+INCIDENT_ID : IncidentId
+TARGET      : IncidentGrade
+[OK] RL feature/action contract is valid
+
+======================================================================
+22. RUNNING AUTHORITATIVE PROJECT CONTRACT
+======================================================================
+
+======================================================================
+RL AGENT - AUTHORITATIVE PROJECT CONTRACT
+======================================================================
+[OK] backend/main.py
+[OK] backend/app/rl_agent/dqn.py
+[OK] backend/app/rl_agent/trainer.py
+[OK] backend/app/rl_agent/evaluator.py
+[OK] backend/app/rl_agent/evaluate_real.py
+[OK] backend/app/rl_agent/real_pipeline.py
+[OK] backend/app/rl_agent/triage_env.py
+[OK] backend/app/reward/real_reward.py
+[OK] backend/app/reward/outcomes.py
+[OK] backend/app/api/router.py
+[OK] backend/app/api/training.py
+[OK] backend/app/api/dashboard.py
+[OK] backend/app/api/decisions.py
+[OK] backend/app/api/alerts.py
+[OK] frontend/src/pages/Training.tsx
+[OK] frontend/src/pages/History.tsx
+[OK] frontend/src/pages/Decisions.tsx
+[OK] frontend/src/pages/Dashboard.tsx
+[OK] frontend/src/services/training.service.ts
+[OK] frontend/src/services/decisions.service.ts
+[OK] frontend/src/services/dashboard.service.ts
+[OK] frontend/src/types/domain.ts
+
+======================================================================
+RESULT
+======================================================================
+PASS    : 22
+FAILURES: 0
+[OK] Authoritative project contract passed
+
+======================================================================
+23. VERIFYING FRONTEND ENVIRONMENT
+======================================================================
+Node: v22.22.2
+npm : 11.16.0
+[OK] frontend/node_modules exists
+
+======================================================================
+24. BUILDING FRONTEND
+======================================================================
+
+> soar-rl-agent-frontend@1.0.0 build
+> tsc -b && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 74 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.55 kB │ gzip:  0.34 kB
+dist/assets/index-isZXhm3b.css   17.92 kB │ gzip:  5.06 kB
+dist/assets/index-fevph4hp.js   279.50 kB │ gzip: 84.71 kB
+✓ built in 1.80s
+[OK] Frontend production build succeeds
+
+======================================================================
+25. RUNNING BACKEND PYTEST WITH backend/.venv
+======================================================================
+.......................                                                  [100%]
+=============================== warnings summary ===============================
+main.py:41
+  /home/oualid/Desktop/RL_AGENT/backend/main.py:41: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+.venv/lib/python3.13/site-packages/fastapi/applications.py:4495
+.venv/lib/python3.13/site-packages/fastapi/applications.py:4495
+  /home/oualid/Desktop/RL_AGENT/backend/.venv/lib/python3.13/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+main.py:46
+  /home/oualid/Desktop/RL_AGENT/backend/main.py:46: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+app/tests/test_api.py::test_pipeline_import_train
+  /home/oualid/Desktop/RL_AGENT/backend/app/services/dataset_service.py:55: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow(),
+
+app/tests/test_api.py::test_training_lifecycle
+app/tests/test_api.py::test_training_lifecycle
+  /home/oualid/Desktop/RL_AGENT/backend/app/services/training_service.py:49: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.utcnow(),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+23 passed, 7 warnings in 54.22s
+[OK] backend/app/tests passed
+
+======================================================================
+26. RUNNING FEATURE ENVIRONMENT TESTS
+======================================================================
+...                                                                      [100%]
+3 passed in 0.13s
+[OK] feature_environment tests passed
+
+======================================================================
+27. VERIFYING API ROUTER REGISTRATION
+======================================================================
+Registered API routes:
+  /
+  /api/agent/act
+  /api/agent/status
+  /api/alerts
+  /api/alerts/health
+  /api/alerts/{alert_id}
+  /api/dashboard/summary
+  /api/database/collections
+  /api/database/health
+  /api/database/statistics
+  /api/database/storage
+  /api/decisions
+  /api/evaluation/confusion
+  /api/evaluation/reward-summary
+  /api/metrics
+  /api/pipeline/import-test
+  /api/pipeline/import-train
+  /api/pipeline/statistics
+  /api/pipeline/status
+  /api/rewards
+  /api/rewards/statistics
+  /api/system/apis
+  /api/system/health
+  /api/training/checkpoints
+  /api/training/experiment
+  /api/training/experiment/{run_id}/status
+  /api/training/experiment/{run_id}/stop
+  /api/training/full-real-training
+  /api/training/full-real-training/status
+  /api/training/history
+  /api/training/metrics
+  /api/training/start
+  /api/training/status
+  /api/training/stop
+  /docs
+  /docs/oauth2-redirect
+  /openapi.json
+  /redoc
+[WARN] Required route not found: /api/health
+
+[OK] FastAPI application imports and exposes routes
+
+======================================================================
+28. VERIFYING REAL TRAINING ROUTES
+======================================================================
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+TypeError: unhashable type: 'set'

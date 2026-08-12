@@ -85,8 +85,6 @@ if __name__ == "__main__":
     metrics = TrainingMetrics()
 
     metrics.add(1, 12.5, 0.08, 1.0)
-    metrics.add(2, 15.2, 0.05, 0.99)
-    metrics.add(3, 20.4, 0.03, 0.98)
 
     metrics.print_summary()
 

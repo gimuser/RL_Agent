@@ -1,0 +1,24 @@
+{
+  "train_rows": 316600,
+  "test_rows": 84726,
+  "train_incidents": 128252,
+  "test_incidents": 32064,
+  "incident_overlap": 0,
+  "features": [
+    "Category",
+    "MitreTechniques",
+    "ActionGrouped",
+    "ActionGranular",
+    "EntityType",
+    "EvidenceRole",
+    "ThreatFamily",
+    "OSFamily",
+    "SuspicionLevel",
+    "hour",
+    "day",
+    "month",
+    "is_weekend"
+  ],
+  "incident_id": "IncidentId",
+  "target": "IncidentGrade"
+}

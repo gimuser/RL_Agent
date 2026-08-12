@@ -17,6 +17,7 @@ export function DashboardPage() {
   const decisions = useApi(decisionsService.getDecisions, { poll: true });
   const rewards = useApi(rewardsService.getRewards, { poll: true });
   const apis = useApi(systemService.getApis, { poll: true });
+  const agent = useApi(systemService.getAgentStatus, { poll: true });
 
   return (
     <>
@@ -97,7 +98,19 @@ export function DashboardPage() {
             <HealthItem label="API" state={summary.data?.training_status ? "online" : "unknown"} />
             <HealthItem label="Database" state={summary.data?.database_status ?? "unknown"} />
             <HealthItem label="Training" state={summary.data?.training_status ?? "unknown"} />
-            <HealthItem label="RL agent" state="unknown" note="No agent status endpoint" />
+            <QueryState state={agent}>
+              {(agentData) => (
+                <HealthItem
+                  label="RL agent"
+                  state={agentData.status || "unknown"}
+                  note={
+                    agentData.model_path
+                      ? `Model: ${agentData.model_path}`
+                      : undefined
+                  }
+                />
+              )}
+            </QueryState>
             <div style={{ marginTop: 12 }}>
               <p className="eyebrow">API Components</p>
               <QueryState state={apis} empty={(d) => (d?.components?.length ?? 0) === 0}>{(data) => (

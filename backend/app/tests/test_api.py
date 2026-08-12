@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from app.database.database import alerts_collection, decisions_collection, rewards_collection
 from main import app
 
 # إنشاء زبون الاختبار (TestClient)
@@ -28,6 +29,7 @@ def test_create_and_get_alert():
     }
     create_res = client.post("/api/alerts", json=new_alert)
     assert create_res.status_code == 200
+    created_alert_id = create_res.json()["id"]
     data = create_res.json()
     assert data["title"] == new_alert["title"]
     assert "id" in data
@@ -39,6 +41,10 @@ def test_create_and_get_alert():
     assert get_res.status_code == 200
     assert get_res.json()["id"] == alert_id
 
+    # Prevent the API test from polluting operational MongoDB.
+    alerts_collection.delete_one(
+        {"id": created_alert_id}
+    )
 
 def test_get_all_alerts_pagination():
     """اختبار قائمة التنبيهات مع دعم الـ Pagination"""
@@ -87,10 +93,18 @@ def test_create_and_get_decisions():
     assert post_res.status_code == 200
     assert post_res.json()["action"] == "BLOCK_IP"
 
+    created_decision_id = post_res.json()["id"]
+
     # جلب القرارات
     get_res = client.get("/api/decisions")
     assert get_res.status_code == 200
     assert isinstance(get_res.json(), list)
+
+    # IMPORTANT:
+    # Tests must not pollute the real operational MongoDB.
+    decisions_collection.delete_one(
+        {"id": created_decision_id}
+    )
 
 
 # ==========================================
@@ -127,10 +141,18 @@ def test_create_and_get_rewards():
     assert post_res.status_code == 200
     assert post_res.json()["reward_value"] == 8.5
 
+    created_reward_id = post_res.json()["id"]
+
     # إحصائيات المكافآت
     stats_res = client.get("/api/rewards/statistics")
     assert stats_res.status_code == 200
     assert "mean_reward" in stats_res.json()
+
+    # IMPORTANT:
+    # Tests must not pollute the real operational MongoDB.
+    rewards_collection.delete_one(
+        {"id": created_reward_id}
+    )
 
 
 # ==========================================

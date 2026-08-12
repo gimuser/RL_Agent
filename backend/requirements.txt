@@ -9,3 +9,5 @@ numpy
 pandas
 gymnasium
 torch
+scikit-learn>=1.4
+joblib>=1.3

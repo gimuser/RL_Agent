@@ -1,23 +1,39 @@
-"""Action space definitions.
+"""Canonical action space for the SOAR RL agent."""
 
-Provide a minimal DiscreteActionSpace compatible with simple agent code.
-"""
-
-from random import randint
-from typing import List
+from dataclasses import dataclass
+import random
 
 
-class DiscreteActionSpace:
-	def __init__(self, n: int = 2, actions: List[str] | None = None):
-		self.n = n
-		self.actions = actions or [str(i) for i in range(n)]
+CLOSE_ALERT = 0
+ESCALATE = 1
+REQUEST_HUMAN_VALIDATION = 2
 
-	def sample(self) -> int:
-		return randint(0, self.n - 1)
+ACTION_NAMES = {
+    CLOSE_ALERT: "allow",
+    ESCALATE: "block",
+    REQUEST_HUMAN_VALIDATION: "human_review",
+}
 
-	def contains(self, action: int) -> bool:
-		return 0 <= int(action) < self.n
+
+@dataclass(frozen=True)
+class ActionSpace:
+    n: int = 3
+
+    def sample(self):
+        return random.randrange(self.n)
+
+    def contains(self, action: int) -> bool:
+        return (
+            isinstance(action, int)
+            and 0 <= action < self.n
+        )
+
+    def name(self, action: int) -> str:
+        if not self.contains(action):
+            raise ValueError(
+                f"Invalid action: {action}"
+            )
+        return ACTION_NAMES[action]
 
 
-__all__ = ["DiscreteActionSpace"]
-
+ACTION_SPACE = ActionSpace()

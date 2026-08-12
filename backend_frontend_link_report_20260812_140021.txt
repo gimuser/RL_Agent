@@ -1,0 +1,668 @@
+
+======================================================================
+1. VALIDATING PROJECT
+======================================================================
+[OK] Project exists: /home/oualid/Desktop/RL_AGENT
+[OK] backend/main.py
+[OK] backend/app
+[OK] frontend/src
+[OK] backend/.venv Python
+
+======================================================================
+2. CREATING SAFE BACKEND/FRONTEND BACKUP
+======================================================================
+[OK] Backend/frontend integration backup created:
+  /home/oualid/Desktop/RL_AGENT/backend_frontend_link_backup_20260812_140021
+
+======================================================================
+3. VERIFYING RL ARTIFACTS ARE UNTOUCHED
+======================================================================
+[OK] models/real_dqn_agent.pt
+[OK] models/training_metrics.json
+[OK] models/real_test_metrics.json
+[OK] models/test_predictions.csv
+[OK] models/real_test_predictions.jsonl
+
+======================================================================
+4. EXTRACTING REAL BACKEND ROUTES
+======================================================================
+GET /
+POST /api/agent/act
+GET /api/agent/status
+GET /api/alerts
+POST /api/alerts
+GET /api/alerts/health
+DELETE /api/alerts/{alert_id}
+GET /api/alerts/{alert_id}
+PUT /api/alerts/{alert_id}
+GET /api/dashboard/summary
+GET /api/database/collections
+GET /api/database/health
+GET /api/database/statistics
+GET /api/database/storage
+GET /api/decisions
+POST /api/decisions
+POST /api/evaluation/confusion
+POST /api/evaluation/reward-summary
+GET /api/metrics
+POST /api/pipeline/import-test
+POST /api/pipeline/import-train
+GET /api/pipeline/statistics
+GET /api/pipeline/status
+GET /api/rewards
+POST /api/rewards
+GET /api/rewards/statistics
+GET /api/system/apis
+GET /api/system/health
+GET /api/training/checkpoints
+POST /api/training/experiment
+GET /api/training/experiment/{run_id}/status
+POST /api/training/experiment/{run_id}/stop
+POST /api/training/full-real-training
+GET /api/training/full-real-training/status
+GET /api/training/history
+GET /api/training/metrics
+POST /api/training/start
+GET /api/training/status
+POST /api/training/stop
+GET /docs
+HEAD /docs
+GET /docs/oauth2-redirect
+HEAD /docs/oauth2-redirect
+GET /openapi.json
+HEAD /openapi.json
+GET /redoc
+HEAD /redoc
+
+======================================================================
+5. VERIFYING REQUIRED BACKEND CONTRACT
+======================================================================
+[OK] GET /api/system/health
+[OK] GET /api/training/status
+[OK] GET /api/training/history
+[OK] GET /api/training/checkpoints
+[OK] GET /api/training/metrics
+[OK] POST /api/training/start
+[OK] POST /api/training/stop
+[OK] POST /api/training/full-real-training
+[OK] GET /api/training/full-real-training/status
+[OK] GET /api/decisions
+[OK] GET /api/dashboard/summary
+
+======================================================================
+6. VERIFYING FRONTEND SERVICE FILES
+======================================================================
+[OK] frontend/src/services/training.service.ts
+[OK] frontend/src/services/decisions.service.ts
+[OK] frontend/src/services/dashboard.service.ts
+
+======================================================================
+7. VERIFYING FRONTEND PAGES
+======================================================================
+[OK] frontend/src/pages/Training.tsx
+[OK] frontend/src/pages/History.tsx
+[OK] frontend/src/pages/Decisions.tsx
+[OK] frontend/src/pages/Dashboard.tsx
+
+======================================================================
+8. SEARCHING FRONTEND API CALLS
+======================================================================
+
+----- frontend/src/services/training.service.ts -----
+5:  getStatus: () => apiRequest<TrainingStatus>("/api/training/status"),
+6:  getHistory: () => apiRequest<TrainingHistory>("/api/training/history"),
+7:  getCheckpoints: () => apiRequest<TrainingCheckpoints>("/api/training/checkpoints"),
+8:  getMetrics: () => apiRequest<TrainingMetricsResponse>("/api/training/metrics"),
+9:  start: () => apiRequest<{ message: string }> ("/api/training/start", { method: "POST" }),
+10:  stop: () => apiRequest<{ message: string }> ("/api/training/stop", { method: "POST" }),
+11:  startExperiment: (models: any) => apiRequest<any>("/api/training/experiment", { method: "POST", body: JSON.stringify(models) }),
+12:  stopExperiment: (runId: string) => apiRequest<any>(`/api/training/experiment/${runId}/stop`, { method: "POST" }),
+13:  getExperimentStatus: (runId: string) => apiRequest<ExperimentStatus>(`/api/training/experiment/${runId}/status`),
+17:      "/api/training/full-real-training",
+25:      "/api/training/full-real-training/status",
+141:    "/api/training/full-real-training/status",
+148:  }>("/api/training/full-real-training", {
+
+----- frontend/src/services/decisions.service.ts -----
+6:    apiRequest<Decision[]>(`/api/decisions?skip=${skip}&limit=${limit}`),
+
+----- frontend/src/services/dashboard.service.ts -----
+10:  getSummary: () => apiRequest<DashboardSummary>("/api/dashboard/summary"),
+11:  getSystemHealth: () => apiRequest<SystemHealth>("/api/system/health"),
+12:  getDatabaseHealth: () => apiRequest<DatabaseHealth>("/api/database/health"),
+13:  getDatabaseStatistics: () => apiRequest<DatabaseStatistics>("/api/database/statistics"),
+
+======================================================================
+9. VERIFYING TRAINING FRONTEND CONTRACT
+======================================================================
+[OK] Training service uses /api/training/status
+[OK] Training service uses /api/training/history
+[OK] Training service uses /api/training/checkpoints
+[OK] Training service uses /api/training/metrics
+[OK] Training service uses /api/training/start
+[OK] Training service uses /api/training/stop
+[OK] Training service uses /api/training/full-real-training
+[OK] Training service uses /api/training/full-real-training/status
+
+======================================================================
+10. VERIFYING PAGE -> SERVICE WIRING
+======================================================================
+[WARN] frontend/src/pages/Training.tsx does not obviously reference trainingService
+[OK] frontend/src/pages/Decisions.tsx references decisionsService
+[WARN] frontend/src/pages/History.tsx does not obviously reference trainingService
+[OK] frontend/src/pages/Dashboard.tsx references dashboardService
+
+======================================================================
+11. VERIFYING FRONTEND API BASE CONFIGURATION
+======================================================================
+frontend/src/vite-env.d.ts:4:  readonly VITE_API_BASE_URL?: string;
+frontend/src/pages/History.tsx:6:import { apiRequest } from "../services/api";
+frontend/src/pages/History.tsx:91:        apiRequest<AlertRecord[]>("/api/alerts?skip=0&limit=100"),
+frontend/src/pages/History.tsx:92:        apiRequest<DecisionRecord[]>("/api/decisions?skip=0&limit=100"),
+frontend/src/pages/History.tsx:93:        apiRequest<RewardRecord[]>("/api/rewards?skip=0&limit=100"),
+frontend/src/pages/Settings.tsx:4:const apiUrl = import.meta.env.VITE_API_BASE_URL || "Same-origin /api proxy";
+frontend/src/services/pipeline.service.ts:1:import { apiRequest } from "./api";
+frontend/src/services/pipeline.service.ts:5:  getStatus: () => apiRequest<PipelineStatus>("/api/pipeline/status"),
+frontend/src/services/pipeline.service.ts:6:  getStatistics: () => apiRequest<PipelineStats>("/api/pipeline/statistics"),
+frontend/src/services/api.ts:3:const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+frontend/src/services/api.ts:6:  return `${API_BASE_URL}${path}`;
+frontend/src/services/api.ts:9:export async function apiRequest<T>(
+frontend/src/services/system.service.ts:1:import { apiRequest } from "./api";
+frontend/src/services/system.service.ts:5:  getApis: () => apiRequest<{ components: ApiComponent[] }>("/api/system/apis"),
+frontend/src/services/dashboard.service.ts:1:import { apiRequest } from "./api";
+frontend/src/services/dashboard.service.ts:10:  getSummary: () => apiRequest<DashboardSummary>("/api/dashboard/summary"),
+frontend/src/services/dashboard.service.ts:11:  getSystemHealth: () => apiRequest<SystemHealth>("/api/system/health"),
+frontend/src/services/dashboard.service.ts:12:  getDatabaseHealth: () => apiRequest<DatabaseHealth>("/api/database/health"),
+frontend/src/services/dashboard.service.ts:13:  getDatabaseStatistics: () => apiRequest<DatabaseStatistics>("/api/database/statistics"),
+frontend/src/services/alerts.service.ts:1:import { apiRequest } from "./api";
+frontend/src/services/alerts.service.ts:7:  getAlerts: (skip = 0, limit = 100) => apiRequest<Alert[]>(`/api/alerts${asQuery(skip, limit)}`),
+frontend/src/services/alerts.service.ts:8:  getAlert: (id: string | number) => apiRequest<Alert>(`/api/alerts/${encodeURIComponent(id)}`),
+frontend/src/services/rewards.service.ts:1:import { apiRequest } from "./api";
+frontend/src/services/rewards.service.ts:6:    apiRequest<Reward[]>(`/api/rewards?skip=${skip}&limit=${limit}`),
+frontend/src/services/rewards.service.ts:7:  getStatistics: () => apiRequest<RewardStatistics>("/api/rewards/statistics"),
+frontend/src/services/training.service.ts:1:import { apiRequest } from "./api";
+frontend/src/services/training.service.ts:5:  getStatus: () => apiRequest<TrainingStatus>("/api/training/status"),
+frontend/src/services/training.service.ts:6:  getHistory: () => apiRequest<TrainingHistory>("/api/training/history"),
+frontend/src/services/training.service.ts:7:  getCheckpoints: () => apiRequest<TrainingCheckpoints>("/api/training/checkpoints"),
+frontend/src/services/training.service.ts:8:  getMetrics: () => apiRequest<TrainingMetricsResponse>("/api/training/metrics"),
+frontend/src/services/training.service.ts:9:  start: () => apiRequest<{ message: string }> ("/api/training/start", { method: "POST" }),
+frontend/src/services/training.service.ts:10:  stop: () => apiRequest<{ message: string }> ("/api/training/stop", { method: "POST" }),
+frontend/src/services/training.service.ts:11:  startExperiment: (models: any) => apiRequest<any>("/api/training/experiment", { method: "POST", body: JSON.stringify(models) }),
+frontend/src/services/training.service.ts:12:  stopExperiment: (runId: string) => apiRequest<any>(`/api/training/experiment/${runId}/stop`, { method: "POST" }),
+frontend/src/services/training.service.ts:13:  getExperimentStatus: (runId: string) => apiRequest<ExperimentStatus>(`/api/training/experiment/${runId}/status`),
+frontend/src/services/training.service.ts:16:    apiRequest<{ status: string; message: string }>(
+frontend/src/services/training.service.ts:24:    apiRequest<{ status: string; message: string }>(
+frontend/src/services/training.service.ts:140:  apiRequest<AuthoritativeTrainingStatus>(
+frontend/src/services/training.service.ts:145:  apiRequest<{
+frontend/src/services/decisions.service.ts:1:import { apiRequest } from "./api";
+frontend/src/services/decisions.service.ts:6:    apiRequest<Decision[]>(`/api/decisions?skip=${skip}&limit=${limit}`),
+frontend/.env:2:VITE_API_BASE_URL=
+frontend/.env.example:2:VITE_API_BASE_URL=
+
+--- frontend/.env ---
+# In production, point to the API gateway; leave blank when the frontend proxies /api.
+VITE_API_BASE_URL=
+# Development-only data. Never enable it in a production deployment.
+VITE_USE_MOCKS=false
+# Polling interval in milliseconds. Set 0 to disable automatic refreshes.
+VITE_POLL_INTERVAL_MS=30000
+
+======================================================================
+12. ENSURING REAL FRONTEND BACKEND URL
+======================================================================
+
+======================================================================
+13. CHECKING BACKEND CORS CONFIGURATION
+======================================================================
+10:from fastapi.middleware.cors import CORSMiddleware
+21:    CORSMiddleware,
+22:    allow_origins=getattr(settings, "api_allowed_origins", ["*"]),
+24:    allow_methods=["*"],
+25:    allow_headers=["*"],
+[OK] CORS middleware configuration found
+
+======================================================================
+14. SEARCHING FRONTEND TYPES
+======================================================================
+
+----- frontend/src/types/domain.ts -----
+10:export interface Decision {
+25:export interface DashboardSummary {
+50:export interface TrainingStatus {
+55:export interface ExperimentStatus {
+67:export interface TrainingHistoryPoint {
+72:export interface TrainingHistory {
+73:  history: TrainingHistoryPoint[];
+76:export type TrainingCheckpoint = {
+81:export interface TrainingCheckpoints {
+82:  checkpoints: TrainingCheckpoint[];
+91:export interface PipelineStatus {
+
+----- frontend/src/types/api.ts -----
+
+======================================================================
+15. SEARCHING BACKEND RESPONSE SHAPES
+======================================================================
+
+----- backend/app/api/training.py -----
+14:@router.get("/status")
+16:    return get_training_status()
+18:@router.post("/start")
+20:    return start_training_service()
+22:@router.post("/stop")
+24:    return stop_training_service()
+26:@router.get("/checkpoints")
+28:    return {"checkpoints": get_checkpoints()}
+30:@router.get("/history")
+32:    return {"history": get_history()}
+34:@router.get("/metrics")
+36:    return {"metrics": get_metrics(limit)}
+39:@router.post("/experiment")
+40:def api_start_experiment(models: list[dict]):
+41:    return start_experiment_background(models)
+44:@router.post("/experiment/{run_id}/stop")
+46:    return stop_experiment(run_id)
+49:@router.get("/experiment/{run_id}/status")
+51:    return get_experiment_status(run_id)
+98:@router.post("/full-real-training")
+108:        return {
+120:    return {
+142:    return {
+153:            return None
+156:            return _json.load(handle)
+159:        return None
+164:        return value
+165:    return None
+169:    if not isinstance(training, dict):
+170:        return []
+185:            if not isinstance(item, dict):
+210:            return output
+212:    return []
+224:        if isinstance(training_raw, dict)
+230:        if isinstance(test_raw, dict)
+236:        if isinstance(split_raw, dict)
+247:        if isinstance(training.get("config"), dict)
+260:        if not isinstance(item, dict):
+334:    return {
+421:@router.get("/full-real-training/status")
+425:    if isinstance(current, dict) and current.get("status") == "running":
+426:        return current
+431:        return {
+437:    return {
+
+----- backend/app/api/decisions.py -----
+9:@router.get("", response_model=list[Decision])
+12:    return get_decisions_from_db(skip=skip, limit=limit)
+15:@router.post("", response_model=Decision)
+18:    return create_decision_in_db(decision)
+
+----- backend/app/api/dashboard.py -----
+9:@router.get("/summary", response_model=DashboardSummary)
+12:    return get_enhanced_dashboard_summary()
+
+======================================================================
+16. COMPILING BACKEND
+======================================================================
+[OK] Backend compiles
+
+======================================================================
+17. BUILDING FRONTEND
+======================================================================
+
+> soar-rl-agent-frontend@1.0.0 build
+> tsc -b && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 74 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.55 kB │ gzip:  0.34 kB
+dist/assets/index-isZXhm3b.css   17.92 kB │ gzip:  5.06 kB
+dist/assets/index-fevph4hp.js   279.50 kB │ gzip: 84.71 kB
+✓ built in 1.77s
+[OK] Frontend production build succeeded
+
+======================================================================
+18. STARTING TEMPORARY BACKEND
+======================================================================
+Backend PID: 124164
+
+======================================================================
+19. WAITING FOR BACKEND
+======================================================================
+[OK] Backend is live on http://127.0.0.1:8000
+
+======================================================================
+20. LIVE BACKEND API SMOKE TESTS
+======================================================================
+
+/api/training/status -> HTTP 200
+[OK] /api/training/status
+{"trained":true,"model_exists":true,"metrics_exists":true,"status":"completed"}
+
+/api/training/full-real-training/status -> HTTP 200
+[OK] /api/training/full-real-training/status
+{"status":"completed","message":"Authoritative real-data incident-level training completed.","results":{"source":"authoritative_files","status":"completed","dataset":{"name":"train_processed.csv","train_rows":316600,"test_rows":84726,"train_incidents":128252,"test_incidents":32064,"incident_overlap":0,"features":["Category","MitreTechniques","ActionGrouped","ActionGranular","EntityType","EvidenceRole","ThreatFamily","OSFamily","SuspicionLevel","hour","day","month","is_weekend"],"feature_count":13,"synthetic_data":false,"unseen_incidents":true},"training":{"epochs":10,"batch_size":512,"final_epoch":10,"final_loss":1.0044774253264384,"final_avg_reward":null,"updates_per_epoch":619,"rows_per_epoch":316600,"incidents_per_epoch":128252,"action_distribution":null,"history":[{"epoch":1,"loss":8.351409893621343,"avg_reward":null,"updates":619,"rows":316600,"incidents":128252,"action_distribution":null},{"epoch":2,"loss":0.9832645647937917,"avg_reward":null,"updates":619,"rows":316600,"incidents":128252,"action_distribution":null},{"epoch":3,"loss":0.6447349172416527,"avg_reward":null,"updates":619,"rows":316600,"incidents":128252,"action_distribution":null},{"epoch":4,"loss":0.699174055086
+
+/api/dashboard/summary -> HTTP 200
+[OK] /api/dashboard/summary
+{"total_alerts":0,"processed_alerts":0,"total_decisions":33,"total_rewards":33,"average_reward":0.8536812784741402,"average_latency":0.0,"accuracy":0.0,"database_status":"healthy","training_status":"not_trained","current_episode":0}
+
+/api/training/metrics -> HTTP 200
+[OK] /api/training/metrics
+{"metrics":{"config":{"epochs":10,"batch_size":512,"learning_rate":0.001,"gamma":0.95,"features":["Category","MitreTechniques","ActionGrouped","ActionGranular","EntityType","EvidenceRole","ThreatFamily","OSFamily","SuspicionLevel","hour","day","month","is_weekend"],"actions":{"0":"allow","1":"block","2":"human_review"},"incident_id":"IncidentId","target":"IncidentGrade","synthetic_data":false,"real_data":true,"incident_level_episodes":true},"metrics":[{"epoch":1,"rows":316600,"incidents":128252,"updates":619,"loss":8.351409893621343,"average_reward":1.687856917245736,"action_counts":{"allow":195464,"block":118951,"human_review":2185},"time_seconds":1.9097851410006115},{"epoch":2,"rows":316600,"incidents":128252,"updates":619,"loss":0.9832645647937917,"average_reward":1.687856917245736,"action_counts":{"allow":195464,"block":118951,"human_review":2185},"time_seconds":1.99314583100022},{"epoch":3,"rows":316600,"incidents":128252,"updates":619,"loss":0.6447349172416527,"average_reward":1.687856917245736,"action_counts":{"allow":195464,"block":118951,"human_review":2185},"time_seconds":2.20166624400008},{"epoch":4,"rows":316600,"incidents":128252,"updates":619,"loss":0.6991740550863916
+
+/api/training/checkpoints -> HTTP 200
+[OK] /api/training/checkpoints
+{"checkpoints":[{"name":"checkpoint_ep_10.pth","path":"/home/oualid/Desktop/RL_AGENT/models/checkpoints/checkpoint_ep_10.pth"},{"name":"checkpoint_ep_5.pth","path":"/home/oualid/Desktop/RL_AGENT/models/checkpoints/checkpoint_ep_5.pth"}]}
+
+/api/decisions -> HTTP 200
+[OK] /api/decisions
+[{"incident_id":101,"action":"BLOCK_IP","id":1,"timestamp":"2026-08-12T14:00:32.668485"},{"incident_id":101,"action":"BLOCK_IP","id":2,"timestamp":"2026-08-12T14:00:32.668494"},{"incident_id":101,"action":"BLOCK_IP","id":3,"timestamp":"2026-08-12T14:00:32.668497"},{"incident_id":101,"action":"BLOCK_IP","id":4,"timestamp":"2026-08-12T14:00:32.668501"},{"incident_id":101,"action":"BLOCK_IP","id":5,"timestamp":"2026-08-12T14:00:32.668503"},{"incident_id":101,"action":"BLOCK_IP","id":6,"timestamp":"2026-08-12T14:00:32.668505"},{"incident_id":101,"action":"BLOCK_IP","id":7,"timestamp":"2026-08-12T14:00:32.668507"},{"incident_id":101,"action":"BLOCK_IP","id":8,"timestamp":"2026-08-12T14:00:32.668508"},{"incident_id":101,"action":"BLOCK_IP","id":9,"timestamp":"2026-08-12T14:00:32.668510"},{"incident_id":101,"action":"BLOCK_IP","id":10,"timestamp":"2026-08-12T14:00:32.668512"}]
+
+/api/training/history -> HTTP 200
+[OK] /api/training/history
+{"history":[{"epoch":1,"rows":316600,"incidents":128252,"updates":619,"loss":8.351409893621343,"average_reward":1.687856917245736,"action_counts":{"allow":195464,"block":118951,"human_review":2185},"time_seconds":1.9097851410006115},{"epoch":2,"rows":316600,"incidents":128252,"updates":619,"loss":0.9832645647937917,"average_reward":1.687856917245736,"action_counts":{"allow":195464,"block":118951,"human_review":2185},"time_seconds":1.99314583100022},{"epoch":3,"rows":316600,"incidents":128252,"updates":619,"loss":0.6447349172416527,"average_reward":1.687856917245736,"action_counts":{"allow":195464,"block":118951,"human_review":2185},"time_seconds":2.20166624400008},{"epoch":4,"rows":316600,"incidents":128252,"updates":619,"loss":0.6991740550863916,"average_reward":1.687856917245736,"action_counts":{"allow":195464,"block":118951,"human_review":2185},"time_seconds":2.214910726999733},{"epoch":5,"rows":316600,"incidents":128252,"updates":619,"loss":0.8597678413106089,"average_reward":1.687856917245736,"action_counts":{"allow":195464,"block":118951,"human_review":2185},"time_seconds":2.188926636999895},{"epoch":6,"rows":316600,"incidents":128252,"updates":619,"loss":1.025579255886725,"a
+
+/api/system/health -> HTTP 200
+[OK] /api/system/health
+{"status":"ok"}
+
+======================================================================
+21. VERIFYING REAL TRAINING STATUS RESPONSE
+======================================================================
+Training response: {'trained': True, 'model_exists': True, 'metrics_exists': True, 'status': 'completed'}
+[OK] Training status response shape is valid
+
+======================================================================
+22. VERIFYING FULL REAL-TRAINING RESPONSE
+======================================================================
+Full-training response:
+{
+  "status": "completed",
+  "message": "Authoritative real-data incident-level training completed.",
+  "results": {
+    "source": "authoritative_files",
+    "status": "completed",
+    "dataset": {
+      "name": "train_processed.csv",
+      "train_rows": 316600,
+      "test_rows": 84726,
+      "train_incidents": 128252,
+      "test_incidents": 32064,
+      "incident_overlap": 0,
+      "features": [
+        "Category",
+        "MitreTechniques",
+        "ActionGrouped",
+        "ActionGranular",
+        "EntityType",
+        "EvidenceRole",
+        "ThreatFamily",
+        "OSFamily",
+        "SuspicionLevel",
+        "hour",
+        "day",
+        "month",
+        "is_weekend"
+      ],
+      "feature_count": 13,
+      "synthetic_data": false,
+      "unseen_incidents": true
+    },
+    "training": {
+      "epochs": 10,
+      "batch_size": 512,
+      "final_epoch": 10,
+      "final_loss": 1.0044774253264384,
+      "final_avg_reward": null,
+      "updates_per_epoch": 619,
+      "rows_per_epoch": 316600,
+      "incidents_per_epoch": 128252,
+      "action_distribution": null,
+      "history": [
+        {
+          "epoch": 1,
+          "loss": 8.351409893621343,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 2,
+          "loss": 0.9832645647937917,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 3,
+          "loss": 0.6447349172416527,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 4,
+          "loss": 0.6991740550863916,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 5,
+          "loss": 0.8597678413106089,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 6,
+          "loss": 1.025579255886725,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 7,
+          "loss": 0.9738485708182771,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 8,
+          "loss": 0.9788721319354216,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 9,
+          "loss": 0.9617421601045882,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        },
+        {
+          "epoch": 10,
+          "loss": 1.0044774253264384,
+          "avg_reward": null,
+          "updates": 619,
+          "rows": 316600,
+          "incidents": 128252,
+          "action_distribution": null
+        }
+      ]
+    },
+    "evaluation": {
+      "samples": 84726,
+      "throughput_rows_per_second": 3803.0988204171413,
+      "action_distribution": {
+        "allow": 37561,
+        "block": 18007,
+        "human_review": 29158
+      },
+      "per_class": {
+        "BenignPositive": {
+          "rows": 31728,
+          "average_reward": 1.0813634644478063,
+          "optimality": 0.7209089762985376
+        },
+        "FalsePositive": {
+          "rows": 15647,
+          "average_reward": 0.5117913977120214,
+          "optimality": 0.34119426514134765
+        },
+        "TruePositive": {
+          "rows": 36789,
+          "average_reward": 0.7954551632281388,
+          "optimality": 0.3977275816140694
+        },
+        "Unknown": {
+          "rows": 562,
+          "average_reward": 1.3300711743772242,
+          "optimality": 0.8867141162514828
+        }
+      },
+      "average_reward": 0.8536812784741402,
+      "policy_optimality": 0.5330241012204046,
+      "reward_efficiency": 0.497162908508525,
+      "reward_regret": 73154.5
+    },
+    "model": {
+      "path": "/home/oualid/Desktop/RL_AGENT/models/real_dqn_agent.pt",
+      "exists": true,
+      "size_bytes": 154301,
+      "modified_at": "2026-08-12T12:07:41.784644+00:00"
+    }
+  }
+}
+
+Dataset rows      : 84726
+Test incidents    : 32064
+Incident overlap  : 0
+Average reward    : 0.8536812784741402
+Policy optimality : 0.5330241012204046
+Model exists      : True
+[OK] Full training status response shape is valid
+
+======================================================================
+23. CHECKING FRONTEND API CONFIGURATION
+======================================================================
+# In production, point to the API gateway; leave blank when the frontend proxies /api.
+VITE_API_BASE_URL=
+# Development-only data. Never enable it in a production deployment.
+VITE_USE_MOCKS=false
+# Polling interval in milliseconds. Set 0 to disable automatic refreshes.
+VITE_POLL_INTERVAL_MS=30000
+
+
+======================================================================
+24. FINAL FRONTEND PRODUCTION BUILD
+======================================================================
+
+> soar-rl-agent-frontend@1.0.0 build
+> tsc -b && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 74 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.55 kB │ gzip:  0.34 kB
+dist/assets/index-isZXhm3b.css   17.92 kB │ gzip:  5.06 kB
+dist/assets/index-fevph4hp.js   279.50 kB │ gzip: 84.71 kB
+✓ built in 1.87s
+[OK] Final frontend build succeeded
+
+======================================================================
+25. FRONTEND/BACKEND CONTRACT FILE INVENTORY
+======================================================================
+[OK] frontend/src/pages/Training.tsx
+[OK] frontend/src/pages/History.tsx
+[OK] frontend/src/pages/Decisions.tsx
+[OK] frontend/src/pages/Dashboard.tsx
+[OK] frontend/src/services/training.service.ts
+[OK] frontend/src/services/decisions.service.ts
+[OK] frontend/src/services/dashboard.service.ts
+[OK] frontend/src/types/domain.ts
+[OK] backend/app/api/training.py
+[OK] backend/app/api/decisions.py
+[OK] backend/app/api/dashboard.py
+[OK] backend/app/api/health.py
+[OK] backend/main.py
+
+======================================================================
+26. VERIFYING RL ARTIFACTS WERE NOT MODIFIED
+======================================================================
+/home/oualid/Desktop/RL_AGENT/models/real_dqn_agent.pt | size=154301 | modified=2026-08-12 13:07:41.784643911 +0100
+/home/oualid/Desktop/RL_AGENT/models/training_metrics.json | size=3971 | modified=2026-08-12 13:07:41.784978741 +0100
+/home/oualid/Desktop/RL_AGENT/models/real_test_metrics.json | size=1161 | modified=2026-08-12 13:09:18.027757465 +0100
+/home/oualid/Desktop/RL_AGENT/models/test_predictions.csv | size=10008739 | modified=2026-08-12 13:09:18.752874481 +0100
+/home/oualid/Desktop/RL_AGENT/models/real_test_predictions.jsonl | size=23988419 | modified=2026-08-12 13:09:19.368043582 +0100
+
+======================================================================
+27. FINAL BACKEND / FRONTEND INTEGRATION RESULT
+======================================================================
+
+Project:
+  /home/oualid/Desktop/RL_AGENT
+
+Backup:
+  /home/oualid/Desktop/RL_AGENT/backend_frontend_link_backup_20260812_140021
+
+Report:
+  /home/oualid/Desktop/RL_AGENT/backend_frontend_link_report_20260812_140021.txt
+
+Temporary backend:
+  http://127.0.0.1:8000
+
+Authoritative health:
+  GET /api/system/health
+
+Training endpoints:
+  GET  /api/training/status
+  GET  /api/training/history
+  GET  /api/training/checkpoints
+  GET  /api/training/metrics
+  POST /api/training/start
+  POST /api/training/stop
+  POST /api/training/full-real-training
+  GET  /api/training/full-real-training/status
+
+Frontend:
+  frontend/src/pages/Training.tsx
+  frontend/src/pages/History.tsx
+  frontend/src/pages/Decisions.tsx
+  frontend/src/pages/Dashboard.tsx
+
+Live API smoke-test failures: 0
+
+[OK] BACKEND / FRONTEND INTEGRATION CHECK PASSED
+
+No model training was started.
+No RL artifact was replaced.
+No dataset was changed.
+The temporary backend will now be stopped.
+
+[INFO] Stopping temporary backend PID 124164

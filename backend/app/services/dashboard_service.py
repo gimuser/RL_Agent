@@ -1,78 +1,170 @@
+import json
+from pathlib import Path
+
 from app.database.database import (
     client,
     alerts_collection,
     decisions_collection,
     rewards_collection,
-    evaluations_collection,
-    training_collection,
 )
 from app.schemas.dashboard_schema import DashboardSummary
 
 
-def get_enhanced_dashboard_summary() -> DashboardSummary:
-    try:
-        total_alerts = alerts_collection.count_documents({})
-        total_decisions = decisions_collection.count_documents({})
-        total_rewards = rewards_collection.count_documents({})
-    except Exception:
-        return DashboardSummary(
-            total_alerts=None,
-            processed_alerts=None,
-            total_decisions=None,
-            total_rewards=None,
-            average_reward=None,
-            average_latency=None,
-            accuracy=None,
-            database_status="UNAVAILABLE",
-            training_status="UNKNOWN",
-            current_episode=None,
-        )
+ROOT = Path(__file__).resolve().parents[3]
 
-    pipeline = [{"$group": {"_id": None, "avg_reward": {"$avg": "$reward_value"}}}]
-    avg_reward_res = list(rewards_collection.aggregate(pipeline))
-    average_reward = (
-        float(avg_reward_res[0]["avg_reward"])
-        if avg_reward_res and avg_reward_res[0].get("avg_reward") is not None
-        else None
+TRAIN_METRICS = (
+    ROOT / "models" / "training_metrics.json"
+)
+
+TEST_METRICS = (
+    ROOT / "models" / "real_test_metrics.json"
+)
+
+
+def _load(path):
+
+    if not path.exists():
+        return {}
+
+    try:
+        return json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
+        )
+    except Exception:
+        return {}
+
+
+def get_enhanced_dashboard_summary():
+
+    train = _load(
+        TRAIN_METRICS
     )
 
-    avg_latency = None
-    accuracy = None
-    try:
-        eval_pipeline = [{"$group": {"_id": None, "avg_latency": {"$avg": "$latency_ms"}, "avg_accuracy": {"$avg": "$accuracy"}}}]
-        eval_res = list(evaluations_collection.aggregate(eval_pipeline))
-        if eval_res:
-            if eval_res[0].get("avg_latency") is not None:
-                avg_latency = float(eval_res[0]["avg_latency"])
-            if eval_res[0].get("avg_accuracy") is not None:
-                accuracy = float(eval_res[0]["avg_accuracy"])
-    except Exception:
-        pass
+    test = _load(
+        TEST_METRICS
+    )
 
     try:
-        client.admin.command("ping")
-        db_status = "healthy"
+        database_status = "healthy"
+
+        client.admin.command(
+            "ping"
+        )
+
     except Exception:
-        db_status = "unhealthy"
+        database_status = "unhealthy"
+
+    # ------------------------------------------------------------------
+    # AUTHORITATIVE REAL TRAINING SCHEMA
+    #
+    # training_metrics.json:
+    # {
+    #   "config": {...},
+    #   "metrics": [...]
+    # }
+    #
+    # real_test_metrics.json:
+    # {
+    #   "test_rows": ...,
+    #   "average_reward": ...,
+    #   ...
+    # }
+    # ------------------------------------------------------------------
+
+    history = (
+        train.get("metrics")
+        if isinstance(
+            train.get("metrics"),
+            list,
+        )
+        else []
+    )
+
+    # The authoritative training rows are stored on each epoch record.
+    train_rows = (
+        int(history[-1].get("rows", 0))
+        if history
+        else 0
+    )
+
+    # Test rows are stored directly in the authoritative test metrics.
+    test_rows = int(
+        test.get(
+            "test_rows",
+            0,
+        )
+    )
+
+    total_real_alerts = (
+        train_rows + test_rows
+    )
+
+    # Real model evaluation.
+    average_reward = float(
+        test.get(
+            "average_reward",
+            0.0,
+        )
+    )
+
+    # The project does not expose a classical supervised accuracy
+    # metric in real_test_metrics.json. Do not fabricate one.
+    accuracy = 0.0
+
+    latency = float(
+        test.get(
+            "average_latency_ms",
+            0.0,
+        )
+    )
+
+    current_episode = (
+        int(history[-1].get("epoch", 0))
+        if history
+        else 0
+    )
+
+    # The model/training state is authoritative from persisted artifacts.
+    model_path = (
+        ROOT
+        / "models"
+        / "real_dqn_agent.pt"
+    )
+
+    training_status = (
+        "completed"
+        if (
+            model_path.exists()
+            and bool(history)
+        )
+        else "not_trained"
+    )
 
     try:
-        status_doc = training_collection.find_one({"type": "status"}, sort=[("updated_at", -1)])
-        training_status = status_doc.get("status", "IDLE") if status_doc else "IDLE"
-        history_doc = training_collection.find_one({"type": "history"}, sort=[("epoch", -1)])
-        current_episode = int(history_doc["epoch"]) if history_doc and history_doc.get("epoch") is not None else None
+        total_decisions = (
+            decisions_collection.count_documents({})
+        )
+
+        total_rewards = (
+            rewards_collection.count_documents({})
+        )
+
     except Exception:
-        training_status = "UNKNOWN"
-        current_episode = None
+        total_decisions = 0
+        total_rewards = 0
 
     return DashboardSummary(
-        total_alerts=total_alerts,
-        processed_alerts=total_decisions,
+        total_alerts=total_real_alerts,
+        processed_alerts=test_rows,
         total_decisions=total_decisions,
         total_rewards=total_rewards,
-        average_reward=round(average_reward, 2) if average_reward is not None else None,
-        average_latency=round(avg_latency, 2) if avg_latency is not None else None,
-        accuracy=round(accuracy, 4) if accuracy is not None else None,
-        database_status=db_status,
+        average_reward=average_reward,
+        average_latency=latency,
+        accuracy=accuracy,
+        database_status=database_status,
         training_status=training_status,
         current_episode=current_episode,
     )
+

@@ -1,106 +1,59 @@
-"""Normalization helpers."""
+"""Leakage-safe normalization."""
 
-import pandas as pd
+from pathlib import Path
+import joblib
 from sklearn.preprocessing import MinMaxScaler
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+ARTIFACT_DIR = PROJECT_ROOT / "models"
+ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+
+SCALER_PATH = ARTIFACT_DIR / "feature_scaler.joblib"
+
+NUMERIC_COLUMNS = [
+    "IncidentId",
+    "hour",
+    "day",
+    "month",
+    "is_weekend",
+]
+
+
 def normalize_data(train_df, test_df):
+    train_df = train_df.copy()
+    test_df = test_df.copy()
 
     columns = [
-
-        "IncidentId",
-        "hour",
-        "day",
-        "month",
-        "is_weekend"
-
+        c for c in NUMERIC_COLUMNS
+        if c in train_df.columns and c in test_df.columns
     ]
-
-    # نجمعو train و test
-
-    full_df = pd.concat(
-        [train_df, test_df],
-        ignore_index=True
-    )
-
-    # Normalization
 
     scaler = MinMaxScaler()
 
-    full_df[columns] = scaler.fit_transform(
-        full_df[columns]
+    train_df[columns] = scaler.fit_transform(
+        train_df[columns]
     )
 
-    # نرجعو نقسموهم
-
-    train_size = len(train_df)
-
-    train_df = full_df.iloc[:train_size].reset_index(
-        drop=True
+    test_df[columns] = scaler.transform(
+        test_df[columns]
     )
 
-    test_df = full_df.iloc[train_size:].reset_index(
-        drop=True
+    joblib.dump(
+        {
+            "scaler": scaler,
+            "columns": columns,
+        },
+        SCALER_PATH,
     )
 
     return train_df, test_df
 
 
-if __name__ == "__main__":
+def load_scaler():
+    if not SCALER_PATH.exists():
+        raise FileNotFoundError(
+            f"Scaler not found: {SCALER_PATH}"
+        )
 
-    from loader import load_train_data
-    from loader import load_test_data
-
-    from cleaner import clean_data
-
-    from validator import validate_data
-
-    from encoder import encode_data
-
-    from feature_engineering import create_features
-
-    train = load_train_data()
-    test = load_test_data()
-
-    train = clean_data(train)
-    test = clean_data(test)
-
-    validate_data(train, "TRAIN")
-    validate_data(test, "TEST")
-
-    train, test = encode_data(train, test)
-
-    train, test = create_features(train, test)
-
-    train, test = normalize_data(
-        train,
-        test
-    )
-
-    print("\n=== TRAIN ===")
-
-    print(
-        train[
-            [
-                "IncidentId",
-                "hour",
-                "day",
-                "month",
-                "is_weekend"
-            ]
-        ].head()
-    )
-
-    print("\n=== TEST ===")
-
-    print(
-        test[
-            [
-                "IncidentId",
-                "hour",
-                "day",
-                "month",
-                "is_weekend"
-            ]
-        ].head()
-    )
+    return joblib.load(SCALER_PATH)

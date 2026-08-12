@@ -1,54 +1,89 @@
-"""Data encoding helpers."""
+"""Leakage-safe categorical encoding."""
 
-from sklearn.preprocessing import LabelEncoder
+from pathlib import Path
+import json
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+ARTIFACT_DIR = PROJECT_ROOT / "models"
+ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+
+MAPPINGS_PATH = ARTIFACT_DIR / "category_mappings.json"
+
+CATEGORICAL_COLUMNS = [
+    "Category",
+    "MitreTechniques",
+    "IncidentGrade",
+    "ActionGrouped",
+    "ActionGranular",
+    "EntityType",
+    "EvidenceRole",
+    "ThreatFamily",
+    "OSFamily",
+    "SuspicionLevel",
+    "LastVerdict",
+]
 
 
 def encode_data(train_df, test_df):
+    train_df = train_df.copy()
+    test_df = test_df.copy()
 
-    columns_to_encode = [
+    mappings = {}
 
-        "Category",
-        "MitreTechniques",
-        "IncidentGrade",
-        "ActionGrouped",
-        "ActionGranular",
-        "EntityType",
-        "EvidenceRole",
-        "ThreatFamily",
-        "OSFamily",
-        "SuspicionLevel",
-        "LastVerdict"
+    for column in CATEGORICAL_COLUMNS:
+        if column not in train_df.columns:
+            continue
 
-    ]
+        train_values = train_df[column].astype(str)
+        test_values = test_df[column].astype(str)
 
-    datasets = [train_df, test_df]
+        categories = sorted(
+            train_values.unique().tolist()
+        )
 
-    for df in datasets:
+        mapping = {
+            value: index
+            for index, value in enumerate(categories)
+        }
 
-        for col in columns_to_encode:
+        train_df[column] = (
+            train_values
+            .map(mapping)
+            .fillna(-1)
+            .astype(int)
+        )
 
-            encoder = LabelEncoder()
+        test_df[column] = (
+            test_values
+            .map(mapping)
+            .fillna(-1)
+            .astype(int)
+        )
 
-            df[col] = encoder.fit_transform(
-                df[col].astype(str)
-            )
+        mappings[column] = mapping
+
+    with MAPPINGS_PATH.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(
+            mappings,
+            f,
+            indent=2,
+        )
 
     return train_df, test_df
 
 
-if __name__ == "__main__":
+def load_mappings():
+    if not MAPPINGS_PATH.exists():
+        raise FileNotFoundError(
+            f"Category mappings not found: {MAPPINGS_PATH}"
+        )
 
-    from loader import load_train_data, load_test_data
-    from cleaner import clean_data
-    from validator import validate_data
-
-    train = clean_data(load_train_data())
-    test = clean_data(load_test_data())
-
-    validate_data(train, "TRAIN")
-    validate_data(test, "TEST")
-
-    train, test = encode_data(train, test)
-
-    print(train.head())
-    print(test.head())
+    with MAPPINGS_PATH.open(
+        "r",
+        encoding="utf-8",
+    ) as f:
+        return json.load(f)

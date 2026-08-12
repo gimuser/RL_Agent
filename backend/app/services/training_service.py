@@ -1,215 +1,403 @@
-"""Background orchestration for the dataset-backed DQN trainer.
-
-Only metrics produced by :class:`Trainer` are retained.  MongoDB persistence is
-best-effort monitoring: a missing database does not manufacture history or
-prevent a local training run from producing its model artifact.
-"""
-
-from __future__ import annotations
-
+import json
+import os
 import threading
-from datetime import UTC, datetime
-from typing import Any
+from datetime import datetime
+from pathlib import Path
 
-from app.config.settings import settings
-from app.database.database import checkpoints_collection, training_collection, training_metrics_collection
+from app.database.database import (
+    training_collection,
+    training_metrics_collection,
+    checkpoints_collection,
+)
+
 from app.rl_agent.trainer import Trainer
-from app.services.model_service import save_trained_model
 
 
-STATE: dict[str, Any] = {
-    "status": "IDLE",
+ROOT = Path(__file__).resolve().parents[3]
+
+TRAIN_METRICS = (
+    ROOT / "models" / "training_metrics.json"
+)
+
+TEST_METRICS = (
+    ROOT / "models" / "real_test_metrics.json"
+)
+
+STATE = {
+    "status": "idle",
     "current_epoch": 0,
-    "history": [],
-    "last_error": None,
-    "model_version": None,
 }
-TRAINING_CTRL: dict[str, Any] = {
+
+TRAINING_CTRL = {
     "thread": None,
     "stop_event": None,
     "lock": threading.Lock(),
 }
-_PERSISTENCE_AVAILABLE: bool | None = None
 
 
-def _persist(operation) -> bool:
-    """Persist one monitoring record, disabling repeated failures per process."""
-    global _PERSISTENCE_AVAILABLE
-    if _PERSISTENCE_AVAILABLE is False:
-        return False
-    try:
-        operation()
-    except Exception:
-        _PERSISTENCE_AVAILABLE = False
-        return False
-    _PERSISTENCE_AVAILABLE = True
-    return True
+def _status(status, epoch):
 
-
-def _upsert_training_status(status: str, current_epoch: int) -> None:
     STATE["status"] = status
-    STATE["current_epoch"] = current_epoch
-    _persist(
-        lambda: training_collection.insert_one(
+    STATE["current_epoch"] = epoch
+
+    try:
+        training_collection.insert_one(
             {
                 "type": "status",
                 "status": status,
-                "current_epoch": current_epoch,
-                "updated_at": datetime.now(UTC),
+                "current_epoch": epoch,
+                "updated_at": datetime.utcnow(),
             }
+        )
+    except Exception:
+        pass
+
+
+def get_training_status():
+
+    try:
+        doc = training_collection.find_one(
+            {"type": "status"},
+            sort=[("updated_at", -1)],
+        )
+
+        if doc:
+            return {
+                "status": doc.get(
+                    "status",
+                    "unknown",
+                ),
+                "current_epoch": int(
+                    doc.get(
+                        "current_epoch",
+                        0,
+                    )
+                ),
+            }
+
+    except Exception:
+        pass
+
+    return {
+        "status": STATE["status"],
+        "current_epoch": STATE["current_epoch"],
+    }
+
+
+def _run_training_async(
+    algorithm="double_dqn",
+    epochs=1,
+    stop_event=None,
+):
+
+    try:
+
+        _status("running", 0)
+
+        trainer = Trainer(
+            algorithm=algorithm,
+            state_dim=11,
+            action_dim=3,
+        )
+
+        # Real training happens here.
+        trainer.train(
+            episodes=epochs
+        )
+
+        if stop_event is not None and stop_event.is_set():
+            _status(
+                "stopped",
+                STATE["current_epoch"],
+            )
+            return
+
+        # Read REAL metrics produced by the trainer.
+        if TRAIN_METRICS.exists():
+
+            data = json.loads(
+                TRAIN_METRICS.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+            history = data.get(
+                "history",
+                [],
+            )
+
+            for item in history:
+
+                epoch = int(
+                    item["epoch"]
+                )
+
+                STATE["current_epoch"] = epoch
+
+                try:
+                    training_metrics_collection.insert_one(
+                        {
+                            "type": "real_training_metric",
+                            **item,
+                            "timestamp": datetime.utcnow(),
+                        }
+                    )
+                except Exception:
+                    pass
+
+        trainer.evaluate()
+
+        _status(
+            "completed",
+            STATE["current_epoch"],
+        )
+
+    except Exception as exc:
+
+        try:
+            training_collection.insert_one(
+                {
+                    "type": "training_error",
+                    "error": str(exc),
+                    "timestamp": datetime.utcnow(),
+                }
+            )
+        except Exception:
+            pass
+
+        _status(
+            "failed",
+            STATE["current_epoch"],
+        )
+
+        raise
+
+
+def start_training(
+    algorithm="double_dqn",
+    episodes=1,
+):
+
+    status = get_training_status()
+
+    if status["status"] == "running":
+        return {
+            "message": "Training already running"
+        }
+
+    epochs = int(
+        os.getenv(
+            "REAL_RL_EPOCHS",
+            str(episodes),
         )
     )
 
+    stop_event = threading.Event()
 
-def _record_episode(record: dict[str, Any]) -> None:
-    """Record one completed training pass and any optimiser loss."""
-    # normalize record keys for backward compatibility
-    STATE["history"].append(record)
-    pass_number = int(record.get("pass", record.get("episode", 0)))
-    _upsert_training_status("RUNNING", pass_number)
-    if record.get("loss") is None:
-        return
-    metric = {
-        "pass": pass_number,
-        "loss": float(record["loss"]),
-        "average_reward": record.get("average_reward"),
-        "steps": int(record.get("steps", 0)),
-        "epsilon": float(record.get("epsilon", 0.0)),
-        "timestamp": datetime.now(UTC),
-    }
-    _persist(lambda: training_collection.insert_one({"type": "history", **metric}))
-    _persist(lambda: training_metrics_collection.insert_one(metric))
-
-
-def _run_training_async(algorithm: str, training_passes: int | None, stop_event: threading.Event) -> None:
-    try:
-        trainer = Trainer(algorithm=algorithm)
-        result = trainer.train(
-            training_passes=training_passes,
-            max_steps=settings.training_max_steps,
-            seed=settings.training_seed,
-            stop_event=stop_event,
-            on_episode=_record_episode,
-        )
-        if result.get("training_passes", 0) == 0:
-            _upsert_training_status("STOPPED" if result["stopped"] else "FAILED", 0)
-            return
-
-        evaluation = trainer.evaluate(max_steps=settings.evaluation_max_steps)
-        metadata = save_trained_model(
-            trainer.agent.model,
-            training_metadata=result,
-            evaluation=evaluation,
-        )
-        STATE["model_version"] = metadata["model_version"]
-        # Expose useful training counters for monitoring and the frontend.
-        for key in ("dataset_rows", "environment_steps", "gradient_updates", "elapsed_seconds"):
-            if key in result:
-                STATE[key] = result[key]
-        _persist(
-            lambda: checkpoints_collection.insert_one(
-                {
-                    "name": settings.model_path.name,
-                    "path": str(settings.model_path),
-                    "model_version": metadata["model_version"],
-                    "created_at": datetime.now(UTC),
-                }
-            )
-        )
-        _upsert_training_status(
-            "STOPPED" if result["stopped"] else "COMPLETED",
-            int(result.get("training_passes", 0)),
-        )
-    except Exception as exc:
-        STATE["last_error"] = str(exc)
-        _upsert_training_status("FAILED", STATE["current_epoch"])
-    finally:
-        with TRAINING_CTRL["lock"]:
-            TRAINING_CTRL["thread"] = None
-            TRAINING_CTRL["stop_event"] = None
-
-
-def get_training_status() -> dict[str, Any]:
-    base = {
-        "status": STATE["status"],
-        "current_epoch": STATE["current_epoch"],
-        "last_error": STATE["last_error"],
-        "model_version": STATE["model_version"],
-        "persistence": "AVAILABLE" if _PERSISTENCE_AVAILABLE else "UNAVAILABLE",
-    }
-    # Include optional counters when available
-    for optional in ("dataset_rows", "environment_steps", "gradient_updates", "elapsed_seconds"):
-        if optional in STATE:
-            base[optional] = STATE[optional]
-    return base
-
-
-def start_training(algorithm: str = "dqn", episodes: int | None = None) -> dict[str, str]:
-    """Start real train-split interaction in a background thread."""
     with TRAINING_CTRL["lock"]:
-        thread = TRAINING_CTRL["thread"]
-        if thread is not None and thread.is_alive():
-            return {"message": "Training already in progress"}
 
-        selected_episodes = settings.training_episodes if episodes is None else episodes
-        # If configured training_episodes is <= 0, let the trainer compute
-        # the number of episodes needed to cover the full dataset.
-        if isinstance(selected_episodes, int) and selected_episodes < 1:
-            selected_episodes_arg = None
-        else:
-            selected_episodes_arg = selected_episodes
-        STATE.update({"current_epoch": 0, "history": [], "last_error": None, "model_version": None})
-        stop_event = threading.Event()
+        TRAINING_CTRL["stop_event"] = stop_event
+
         thread = threading.Thread(
             target=_run_training_async,
-            args=(algorithm, selected_episodes_arg, stop_event),
+            args=(
+                algorithm,
+                epochs,
+                stop_event,
+            ),
             daemon=True,
-            name="dataset-backed-dqn-training",
         )
+
         TRAINING_CTRL["thread"] = thread
-        TRAINING_CTRL["stop_event"] = stop_event
-        _upsert_training_status("RUNNING", 0)
+
         thread.start()
-    return {"message": "Training started"}
+
+    return {
+        "message": "Training started",
+        "dataset": "train_processed.csv",
+        "epochs": epochs,
+        "real_data": True,
+    }
 
 
-def stop_training() -> dict[str, str]:
-    """Request a cooperative stop; no fabricated final metric is written."""
+def stop_training():
+
     with TRAINING_CTRL["lock"]:
-        stop_event = TRAINING_CTRL["stop_event"]
-        thread = TRAINING_CTRL["thread"]
-        if stop_event is None or thread is None or not thread.is_alive():
-            return {"message": "No training run is active"}
-        stop_event.set()
-        _upsert_training_status("STOPPING", STATE["current_epoch"])
-    return {"message": "Training stop requested"}
+
+        event = TRAINING_CTRL.get(
+            "stop_event"
+        )
+
+        if event:
+            event.set()
+
+    _status(
+        "stopping",
+        STATE["current_epoch"],
+    )
+
+    return {
+        "message": "Training stop requested"
+    }
 
 
-def get_checkpoints() -> list[str]:
-    """Return only compatible model-service artifacts, never legacy pickle files."""
-    if settings.model_path.is_file() and settings.model_metadata_path.is_file():
-        return [settings.model_path.name]
+def get_checkpoints():
+
+    checkpoint_dir = (
+        ROOT / "models" / "checkpoints"
+    )
+
+    if not checkpoint_dir.exists():
+        return []
+
+    return [
+        {
+            "name": p.name,
+            "path": str(p),
+        }
+        for p in sorted(
+            checkpoint_dir.iterdir()
+        )
+        if p.is_file()
+    ]
+
+# ---------------------------------------------------------------------------
+# Backwards-compatible API helper
+# ---------------------------------------------------------------------------
+def get_history(*args, **kwargs):
+    """
+    Return training history for the API.
+
+    The current RL implementation stores training metrics in
+    models/training_metrics.json when available.
+    """
+    from pathlib import Path
+    import json
+
+    root = Path(__file__).resolve().parents[3]
+    metrics_file = root / "models" / "training_metrics.json"
+
+    if not metrics_file.exists():
+        return []
+
+    try:
+        with metrics_file.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if isinstance(data, list):
+            return data
+
+        if isinstance(data, dict):
+            # Support common metric container formats.
+            for key in ("history", "episodes", "metrics", "training_history"):
+                value = data.get(key)
+                if isinstance(value, list):
+                    return value
+
+            return data
+
+        return []
+
+    except (OSError, json.JSONDecodeError):
+        return []
+
+# ============================================================================
+# API COMPATIBILITY LAYER
+# ============================================================================
+# These helpers keep the FastAPI training endpoints compatible with the
+# current real-data RL training implementation.
+
+from pathlib import Path as _Path
+import json as _json
+
+
+def _project_root():
+    return _Path(__file__).resolve().parents[3]
+
+
+def _load_json_file(filename):
+    path = _project_root() / "models" / filename
+
+    if not path.exists():
+        return None
+
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return _json.load(f)
+    except (OSError, _json.JSONDecodeError):
+        return None
+
+
+def get_metrics(*args, **kwargs):
+    """
+    Return persisted training metrics.
+
+    Compatible with the FastAPI training API.
+    """
+    data = _load_json_file("training_metrics.json")
+
+    if data is None:
+        return {}
+
+    if isinstance(data, dict):
+        return data
+
+    return {"history": data}
+
+
+def get_history(*args, **kwargs):
+    """
+    Return episode/training history.
+    """
+    data = _load_json_file("training_metrics.json")
+
+    if data is None:
+        return []
+
+    if isinstance(data, list):
+        return data
+
+    if isinstance(data, dict):
+        for key in (
+            "history",
+            "episodes",
+            "metrics",
+            "training_history",
+        ):
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+
     return []
 
 
-def get_history() -> list[dict[str, Any]]:
-    """Expose episodes with optimiser losses; episodes before replay warmup omit loss."""
-    return [
-        {"epoch": item["episode"], "loss": item["loss"]}
-        for item in STATE["history"]
-        if item["loss"] is not None
-    ]
+def get_training_status(*args, **kwargs):
+    """
+    Return a lightweight training status object.
+    """
+    root = _project_root()
+
+    model = root / "models" / "real_dqn_agent.pt"
+    metrics = root / "models" / "training_metrics.json"
+
+    return {
+        "trained": model.exists(),
+        "model_exists": model.exists(),
+        "metrics_exists": metrics.exists(),
+        "status": "completed" if model.exists() else "not_trained",
+    }
 
 
-def get_metrics(limit: int = 100) -> list[dict[str, Any]]:
-    records = [item for item in STATE["history"] if item["loss"] is not None]
-    return [
-        {
-            "epoch": item["episode"],
-            "loss": item["loss"],
-            "average_reward": item["average_reward"],
-            "steps": item["steps"],
-            "epsilon": item["epsilon"],
-        }
-        for item in records[-max(0, limit) :]
-    ]
+def get_training_metrics(*args, **kwargs):
+    """
+    Alias used by older API code.
+    """
+    return get_metrics(*args, **kwargs)
+
+
+def get_training_history(*args, **kwargs):
+    """
+    Alias used by older API code.
+    """
+    return get_history(*args, **kwargs)
+

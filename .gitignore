@@ -54,3 +54,58 @@ Thumbs.db
 
 
 backend/.venv/
+# Python environments
+.venv/
+.venv.bak/
+**/.venv/
+**/.venv.bak/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# ML artifacts
+models/*.pt
+models/*.pth
+models/*.joblib
+models/*.json
+logs/
+
+# Runtime secrets
+.env
+# Python environments / caches
+**/__pycache__/
+**/.pytest_cache/
+.ruff_cache/
+# Node / frontend
+frontend/node_modules/
+**/node_modules/
+frontend/dist/
+**/dist/
+# IDE
+.idea/
+.vscode/*.log
+# Temporary project repair artifacts
+project_startpoint_backup_*/
+project_archive_*/
+*_backup_*
+*.bak
+*.tmp
+# Local logs
+**/*.log
+# Generated inspection / chat artifacts
+full.txt
+output.txt
+outpux.txt
+project_tree.txt
+tree_last.txt
+dataset.txt
+datasets.txt
+chiki.txt
+final_rl_implementation_inspection.txt
+*backup*
