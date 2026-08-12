@@ -4,41 +4,37 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { QueryState } from "../components/ui/QueryState";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { useApi } from "../hooks/useApi";
-import { alertsService } from "../services/alerts.service";
-import { dashboardService } from "../services/dashboard.service";
-import { systemService } from "../services/system.service";
-import { decisionsService } from "../services/decisions.service";
-import { rewardsService } from "../services/rewards.service";
-import { formatDateTime, formatDecimal, formatNumber } from "../utils/format";
+import { liveAlertsService } from "../services/liveAlerts.service";
+import { formatDateTime, formatNumber } from "../utils/format";
 
 export function DashboardPage() {
-  const summary = useApi(dashboardService.getSummary, { poll: true });
-  const alerts = useApi(alertsService.getAlerts, { poll: true });
-  const decisions = useApi(decisionsService.getDecisions, { poll: true });
-  const rewards = useApi(rewardsService.getRewards, { poll: true });
-  const apis = useApi(systemService.getApis, { poll: true });
-  const agent = useApi(systemService.getAgentStatus, { poll: true });
+  const system = useApi(liveAlertsService.getSystemStatus, { poll: true });
+  const alerts = useApi(() => liveAlertsService.getAlerts(0, 100), { poll: true });
+  const agent = useApi(liveAlertsService.getAgentStatus, { poll: true });
+  const activity = useApi(() => liveAlertsService.getActivity(100), { poll: true });
+  const workload = useApi(liveAlertsService.getWorkload, { poll: true });
+
+  const latestActivity = activity.data?.items ?? [];
+  const pending = system.data?.pending_human_review ?? 0;
+  const totalAlerts = system.data?.live_alerts ?? alerts.data?.total ?? 0;
+  const assigned = workload.data?.items?.reduce((sum, item) => sum + item.load, 0) ?? 0;
 
   return (
     <>
       <PageHeader
         eyebrow="SOC SUPERVISION"
         title="Operations dashboard"
-        description="Live operational data from the SOAR-RL API. Values refresh on the configured polling interval."
+        description="Live operational data from the Mongo-backed SOAR-RL supervision layer. Training is not started by this dashboard."
         actions={<Link className="button button--primary" to="/alerts">Review alerts <span aria-hidden="true">→</span></Link>}
       />
 
-      <QueryState state={summary}>
-        {(data) => (
-          <section className="kpi-grid" aria-label="SOC key performance indicators">
-            <KpiCard label="Total alerts" value={formatNumber(data.total_alerts)} detail="Registered alerts" icon="◇" />
-            <KpiCard label="Processed alerts" value={formatNumber(data.processed_alerts)} detail="Alerts with decisions" icon="✓" tone="success" />
-            <KpiCard label="Total decisions" value={formatNumber(data.total_decisions)} detail="Recorded agent decisions" icon="↗" />
-            <KpiCard label="Average reward" value={formatDecimal(data.average_reward)} detail="Across recorded rewards" icon="✦" tone="success" />
-            <KpiCard label="Processing time" value={`${formatDecimal(data.average_latency)} ms`} detail="Reported average latency" icon="◷" />
-            <KpiCard label="Accuracy" value={data.accuracy === null ? "—" : `${formatDecimal(data.accuracy * 100, 1)}%`} detail="Reported evaluation accuracy" icon="◎" />
-            <KpiCard label="Reward events" value={formatNumber(data.total_rewards)} detail="Persisted reward records" icon="◌" />
-            <KpiCard label="Current episode" value={formatNumber(data.current_episode)} detail="Reported training episode" icon="⌁" tone="warning" />
+      <QueryState state={system}>
+        {() => (
+          <section className="kpi-grid" aria-label="SOC live key performance indicators">
+            <KpiCard label="Live alerts" value={formatNumber(totalAlerts)} detail="Isolated alert holdout" icon="◇" />
+            <KpiCard label="Human review" value={formatNumber(pending)} detail="Alerts awaiting analyst control" icon="!" tone="warning" />
+            <KpiCard label="Assigned" value={formatNumber(assigned)} detail="Alerts currently assigned" icon="↗" />
+            <KpiCard label="Recorded activity" value={formatNumber(latestActivity.length)} detail="Recent MongoDB audit events" icon="✦" tone="success" />
           </section>
         )}
       </QueryState>
@@ -48,22 +44,23 @@ export function DashboardPage() {
           <div className="panel__header">
             <div>
               <p className="eyebrow">ALERT OVERVIEW</p>
-              <h2>Recent alerts</h2>
+              <h2>Recent incoming alerts</h2>
             </div>
             <Link className="text-link" to="/alerts">View all alerts →</Link>
           </div>
-          <QueryState state={alerts} empty={(data) => data.length === 0}>
-            {(items) => (
+          <QueryState state={alerts} empty={(data) => data.items.length === 0}>
+            {(result) => (
               <div className="table-scroll">
                 <table>
-                  <thead><tr><th>Alert</th><th>Severity</th><th>Source</th><th>Action</th></tr></thead>
+                  <thead><tr><th>Alert</th><th>Severity</th><th>Status</th><th>Source</th><th>Action</th></tr></thead>
                   <tbody>
-                    {items.slice(0, 6).map((alert) => (
-                      <tr key={alert.id}>
-                        <td><strong>{alert.title}</strong><span className="muted">ID {alert.id}</span></td>
-                        <td><StatusBadge value={alert.severity} /></td>
-                        <td>{alert.source}</td>
-                        <td><Link className="table-link" to={`/alerts/${alert.id}`}>Inspect</Link></td>
+                    {result.items.slice(0, 8).map((alert) => (
+                      <tr key={alert.alert_id}>
+                        <td><strong>{alert.title}</strong><span className="muted">{alert.alert_id} · Incident {alert.incident_id}</span></td>
+                        <td><StatusBadge value={String(alert.severity ?? "unknown")} /></td>
+                        <td><StatusBadge value={alert.status} /></td>
+                        <td>{String(alert.source.Category ?? "Unknown")}</td>
+                        <td><Link className="table-link" to={`/alerts/${encodeURIComponent(alert.alert_id)}`}>Inspect</Link></td>
                       </tr>
                     ))}
                   </tbody>
@@ -75,15 +72,15 @@ export function DashboardPage() {
 
         <article className="panel">
           <div className="panel__header">
-            <div><p className="eyebrow">AGENT ACTIVITY</p><h2>Recent decisions</h2></div>
-            <Link className="text-link" to="/decisions">History →</Link>
+            <div><p className="eyebrow">AGENT ACTIVITY</p><h2>Latest decisions / supervision</h2></div>
+            <Link className="text-link" to="/history">History →</Link>
           </div>
-          <QueryState state={decisions} empty={(data) => data.length === 0}>
-            {(items) => <ul className="activity-feed">
-              {items.slice(0, 6).map((decision) => (
-                <li key={decision.id}>
+          <QueryState state={activity} empty={(data) => data.items.length === 0}>
+            {(result) => <ul className="activity-feed">
+              {result.items.slice(0, 8).map((entry, index) => (
+                <li key={`${entry.alert_id}-${entry.timestamp}-${index}`}>
                   <span className="activity-feed__mark" aria-hidden="true">↗</span>
-                  <div><strong>{decision.action}</strong><p>Alert #{decision.incident_id} · {formatDateTime(decision.timestamp)}</p></div>
+                  <div><strong>{entry.action}</strong><p>{entry.alert_id} · {entry.actor} · {formatDateTime(entry.timestamp)}</p></div>
                 </li>
               ))}
             </ul>}
@@ -94,50 +91,52 @@ export function DashboardPage() {
       <section className="dashboard-grid dashboard-grid--bottom">
         <article className="panel">
           <div className="panel__header"><div><p className="eyebrow">SYSTEM HEALTH</p><h2>Service readiness</h2></div></div>
-          <div className="health-list">
-            <HealthItem label="API" state={summary.data?.training_status ? "online" : "unknown"} />
-            <HealthItem label="Database" state={summary.data?.database_status ?? "unknown"} />
-            <HealthItem label="Training" state={summary.data?.training_status ?? "unknown"} />
-            <QueryState state={agent}>
-              {(agentData) => (
-                <HealthItem
-                  label="RL agent"
-                  state={agentData.status || "unknown"}
-                  note={
-                    agentData.model_path
-                      ? `Model: ${agentData.model_path}`
-                      : undefined
-                  }
-                />
-              )}
-            </QueryState>
-            <div style={{ marginTop: 12 }}>
-              <p className="eyebrow">API Components</p>
-              <QueryState state={apis} empty={(d) => (d?.components?.length ?? 0) === 0}>{(data) => (
-                <ul className="metric-list">
-                  {data.components.map((c) => <li key={c.name}><strong>{c.name}</strong>: <StatusBadge value={c.status} /></li>)}
-                </ul>
-              )}</QueryState>
-            </div>
-          </div>
+          <QueryState state={system}>
+            {(data) => <div className="health-list">
+              <HealthItem label="API" state={data.api} />
+              <HealthItem label="Database" state={data.database} />
+              <HealthItem label="Live alert store" state="Healthy" />
+              <HealthItem label="Training" state={agent.data?.training_status ?? "NOT_RUNNING"} />
+            </div>}
+          </QueryState>
         </article>
+
         <article className="panel">
-          <div className="panel__header"><div><p className="eyebrow">REWARDS</p><h2>Latest reward events</h2></div><Link className="text-link" to="/history">View history →</Link></div>
-          <QueryState state={rewards} empty={(data) => data.length === 0}>
-            {(items) => <ul className="metric-list">
-              {items.slice(0, 5).map((reward) => <li key={reward.id}><span>Decision #{reward.decision_id}</span><strong className={reward.reward_value >= 0 ? "positive" : "negative"}>{reward.reward_value >= 0 ? "+" : ""}{formatDecimal(reward.reward_value)}</strong></li>)}
+          <div className="panel__header"><div><p className="eyebrow">RL AGENT</p><h2>Current supervision state</h2></div><Link className="text-link" to="/agent">Open agent →</Link></div>
+          <QueryState state={agent}>
+            {(data) => <dl className="detail-list">
+              <Detail label="Runtime" value={data.status} />
+              <Detail label="Mode" value={data.mode} />
+              <Detail label="Algorithm" value={data.algorithm} />
+              <Detail label="Model status" value={data.model_status} />
+              <Detail label="Pending human review" value={String(data.human_review_pending)} />
+              <Detail label="Environment" value={data.environment_health} />
+            </dl>}
+          </QueryState>
+        </article>
+
+        <article className="panel">
+          <div className="panel__header"><div><p className="eyebrow">ANALYST WORKLOAD</p><h2>Distribution</h2></div><Link className="text-link" to="/analysts">View analysts →</Link></div>
+          <QueryState state={workload} empty={(data) => data.items.length === 0}>
+            {(data) => <ul className="metric-list">
+              {data.items.map((item) => <li key={item.analyst_id}><span>{item.name}</span><strong>{item.load}/{item.capacity}</strong></li>)}
             </ul>}
           </QueryState>
         </article>
-        <article className="panel rl-cycle">
-          <div className="panel__header"><div><p className="eyebrow">RL DECISION CYCLE</p><h2>How a decision flows</h2></div></div>
-          <ol><li>Observation</li><li>Agent</li><li>Action</li><li>Environment</li><li>Reward</li><li>Policy update</li></ol>
-        </article>
+      </section>
+
+      <section className="panel rl-cycle">
+        <div className="panel__header"><div><p className="eyebrow">LIVE DECISION CYCLE</p><h2>How an incoming alert flows</h2></div></div>
+        <ol><li>Incoming alert</li><li>Processed RL input</li><li>Agent inference</li><li>Human review</li><li>Final action</li><li>Audit history</li></ol>
       </section>
     </>
   );
 }
 
-function HealthItem({ label, state, note }: { label: string; state: string; note?: string }) {
-  return <div className="health-list__item"><span>{label}</span><div>{note && <small>{note}</small>}<StatusBadge value={state} /></div></div>;
+function HealthItem({ label, state }: { label: string; state: string }) {
+  return <div className="health-list__item"><span>{label}</span><StatusBadge value={state} /></div>;
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return <div><dt>{label}</dt><dd>{value}</dd></div>;
 }
