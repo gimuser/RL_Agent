@@ -12,6 +12,7 @@ import { LoginPage } from "./pages/Login";
 import { MetricsPage } from "./pages/Metrics";
 import { SettingsPage } from "./pages/Settings";
 import { TrainingControlCenter } from "./pages/TrainingControlCenter";
+import { TrainingLauncher } from "./pages/TrainingLauncher";
 
 export default function App() {
   return (
@@ -24,7 +25,8 @@ export default function App() {
           <Route path="/alerts/:id" element={<AlertDetailsPage />} />
           <Route path="/agent" element={<AgentPage />} />
           <Route path="/decisions" element={<DecisionsPage />} />
-          <Route path="/training" element={<TrainingControlCenter />} />
+          <Route path="/training" element={<TrainingLauncher />} />
+          <Route path="/training/live" element={<TrainingControlCenter />} />
           <Route path="/analysts" element={<AnalystsPage />} />
           <Route path="/metrics" element={<MetricsPage />} />
           <Route path="/history" element={<HistoryPage />} />
