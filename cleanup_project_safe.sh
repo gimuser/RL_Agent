@@ -6,6 +6,7 @@ BACKUP_DIR="$ROOT/backups/cleanup_$(date -u +%Y%m%dT%H%M%SZ)"
 REPORT_DIR="$ROOT/reports/cleanup_master"
 LOG="$REPORT_DIR/cleanup.log"
 APPLY=0
+FORCE=0
 
 usage() {
   cat <<'EOF'
@@ -16,19 +17,18 @@ Default mode is AUDIT ONLY. No source code is deleted.
 Usage:
   ./cleanup_project_safe.sh              # audit + dry-run
   ./cleanup_project_safe.sh --apply      # perform safe cleanup
-  ./cleanup_project_safe.sh --help
+  ./cleanup_project_safe.sh --force --apply
 
 Safety guarantees:
 - Never deletes backend/app/* or frontend/src/* merely because a file looks old.
 - Never deletes .git, .venv, node_modules, datasets, models, checkpoints, or runtime code.
 - Creates a backup manifest and git patch before changes.
-- Stops when the working tree contains unexpected uncommitted source changes unless --force is supplied.
-- Runs Python syntax, FastAPI import, frontend build, and focused tests after cleanup.
-- Source-code consolidation is reported separately and is NOT auto-deleted unless an explicit safe rule passes.
+- Refuses source cleanup when backend/frontend source is already uncommitted unless --force is supplied.
+- Runs Python syntax, FastAPI import, frontend build, and active RL/live-path imports after cleanup.
+- Source-code consolidation is reported separately and is NOT auto-deleted.
 EOF
 }
 
-FORCE=0
 for arg in "$@"; do
   case "$arg" in
     --apply) APPLY=1 ;;
@@ -71,12 +71,10 @@ fi
 say "SAFE GENERATED-CONTENT CLEANUP CANDIDATES"
 SAFE_DELETE=()
 
-# Reports are disposable analysis artifacts, not application runtime code.
 while IFS= read -r f; do
   [ -n "$f" ] && SAFE_DELETE+=("$f")
 done < <(find reports -maxdepth 2 -type f \( -name 'full_redundancy_audit.txt' -o -path 'reports/redundancy_parts/*' -o -path 'reports/cleanup_stage_01/*' \) 2>/dev/null | sort)
 
-# Known one-off root scripts that were created for earlier repair/audit work.
 for f in \
   FINAL_STABILIZE_PROJECT.py \
   watch_training.sh \
@@ -86,11 +84,10 @@ for f in \
   [ -f "$f" ] && SAFE_DELETE+=("$f")
 done
 
-# Never automatically delete these even if they match names elsewhere.
 PROTECTED=(
   run_local.sh
   monitor_training.sh
-  updater
+  cleanup_project_safe.sh
   backend
   frontend
   data
@@ -112,7 +109,6 @@ for f in "${SAFE_DELETE[@]}"; do
 done
 
 say "SOURCE-CODE REDUNDANCY ANALYSIS (NO AUTO DELETE)"
-
 python3 - <<'PY' | tee "$REPORT_DIR/source_redundancy_candidates.txt"
 from pathlib import Path
 import ast
@@ -157,7 +153,7 @@ if [ -f backend/app/rl_agent/triage_env.py ] && [ -f backend/app/environment/tri
   printf '  active environment: backend/app/environment/triage_env.py\n'
   printf '  legacy data helper : backend/app/rl_agent/triage_env.py\n'
   printf '  The legacy helper is NOT deleted automatically.\n'
-  printf '  Live inference currently imports ACTIONS/FEATURES from it; this must be refactored first.\n'
+  printf '  Live inference currently imports ACTIONS/FEATURES from it; refactor first.\n'
 fi
 
 say "SAFE DELETE EXECUTION"
@@ -200,12 +196,12 @@ if [ -d frontend ] && [ -f frontend/package.json ]; then
   ok "Frontend build"
 fi
 
-# Focused import checks for the live path.
 PYTHONPATH="$ROOT/backend" "$PYTHON_BIN" - <<'PY'
-from app.environment.triage_env import RealTriageEnv, FEATURES if False else None
+from app.environment.triage_env import RealTriageEnv, FEATURE_COLUMNS
 from app.services.live_inference_service import get_inference_status
-from app.rl_agent.offline_algorithms import build_model, algorithm_metadata
+from app.rl_agent.offline_algorithms import algorithm_metadata
 print('[OK] Active environment import')
+print('[OK] Feature contract:', len(FEATURE_COLUMNS), 'features')
 print('[OK] Live inference import')
 for name in ('double_dqn', 'cql', 'iql', 'bcq'):
     algorithm_metadata(name)
