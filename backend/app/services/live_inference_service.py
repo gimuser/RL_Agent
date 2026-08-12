@@ -9,10 +9,9 @@ from typing import Any
 import numpy as np
 import torch
 
-from app.database.database import db
 from app.rl_agent.offline_algorithms import build_model, algorithm_metadata
 from app.rl_agent.triage_env import ACTIONS, FEATURES
-from app.services.model_versioning import get_current_model_version, ensure_model_version
+from app.services.model_versioning import ensure_model_version
 from app.services.live_alert_service import alerts_collection, activity_collection, analysts_collection
 
 MODEL_PATH = Path(__file__).resolve().parents[3] / "models" / "real_dqn_agent.pt"
@@ -47,12 +46,7 @@ def _least_loaded_analyst() -> dict[str, Any] | None:
 def _feature_matrix(document: dict[str, Any]) -> np.ndarray:
     processed = document.get("processed") or {}; missing = [n for n in FEATURES if n not in processed]
     if missing: raise ValueError(f"Alert {document.get('alert_id')} missing processed features: {missing}")
-    values = []
-    for name in FEATURES:
-        value = processed.get(name)
-        if value is None: raise ValueError(f"Alert {document.get('alert_id')} has null processed feature: {name}")
-        values.append(float(value))
-    return np.asarray([values], dtype=np.float32)
+    return np.asarray([[float(processed[name]) for name in FEATURES]], dtype=np.float32)
 
 
 def _load_model(*, model_path: Path | None = None, model_name: str | None = None):
@@ -74,7 +68,6 @@ def run_live_inference(*, confidence_threshold: float = DEFAULT_CONFIDENCE_THRES
     now = utc_now(); cycle_doc = alerts_collection.find_one({}, {"_id": 0, "cycle_id": 1, "decision_cycle_id": 1}) or {}
     cycle_id = cycle_doc.get("cycle_id") or cycle_doc.get("decision_cycle_id") or f"CYCLE-INFER-{int(now.timestamp())}"
     counts = {name: 0 for name in ACTIONS.values()}; routed = 0; errors = []; processed = 0; start = time.perf_counter()
-
     for document in documents:
         alert_id = str(document.get("alert_id"))
         try:
@@ -94,15 +87,7 @@ def run_live_inference(*, confidence_threshold: float = DEFAULT_CONFIDENCE_THRES
                 if analyst: assigned_analyst = analyst.get("analyst_id"); routed += 1
             q_map = {ACTIONS[index]: float(value) for index, value in enumerate(q_values)}
             probability_map = {ACTIONS[index]: float(value) for index, value in enumerate(probabilities)}
-            agent_state = {
-                "status": "INFERRED", "action": action_name, "model_action": ACTIONS[top_action], "confidence": confidence,
-                "q_values": q_map, "action_probabilities": probability_map, "confidence_threshold": float(confidence_threshold),
-                "margin_threshold": float(margin_threshold), "action_margin": margin, "uncertainty_reason": uncertainty_reason,
-                "model_version": model_meta.get("model_version"), "model_name": model_meta.get("model_name") or model_name,
-                "algorithm": model_meta.get("algorithm"), "algorithm_metadata": model_meta.get("algorithm_metadata"),
-                "candidate_model_path": str(selected_model_path) if selected_model_path else str(MODEL_PATH), "requires_human_review": requires_human,
-                "inference_timestamp": timestamp, "decision_cycle_id": cycle_id,
-            }
+            agent_state = {"status": "INFERRED", "action": action_name, "model_action": ACTIONS[top_action], "confidence": confidence, "q_values": q_map, "action_probabilities": probability_map, "confidence_threshold": float(confidence_threshold), "margin_threshold": float(margin_threshold), "action_margin": margin, "uncertainty_reason": uncertainty_reason, "model_version": model_meta.get("model_version"), "model_name": model_meta.get("model_name") or model_name, "algorithm": model_meta.get("algorithm"), "algorithm_metadata": model_meta.get("algorithm_metadata"), "candidate_model_path": str(selected_model_path) if selected_model_path else str(MODEL_PATH), "requires_human_review": requires_human, "inference_timestamp": timestamp, "decision_cycle_id": cycle_id}
             alerts_collection.update_one({"alert_id": alert_id}, {"$set": {"status": status, "agent": agent_state, "assigned_analyst": assigned_analyst, "updated_at": timestamp, "cycle_id": cycle_id, "decision_cycle_id": cycle_id}})
             activity_collection.insert_one({"alert_id": alert_id, "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "actor": "agent", "action": "AGENT_INFERENCE", "details": {"action": action_name, "model_action": ACTIONS[top_action], "confidence": confidence, "action_margin": margin, "uncertainty_reason": uncertainty_reason, "model_version": model_meta.get("model_version"), "algorithm": model_meta.get("algorithm")}, "timestamp": timestamp})
             if requires_human:
@@ -111,8 +96,17 @@ def run_live_inference(*, confidence_threshold: float = DEFAULT_CONFIDENCE_THRES
         except Exception as exc:
             errors.append({"alert_id": alert_id, "error": str(exc)})
             activity_collection.insert_one({"alert_id": alert_id, "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "actor": "system", "action": "AGENT_INFERENCE_ERROR", "details": {"error": str(exc), "model_version": model_meta.get("model_version")}, "timestamp": utc_now()})
-
     elapsed = time.perf_counter() - start
     summary = {"status": "completed" if not errors else "completed_with_errors", "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "model_version": model_meta.get("model_version"), "model_name": model_meta.get("model_name") or model_name, "algorithm": model_meta.get("algorithm"), "confidence_threshold": confidence_threshold, "margin_threshold": margin_threshold, "alerts_considered": len(documents), "alerts_processed": processed, "human_review_routed": routed, "action_distribution": counts, "errors": errors, "duration_seconds": elapsed}
     INFERENCE_META_PATH.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     return summary
+
+
+def get_inference_status() -> dict[str, Any]:
+    try:
+        if INFERENCE_META_PATH.exists():
+            payload = json.loads(INFERENCE_META_PATH.read_text(encoding="utf-8"))
+            if isinstance(payload, dict): return payload
+    except Exception as exc:
+        return {"status": "error", "error": str(exc)}
+    return {"status": "idle", "message": "No live inference cycle has been recorded yet.", "alerts_considered": 0, "alerts_processed": 0, "human_review_routed": 0, "action_distribution": {name: 0 for name in ACTIONS.values()}}
