@@ -18,26 +18,10 @@ export type TrainingMetricRow = {
   rows?: number;
   incidents?: number;
   updates?: number;
-  total_updates?: number;
-  updates_per_epoch?: number;
   loss: number;
   average_reward?: number;
-  policy_reward?: number;
-  oracle_average_reward?: number;
-  reward_efficiency?: number;
   action_counts?: Record<string, number>;
   time_seconds?: number;
-  validation?: Record<string, unknown> | null;
-  validation_score?: number | null;
-  patience_used?: number;
-  best_epoch?: number;
-};
-
-export type TrainingMetricsResponse = {
-  metrics: {
-    config?: Record<string, unknown>;
-    metrics: TrainingMetricRow[];
-  };
 };
 
 export type AuthoritativeHistoryPoint = {
@@ -59,6 +43,7 @@ export type AuthoritativeHistoryPoint = {
   validation_score?: number | null;
   patience_used?: number | null;
   best_epoch?: number | null;
+  improved?: boolean | null;
 };
 
 export type AuthoritativeResults = {
@@ -128,6 +113,22 @@ export type AuthoritativeResults = {
     size_bytes?: number | null;
     modified_at?: string | null;
   };
+  live_inference?: {
+    status?: string;
+    decision_cycle_id?: string | null;
+    model_version?: string | null;
+    human_review_routed?: number | null;
+    alerts_processed?: number | null;
+    alerts_considered?: number | null;
+    action_distribution?: Record<string, number> | null;
+    errors?: Array<Record<string, unknown>>;
+  } | null;
+  post_training?: {
+    status?: string;
+    model?: Record<string, unknown> | null;
+    inference?: Record<string, unknown> | null;
+    decision_cycle?: string | null;
+  } | null;
 };
 
 export type AuthoritativeTrainingStatus = {
