@@ -6,39 +6,13 @@ export const trainingService = {
   getHistory: () => apiRequest<TrainingHistory>("/api/training/history"),
   getCheckpoints: () => apiRequest<TrainingCheckpoints>("/api/training/checkpoints"),
   getMetrics: () => apiRequest<TrainingMetricsResponse>("/api/training/metrics"),
-  start: () => apiRequest<{ message: string }> ("/api/training/start", { method: "POST" }),
-  stop: () => apiRequest<{ message: string }> ("/api/training/stop", { method: "POST" }),
-  startExperiment: (models: any) => apiRequest<any>("/api/training/experiment", { method: "POST", body: JSON.stringify(models) }),
-  stopExperiment: (runId: string) => apiRequest<any>(`/api/training/experiment/${runId}/stop`, { method: "POST" }),
+  start: () => apiRequest<{ message: string }>("/api/training/start", { method: "POST" }),
+  stop: () => apiRequest<{ message: string }>("/api/training/stop", { method: "POST" }),
+  startExperiment: (models: unknown) => apiRequest<unknown>("/api/training/experiment", { method: "POST", body: JSON.stringify(models) }),
+  stopExperiment: (runId: string) => apiRequest<unknown>(`/api/training/experiment/${runId}/stop`, { method: "POST" }),
   getExperimentStatus: (runId: string) => apiRequest<ExperimentStatus>(`/api/training/experiment/${runId}/status`),
-
-  startFullRealTraining: () =>
-    apiRequest<{ status: string; message: string }>(
-      "/api/training/full-real-training",
-      {
-        method: "POST",
-      },
-    ),
-
-  getFullRealTrainingStatus: () =>
-    apiRequest<{ status: string; message: string }>(
-      "/api/training/full-real-training/status",
-    ),
 };
 
-// Authoritative backend metrics response:
-// {
-//   "metrics": {
-//     "config": {...},
-//     "metrics": [
-//       {
-//         "epoch": number,
-//         "loss": number,
-//         ...
-//       }
-//     ]
-//   }
-// }
 export type TrainingMetricRow = {
   epoch: number;
   rows?: number;
@@ -69,7 +43,6 @@ export type TrainingMetricsResponse = {
   };
 };
 
-
 export type AuthoritativeHistoryPoint = {
   epoch: number;
   loss: number;
@@ -79,12 +52,12 @@ export type AuthoritativeHistoryPoint = {
   rows?: number | null;
   incidents?: number | null;
   action_distribution?: Record<string, number> | null;
+  time_seconds?: number | null;
 };
 
 export type AuthoritativeResults = {
   source?: string;
   status?: string;
-
   dataset?: {
     name?: string;
     train_rows?: number | null;
@@ -96,7 +69,6 @@ export type AuthoritativeResults = {
     synthetic_data?: boolean | null;
     unseen_incidents?: boolean | null;
   };
-
   training?: {
     epochs?: number | null;
     batch_size?: number | null;
@@ -107,7 +79,6 @@ export type AuthoritativeResults = {
     action_distribution?: Record<string, number> | null;
     history?: AuthoritativeHistoryPoint[];
   };
-
   evaluation?: {
     samples?: number | null;
     throughput_rows_per_second?: number | null;
@@ -116,16 +87,8 @@ export type AuthoritativeResults = {
     reward_efficiency?: number | null;
     reward_regret?: number | null;
     action_distribution?: Record<string, number> | null;
-    per_class?: Record<
-      string,
-      {
-        rows?: number;
-        average_reward?: number;
-        optimality?: number;
-      }
-    > | null;
+    per_class?: Record<string, { rows?: number; average_reward?: number; optimality?: number }> | null;
   };
-
   model?: {
     path?: string | null;
     exists?: boolean;
@@ -137,19 +100,16 @@ export type AuthoritativeResults = {
 export type AuthoritativeTrainingStatus = {
   status: string;
   message?: string;
+  started_at?: string | null;
+  pid?: number | null;
   results?: AuthoritativeResults | null;
 };
 
 export const getAuthoritativeFullTrainingStatus = () =>
-  apiRequest<AuthoritativeTrainingStatus>(
-    "/api/training/full-real-training/status",
-  );
+  apiRequest<AuthoritativeTrainingStatus>("/api/training-control");
 
 export const startAuthoritativeFullTraining = () =>
-  apiRequest<{
-    status: string;
-    message?: string;
-  }>("/api/training/full-real-training", {
-    method: "POST",
-  });
+  apiRequest<{ status: string; message?: string }>("/api/training-control", { method: "POST" });
 
+export const stopAuthoritativeFullTraining = () =>
+  apiRequest<{ status: string; message?: string }>("/api/training-control/stop", { method: "POST" });
