@@ -54,8 +54,13 @@ def _history() -> list[dict[str, Any]]:
             {
                 "epoch": epoch,
                 "loss": loss,
-                "avg_reward": item.get("average_reward", item.get("avg_reward")),
+                "avg_reward": item.get("average_reward"),
+                "policy_reward": item.get("policy_reward", item.get("average_reward")),
+                "oracle_average_reward": item.get("oracle_average_reward"),
+                "reward_efficiency": item.get("reward_efficiency"),
                 "updates": item.get("updates"),
+                "total_updates": item.get("total_updates"),
+                "updates_per_epoch": item.get("updates_per_epoch"),
                 "rows": item.get("rows"),
                 "incidents": item.get("incidents"),
                 "action_distribution": item.get("action_counts") or item.get("action_distribution") or item.get("actions"),
@@ -79,7 +84,6 @@ def _results() -> dict[str, Any]:
     history = _history()
     last = history[-1] if history else {}
     features = split.get("features")
-
     model_exists = MODEL_PATH.exists()
     model_size = None
     model_modified = None
@@ -117,14 +121,21 @@ def _results() -> dict[str, Any]:
             "patience": config.get("patience"),
             "min_delta": config.get("min_delta"),
             "batch_size": config.get("batch_size"),
+            "updates_per_epoch": last.get("updates_per_epoch") or config.get("updates_per_epoch"),
+            "max_total_updates": config.get("max_total_updates"),
+            "total_updates_used": training.get("total_updates_used", last.get("total_updates")),
             "final_epoch": last.get("epoch"),
             "final_loss": last.get("loss"),
             "final_avg_reward": last.get("avg_reward"),
-            "updates_per_epoch": last.get("updates"),
+            "policy_reward": last.get("policy_reward"),
+            "oracle_average_reward": last.get("oracle_average_reward"),
+            "reward_efficiency": last.get("reward_efficiency"),
             "rows_per_epoch": last.get("rows"),
             "incidents_per_epoch": last.get("incidents"),
             "action_distribution": last.get("action_distribution"),
             "validation": last.get("validation"),
+            "validation_score": last.get("validation_score"),
+            "patience_used": last.get("patience_used"),
             "best_epoch": training.get("best_epoch", last.get("best_epoch")),
             "history": history,
         },
@@ -135,6 +146,7 @@ def _results() -> dict[str, Any]:
             "action_distribution": testing.get("action_distribution"),
             "per_class": testing.get("per_class"),
             "average_reward": testing.get("average_reward"),
+            "oracle_average_reward": testing.get("oracle_average_reward"),
             "policy_optimality": testing.get("policy_optimality"),
             "reward_efficiency": testing.get("reward_efficiency"),
             "reward_regret": testing.get("reward_regret"),
@@ -194,7 +206,7 @@ def start() -> dict[str, Any]:
         )
         _started_at = datetime.now(timezone.utc).isoformat()
         _last_return_code = None
-        _last_message = "Full real-data RL training started with validation and model comparison."
+        _last_message = "Full real-data RL training started with adaptive stopping and model comparison."
         return {"status": "started", "message": _last_message, "pid": _process.pid, "started_at": _started_at}
 
 
@@ -243,7 +255,7 @@ def status() -> dict[str, Any]:
             results = _results()
             if running:
                 state = "running"
-                message = "Training real processed data with validation, early stopping, and model comparison."
+                message = "Training real processed data with adaptive stopping and model comparison."
             elif _last_return_code == 0:
                 state = "completed"
                 message = _last_message or "Training and model comparison completed."
