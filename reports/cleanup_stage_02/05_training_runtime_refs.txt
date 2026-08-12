@@ -1,0 +1,127 @@
+backend/app/database/database.py:23:training_metrics_collection = db["training_metrics"]
+backend/app/database/database.py:40:    "training_metrics_collection",
+backend/app/services/post_training_service.py:13:TRAIN_METRICS = MODELS_DIR / "training_metrics.json"
+backend/app/services/post_training_service.py:18:    holdout. Existing analyst actions are preserved in MongoDB history; this
+backend/app/services/post_training_service.py:23:        if TRAIN_METRICS.exists():
+backend/app/services/post_training_service.py:24:            data = json.loads(TRAIN_METRICS.read_text(encoding="utf-8"))
+backend/app/services/post_training_service.py:33:            "best_epoch": training.get("best_epoch"),
+backend/app/services/authoritative_training_control.py:19:TRAIN_METRICS = MODELS_DIR / "training_metrics.json"
+backend/app/services/authoritative_training_control.py:62:def _history() -> list[dict[str, Any]]:
+backend/app/services/authoritative_training_control.py:63:    data = _load_json(TRAIN_METRICS) or {}
+backend/app/services/authoritative_training_control.py:77:            "best_epoch": item.get("best_epoch"), "patience_used": item.get("patience_used"), "improved": item.get("improved"),
+backend/app/services/authoritative_training_control.py:78:            "stopping_reason": item.get("stopping_reason"), "run_id": item.get("run_id"), "algorithm": item.get("algorithm"),
+backend/app/services/authoritative_training_control.py:162:        TRAIN_METRICS.write_text(json.dumps({"config": {"run_id": _run_id, "selected_models": selected, "status": "starting"}, "metrics": []}, indent=2), encoding="utf-8")
+backend/app/services/authoritative_training_control.py:224:            training = _load_json(TRAIN_METRICS) or {}
+backend/app/services/authoritative_training_control.py:231:            history = _history() if same_run else []
+backend/app/services/authoritative_training_control.py:232:            last = history[-1] if history else {}
+backend/app/services/authoritative_training_control.py:240:            elif history:
+backend/app/services/authoritative_training_control.py:252:                "training": {"run_id": run_state.get("run_id"), "model_name": config.get("model_name"), "algorithm": config.get("algorithm"), "display_name": config.get("display_name"), "candidate_index": config.get("candidate_index"), "candidate_count": config.get("candidate_count", len(_selected_models)), "selected_models": run_state.get("selected_models", _selected_models), "learning_rate": config.get("learning_rate"), "epochs": config.get("max_epochs", config.get("epochs")), "actual_epochs": training.get("actual_epochs", last.get("epoch")), "min_epochs": config.get("min_epochs"), "patience": config.get("patience"), "min_delta": config.get("min_delta"), "stability_window": config.get("stability_window"), "stability_tolerance": config.get("stability_tolerance"), "batch_size": config.get("batch_size"), "updates_per_epoch": training.get("updates_per_epoch") or last.get("updates_per_epoch"), "max_total_updates": training.get("max_total_updates") or config.get("max_total_updates"), "total_updates_used": training.get("total_updates_used", last.get("total_updates")), "policy_reward": last.get("policy_reward"), "oracle_average_reward": last.get("oracle_average_reward"), "reward_efficiency": last.get("reward_efficiency"), "validation": last.get("validation"), "validation_score": last.get("validation_score"), "best_epoch": training.get("best_epoch", last.get("best_epoch")), "stopping_reason": training.get("stopping_reason") or last.get("stopping_reason"), "history": history},
+backend/app/services/authoritative_training_control.py:261:            return {"status": "error", "message": f"Training telemetry error: {exc}", "results": {"training": {"history": []}, "dataset": {}, "evaluation": {}, "comparison": {}, "model": {}}}
+backend/app/services/dashboard_service.py:15:TRAIN_METRICS = (
+backend/app/services/dashboard_service.py:16:    ROOT / "models" / "training_metrics.json"
+backend/app/services/dashboard_service.py:42:        TRAIN_METRICS
+backend/app/services/dashboard_service.py:62:    # training_metrics.json:
+backend/app/services/dashboard_service.py:76:    history = (
+backend/app/services/dashboard_service.py:87:        int(history[-1].get("rows", 0))
+backend/app/services/dashboard_service.py:88:        if history
+backend/app/services/dashboard_service.py:124:        int(history[-1].get("epoch", 0))
+backend/app/services/dashboard_service.py:125:        if history
+backend/app/services/dashboard_service.py:140:            and bool(history)
+backend/app/services/live_alert_service.py:166:def get_history(alert_id: str) -> list[dict[str, Any]]:
+backend/app/services/training_service.py:9:    training_metrics_collection,
+backend/app/services/training_service.py:15:TRAIN_METRICS = MODELS / "training_metrics.json"
+backend/app/services/training_service.py:33:def _history():
+backend/app/services/training_service.py:34:    data = _load_json("training_metrics.json")
+backend/app/services/training_service.py:39:        for key in ("history", "episodes", "training_history"):
+backend/app/services/training_service.py:49:    history = _history()
+backend/app/services/training_service.py:53:        "current_epoch": int(history[-1].get("epoch", 0)) if history and isinstance(history[-1], dict) else int(STATE.get("current_epoch", 0)),
+backend/app/services/training_service.py:82:def get_history(*args, **kwargs):
+backend/app/services/training_service.py:83:    return _history()
+backend/app/services/training_service.py:87:    data = _load_json("training_metrics.json")
+backend/app/services/training_service.py:91:def get_training_metrics(*args, **kwargs):
+backend/app/services/training_service.py:95:def get_training_history(*args, **kwargs):
+backend/app/services/training_service.py:96:    return get_history(*args, **kwargs)
+backend/app/schemas/training_schema.py:18:	history: List[TrainingHistoryItem]
+backend/app/api/live_cycle.py:27:@router.get("/history")
+backend/app/api/live_cycle.py:28:def cycle_history(limit: int = Query(default=20, ge=1, le=100)):
+backend/app/api/training.py:7:    get_history,
+backend/app/api/training.py:30:@router.get("/history")
+backend/app/api/training.py:31:def api_get_history():
+backend/app/api/training.py:32:    return {"history": get_history()}
+backend/app/api/training.py:143:        "training": _root / "models" / "training_metrics.json",
+backend/app/api/training.py:168:def _history(training):
+backend/app/api/training.py:173:        training.get("history"),
+backend/app/api/training.py:244:    # training_metrics.json is:
+backend/app/api/training.py:261:    history = []
+backend/app/api/training.py:276:        history.append(
+backend/app/api/training.py:296:    last = history[-1] if history else {}
+backend/app/api/training.py:327:    if epochs is None and history:
+backend/app/api/training.py:328:        epochs = history[-1]["epoch"]
+backend/app/api/training.py:348:            if model_exists and history
+backend/app/api/training.py:393:            "history": history,
+backend/app/api/live_alerts.py:12:    get_history,
+backend/app/api/live_alerts.py:61:    document["history"] = get_history(alert_id)
+backend/app/api/live_alerts.py:65:@router.get("/live-alerts/{alert_id}/history")
+backend/app/api/live_alerts.py:66:def live_alert_history(alert_id: str):
+backend/app/api/live_alerts.py:69:    items = get_history(alert_id)
+backend/app/api/live_alerts.py:70:    return {"items": items, "history": items, "total": len(items)}
+backend/app/api/authoritative_metrics.py:28:    training = _load("training_metrics.json")
+backend/app/api/authoritative_metrics.py:31:    history = training.get("metrics") if isinstance(training.get("metrics"), list) else []
+backend/app/api/authoritative_metrics.py:32:    last = history[-1] if history else {}
+backend/app/api/authoritative_metrics.py:40:            "history": history,
+backend/app/rl_agent/sequential_experiment.py:20:    TRAIN_METRICS_PATH,
+backend/app/rl_agent/sequential_experiment.py:49:    """Persist the complete in-memory epoch history for one candidate/run.
+backend/app/rl_agent/sequential_experiment.py:51:    The trainer also writes training_metrics.json. This callback intentionally
+backend/app/rl_agent/sequential_experiment.py:87:        "best_epoch": result.get("best_epoch"),
+backend/app/rl_agent/sequential_experiment.py:92:        "stopping_reason": result.get("stopping_reason"),
+backend/app/rl_agent/sequential_experiment.py:94:    TRAIN_METRICS_PATH.write_text(
+backend/app/rl_agent/sequential_experiment.py:111:    patience = _int_env("REAL_RL_PATIENCE", 10)
+backend/app/rl_agent/sequential_experiment.py:143:        candidate_history: list[dict[str, Any]] = []
+backend/app/rl_agent/sequential_experiment.py:152:        TRAIN_METRICS_PATH.write_text(
+backend/app/rl_agent/sequential_experiment.py:173:            candidate_history.append(dict(row))
+backend/app/rl_agent/sequential_experiment.py:187:                    "patience": patience,
+backend/app/rl_agent/sequential_experiment.py:192:                candidate_history,
+backend/app/rl_agent/sequential_experiment.py:195:                    "best_epoch": row.get("best_epoch"),
+backend/app/rl_agent/sequential_experiment.py:199:                    "stopping_reason": row.get("stopping_reason"),
+backend/app/rl_agent/sequential_experiment.py:210:            patience=patience,
+backend/app/rl_agent/sequential_experiment.py:227:            candidate_history = [dict(item) for item in result["metrics"]]
+backend/app/rl_agent/sequential_experiment.py:241:                    "patience": patience,
+backend/app/rl_agent/sequential_experiment.py:246:                candidate_history,
+backend/app/rl_agent/sequential_experiment.py:263:            "best_epoch": int(result.get("best_epoch", 0)),
+backend/app/rl_agent/sequential_experiment.py:267:            "stopping_reason": result.get("stopping_reason"),
+backend/app/rl_agent/sequential_experiment.py:290:                "best_epoch": candidate["best_epoch"],
+backend/app/rl_agent/sequential_experiment.py:372:            "best_epoch": best["best_epoch"],
+backend/app/rl_agent/sequential_experiment.py:414:    selected_history_path = EXPERIMENTS_DIR / f"{run_id}__{best['name']}.training.json"
+backend/app/rl_agent/sequential_experiment.py:415:    selected_history = json.loads(selected_history_path.read_text(encoding="utf-8"))
+backend/app/rl_agent/sequential_experiment.py:416:    selected_config = selected_history.get("config", {})
+backend/app/rl_agent/sequential_experiment.py:431:    TRAIN_METRICS_PATH.write_text(
+backend/app/rl_agent/sequential_experiment.py:436:                "metrics": selected_history.get("metrics", []),
+backend/app/rl_agent/sequential_experiment.py:437:                "best_epoch": best["best_epoch"],
+backend/app/rl_agent/sequential_experiment.py:440:                "total_updates_used": selected_history.get("total_updates_used"),
+backend/app/rl_agent/sequential_experiment.py:441:                "updates_per_epoch": selected_history.get("updates_per_epoch"),
+backend/app/rl_agent/sequential_experiment.py:442:                "max_total_updates": selected_history.get("max_total_updates"),
+backend/app/rl_agent/sequential_experiment.py:443:                "stopping_reason": best.get("stopping_reason"),
+backend/app/rl_agent/offline_algorithms.py:128:def train_step(model, algorithm: str, states, reward_matrix, next_states, dones) -> float:
+backend/app/rl_agent/real_pipeline.py:22:TRAIN_METRICS_PATH = MODELS / "training_metrics.json"
+backend/app/rl_agent/trainer.py:100:    patience: int = 10,
+backend/app/rl_agent/trainer.py:123:    metrics_path = Path(__file__).resolve().parents[3] / "models" / "training_metrics.json"
+backend/app/rl_agent/trainer.py:126:    best_score = -float("inf"); best_epoch = 0; best_validation = None
+backend/app/rl_agent/trainer.py:127:    epochs_without_improvement = 0; total_updates_used = 0; stopping_reason = "max_epochs_reached"
+backend/app/rl_agent/trainer.py:131:        "epochs": epochs, "max_epochs": epochs, "min_epochs": min_epochs, "patience": patience, "min_delta": min_delta,
+backend/app/rl_agent/trainer.py:145:            stopping_reason = "update_budget_reached"; break
+backend/app/rl_agent/trainer.py:157:            total_loss += _finite(train_step(model, algorithm, batch_states, reward_matrix, batch_next, batch_dones))
+backend/app/rl_agent/trainer.py:174:                best_score = validation_score; best_epoch = epoch; best_validation = validation; epochs_without_improvement = 0; _checkpoint(model, best_path)
+backend/app/rl_agent/trainer.py:182:            "time_seconds": elapsed, "validation": validation, "validation_score": validation_score, "best_epoch": best_epoch,
+backend/app/rl_agent/trainer.py:183:            "patience_used": epochs_without_improvement, "improved": improved, "algorithm": algorithm_info["algorithm"],
+backend/app/rl_agent/trainer.py:184:            "behavior_action_mode": algorithm_info["behavior_action_mode"], "stopping_reason": None,
+backend/app/rl_agent/trainer.py:199:            if persistent_decline: stopping_reason = "persistent_validation_decline"
+backend/app/rl_agent/trainer.py:200:            elif convergence: stopping_reason = "validation_and_policy_converged"
+backend/app/rl_agent/trainer.py:201:            elif epochs_without_improvement >= patience: stopping_reason = "validation_patience_exhausted"
+backend/app/rl_agent/trainer.py:202:            if stopping_reason != "max_epochs_reached": row["stopping_reason"] = stopping_reason
+backend/app/rl_agent/trainer.py:204:        metrics_path.write_text(json.dumps({"config": config, "metrics": metrics, "best_epoch": best_epoch, "actual_epochs": epoch, "best_validation": best_validation, "total_updates_used": total_updates_used, "updates_per_epoch": updates_per_epoch, "max_total_updates": update_budget, "stopping_reason": row["stopping_reason"]}, indent=2, default=str), encoding="utf-8")
+backend/app/rl_agent/trainer.py:206:        if row["stopping_reason"]: break
+backend/app/rl_agent/trainer.py:207:        if total_updates_used >= update_budget: stopping_reason = "update_budget_reached"; break
+backend/app/rl_agent/trainer.py:210:    if best_path.exists() and best_epoch:
+backend/app/rl_agent/trainer.py:213:    final_epoch = metrics[-1]["epoch"] if metrics else 0
+backend/app/rl_agent/trainer.py:214:    result = {"config": config, "metrics": metrics, "best_epoch": best_epoch, "best_validation": best_validation, "actual_epochs": final_epoch, "total_updates_used": total_updates_used, "updates_per_epoch": updates_per_epoch, "max_total_updates": update_budget, "stopping_reason": stopping_reason}
+backend/app/rl_agent/metrics.py:55:    def save_csv(self, filename="logs/training_metrics.csv"):

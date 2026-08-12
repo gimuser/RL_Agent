@@ -1,0 +1,16 @@
+backend/app/rl_agent/networks.py:109:    Backward-compatible DQN Q-network.
+backend/app/rl_agent/networks.py:114:    The architecture is intentionally simple and compatible with the
+backend/app/rl_agent/sequential_experiment.py:39:    return os.getenv("REAL_RL_RUN_ID", "legacy-run")
+backend/app/rl_agent/real_pipeline.py:101:# Backward-compatible helpers used by triage_env and legacy tests.
+backend/app/rl_agent/dqn.py:282:# This facade only adapts the older application API to DoubleDQN.
+backend/app/rl_agent/dqn.py:287:    Application compatibility facade over the accepted DoubleDQN model.
+backend/app/rl_agent/dqn.py:326:        Application compatibility:
+backend/app/services/model_service.py:94:                f"Model metadata has incompatible {key}: "
+backend/app/services/experiment_service.py:1:"""Legacy multi-model experiment compatibility layer.
+backend/app/services/experiment_service.py:5:compatible for the older experiment API, but it must not import the removed
+backend/app/services/experiment_service.py:6:legacy ``Trainer`` class during FastAPI startup.
+backend/app/services/experiment_service.py:33:            "The legacy multi-model experiment endpoint is retired. "
+backend/app/services/training_service.py:18:# /api/training-control. This module remains only for backwards-compatible
+backend/app/services/training_service.py:19:# legacy /api/training endpoints and must not import the removed Trainer class.
+backend/app/api/training.py:103:    This is intentionally separate from the legacy multi-model
+backend/app/api/live_alerts.py:86:    This is intentionally separate from the legacy /api/decisions collection:

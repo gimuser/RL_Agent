@@ -1,0 +1,71 @@
+backend/app/evaluation/reward_metrics.py:1:"""Reward metric evaluators."""
+backend/app/services/agent_service.py:10:from app.rl_agent.dqn import DQNAgent
+backend/app/services/post_training_service.py:29:    model_name = str(training.get("model_name") or training.get("algorithm") or "DoubleDQN")
+backend/app/services/authoritative_training_control.py:84:    from app.rl_agent.real_pipeline import _experiment_configs
+backend/app/services/authoritative_training_control.py:85:    from app.rl_agent.offline_algorithms import algorithm_metadata
+backend/app/services/authoritative_training_control.py:102:        if "app.rl_agent.sequential_experiment" not in line or "grep" in line: continue
+backend/app/services/authoritative_training_control.py:117:            from app.services.post_training_service import promote_and_infer
+backend/app/services/authoritative_training_control.py:178:        _process = subprocess.Popen([sys.executable, "-m", "app.rl_agent.sequential_experiment"], cwd=str(PROJECT_ROOT / "backend"), env=env, stdout=_log_handle, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+backend/app/services/model_service.py:25:from app.rl_agent.dqn import DoubleDQN
+backend/app/services/model_service.py:101:def _build_agent() -> DoubleDQN:
+backend/app/services/model_service.py:102:    return DoubleDQN(
+backend/app/services/model_service.py:116:) -> tuple[DoubleDQN, dict[str, Any]]:
+backend/app/services/model_service.py:133:        # Load the authoritative DoubleDQN checkpoint.
+backend/app/services/model_service.py:154:def load_model() -> tuple[DoubleDQN, dict[str, Any]]:
+backend/app/services/model_service.py:180:    model: DoubleDQN,
+backend/app/services/experiment_service.py:6:legacy ``Trainer`` class during FastAPI startup.
+backend/app/services/live_inference_service.py:12:from app.rl_agent.offline_algorithms import build_model, algorithm_metadata
+backend/app/services/live_inference_service.py:13:from app.rl_agent.triage_env import ACTIONS, FEATURES
+backend/app/services/model_versioning.py:26:    model_name: str = "DoubleDQN",
+backend/app/services/live_alert_service.py:243:        "algorithm": (model_meta or {}).get("model_name", "DoubleDQN"),
+backend/app/services/training_service.py:19:# legacy /api/training endpoints and must not import the removed Trainer class.
+backend/app/api/authoritative_training.py:6:from app.services.authoritative_training_control import models, start, status, stop
+backend/app/api/training.py:2:from app.services.training_service import (
+backend/app/api/training.py:10:from app.services.experiment_service import get_experiment_status, start_experiment_background, stop_experiment
+backend/app/api/training.py:75:        from app.rl_agent.real_pipeline import main
+backend/app/api/router.py:7:from app.api.training import router as training_router
+backend/app/api/router.py:13:from app.api.metrics import router as metrics_router
+backend/app/api/router.py:17:from app.api.authoritative_training import router as authoritative_training_router
+backend/app/api/router.py:18:from app.api.authoritative_metrics import router as authoritative_metrics_router
+backend/app/tests/test_environment.py:52:    from app.rl_agent.real_pipeline import load_dataset
+backend/app/tests/test_experiment_status.py:3:from app.services.experiment_service import get_experiment_status, start_experiment_background
+backend/app/environment/triage_env.py:27:from app.rl_agent.real_pipeline import (
+backend/app/rl_agent/networks.py:101:#     from app.rl_agent.networks import QNetwork
+backend/app/rl_agent/networks.py:104:# remains DoubleDQN in dqn.py.
+backend/app/rl_agent/bcq.py:4:class BCQDatasetError(RuntimeError):
+backend/app/rl_agent/bcq.py:11:        raise BCQDatasetError(
+backend/app/rl_agent/bcq.py:12:            "BCQ requires logged behavior actions so the learned policy can be "
+backend/app/rl_agent/iql.py:4:class IQLDatasetError(RuntimeError):
+backend/app/rl_agent/iql.py:11:        raise IQLDatasetError(
+backend/app/rl_agent/iql.py:12:            "IQL requires a logged behavior-action column. "
+backend/app/rl_agent/iql.py:14:            "but no historical agent action, so IQL cannot be trained faithfully "
+backend/app/rl_agent/sequential_experiment.py:13:from .evaluator import evaluate
+backend/app/rl_agent/sequential_experiment.py:14:from .offline_algorithms import algorithm_metadata, get_algorithm
+backend/app/rl_agent/sequential_experiment.py:15:from .real_pipeline import (
+backend/app/rl_agent/cql.py:6:from .dqn import DoubleDQN
+backend/app/rl_agent/cql.py:9:class CQLDoubleDQN(DoubleDQN):
+backend/app/rl_agent/offline_algorithms.py:3:IQL and BCQ normally require logged behavior actions. The current dataset does not
+backend/app/rl_agent/offline_algorithms.py:18:from .cql import CQLDoubleDQN
+backend/app/rl_agent/offline_algorithms.py:19:from .dqn import DoubleDQN
+backend/app/rl_agent/offline_algorithms.py:34:    "cql": AlgorithmSpec("cql", "Conservative Q-Learning (CQL)", "offline-value", False, True, "Conservative value learning over the counterfactual action set."),
+backend/app/rl_agent/offline_algorithms.py:35:    "iql": AlgorithmSpec("iql", "Implicit Q-Learning (IQL)", "offline-value", True, True, "Discrete IQL using an explicit reward-derived behavior proxy when logged actions are absent."),
+backend/app/rl_agent/offline_algorithms.py:36:    "bcq": AlgorithmSpec("bcq", "Batch-Constrained Q-Learning (BCQ)", "offline-value", True, True, "Discrete BCQ using an explicit reward-derived behavior proxy when logged actions are absent."),
+backend/app/rl_agent/offline_algorithms.py:56:    return {"algorithm": spec.name, "display_name": spec.display_name, "family": spec.family, "requires_logged_actions": spec.requires_logged_actions, "behavior_action_mode": "reward_proxy" if proxy else "counterfactual_reward_matrix", "research_warning": "IQL/BCQ use reward-derived behavior actions because no historical agent-action column exists in the current dataset." if proxy else None}
+backend/app/rl_agent/offline_algorithms.py:59:class IQLProxy(DoubleDQN):
+backend/app/rl_agent/offline_algorithms.py:92:class BCQProxy(DoubleDQN):
+backend/app/rl_agent/offline_algorithms.py:121:    if key == "double_dqn": return DoubleDQN(**common)
+backend/app/rl_agent/offline_algorithms.py:122:    if key == "cql": return CQLDoubleDQN(**common, cql_alpha=1.0)
+backend/app/rl_agent/offline_algorithms.py:123:    if key == "iql": return IQLProxy(**common, expectile=0.7, beta=3.0)
+backend/app/rl_agent/offline_algorithms.py:124:    if key == "bcq": return BCQProxy(**common, threshold=0.05)
+backend/app/rl_agent/evaluator.py:10:from .offline_algorithms import build_model, algorithm_metadata
+backend/app/rl_agent/evaluate_real.py:1:from .real_pipeline import TEST_PATH, MODEL_PATH
+backend/app/rl_agent/evaluate_real.py:2:from .evaluator import evaluate
+backend/app/rl_agent/inference.py:8:from .dqn import DoubleDQN
+backend/app/rl_agent/inference.py:28:    model = DoubleDQN(
+backend/app/rl_agent/trainer.py:15:from .offline_algorithms import algorithm_metadata, build_model, train_step
+backend/app/rl_agent/dqn.py:11:class DoubleDQN:
+backend/app/rl_agent/dqn.py:279:#     from app.rl_agent.dqn import DQNAgent
+backend/app/rl_agent/dqn.py:281:# The accepted DoubleDQN remains the authoritative implementation.
+backend/app/rl_agent/dqn.py:282:# This facade only adapts the older application API to DoubleDQN.
+backend/app/rl_agent/dqn.py:287:    Application compatibility facade over the accepted DoubleDQN model.
+backend/app/rl_agent/dqn.py:303:        self._agent = DoubleDQN(
