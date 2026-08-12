@@ -1,0 +1,75 @@
+backend/app/config/settings.py:26:        self.model_path: Path = Path(os.getenv("MODEL_PATH", str(self.model_dir / "triage_dqn.pt")))
+backend/app/database/database.py:13:# elsewhere (training, metrics, checkpoints) so imports succeed.
+backend/app/database/database.py:21:checkpoints_collection = db["checkpoints"]
+backend/app/database/database.py:38:    "checkpoints_collection",
+backend/app/services/agent_service.py:28:    / "real_dqn_agent.pt"
+backend/app/services/agent_service.py:46:    checkpoint = torch.load(
+backend/app/services/agent_service.py:53:            checkpoint["state_dim"]
+backend/app/services/agent_service.py:56:            checkpoint["action_dim"]
+backend/app/services/agent_service.py:61:        checkpoint["state_dict"]
+backend/app/services/agent_service.py:65:        checkpoint[
+backend/app/services/authoritative_training_control.py:25:MODEL_PATH = MODELS_DIR / "real_dqn_agent.pt"
+backend/app/services/model_service.py:133:        # Load the authoritative DoubleDQN checkpoint.
+backend/app/services/live_inference_service.py:17:MODEL_PATH = Path(__file__).resolve().parents[3] / "models" / "real_dqn_agent.pt"
+backend/app/services/live_inference_service.py:55:    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+backend/app/services/live_inference_service.py:56:    algorithm = str(checkpoint.get("algorithm") or model_name or "double_dqn").lower()
+backend/app/services/live_inference_service.py:58:    model = build_model(algorithm, input_dim=len(FEATURES), n_actions=len(ACTIONS), learning_rate=1e-3, gamma=float(checkpoint.get("gamma", 0.95)), hidden_dim=128)
+backend/app/services/dashboard_service.py:133:        / "real_dqn_agent.pt"
+backend/app/services/model_versioning.py:11:MODEL_PATH = MODELS_DIR / "real_dqn_agent.pt"
+backend/app/services/training_service.py:10:    checkpoints_collection,
+backend/app/services/training_service.py:50:    model_exists = (MODELS / "real_dqn_agent.pt").exists()
+backend/app/services/training_service.py:71:def get_checkpoints():
+backend/app/services/training_service.py:72:    checkpoint_dir = MODELS / "checkpoints"
+backend/app/services/training_service.py:73:    if not checkpoint_dir.exists():
+backend/app/services/training_service.py:77:        for p in sorted(checkpoint_dir.iterdir())
+backend/app/schemas/training_schema.py:22:	checkpoints: List[str]
+backend/app/api/training.py:6:    get_checkpoints,
+backend/app/api/training.py:26:@router.get("/checkpoints")
+backend/app/api/training.py:27:def api_get_checkpoints():
+backend/app/api/training.py:28:    return {"checkpoints": get_checkpoints()}
+backend/app/api/training.py:146:        "model": _root / "models" / "real_dqn_agent.pt",
+backend/app/rl_agent/sequential_experiment.py:142:        candidate_path = EXPERIMENTS_DIR / f"{run_id}__{name}.pt"
+backend/app/rl_agent/sequential_experiment.py:219:            checkpoint_path=str(candidate_path),
+backend/app/rl_agent/sequential_experiment.py:325:        (EXPERIMENTS_DIR / f"{run_id}__{name}.training.json").write_text(
+backend/app/rl_agent/sequential_experiment.py:414:    selected_history_path = EXPERIMENTS_DIR / f"{run_id}__{best['name']}.training.json"
+backend/app/rl_agent/offline_algorithms.py:89:        checkpoint = torch.load(path, map_location=self.device, weights_only=False); self.online.load_state_dict(checkpoint["online"]); self.target.load_state_dict(checkpoint.get("target", checkpoint["online"])); self.value.load_state_dict(checkpoint["value"]); self.policy.load_state_dict(checkpoint["policy"])
+backend/app/rl_agent/offline_algorithms.py:116:        checkpoint = torch.load(path, map_location=self.device, weights_only=False); self.online.load_state_dict(checkpoint["online"]); self.target.load_state_dict(checkpoint.get("target", checkpoint["online"])); self.behavior.load_state_dict(checkpoint["behavior"])
+backend/app/rl_agent/evaluator.py:14:def evaluate(test_csv: str, model_path: str = "models/real_dqn_agent.pt"):
+backend/app/rl_agent/evaluator.py:17:    checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+backend/app/rl_agent/evaluator.py:18:    algorithm = str(checkpoint.get("algorithm", "double_dqn")).lower()
+backend/app/rl_agent/evaluator.py:19:    model = build_model(algorithm, input_dim=len(FEATURES), n_actions=len(ACTIONS), learning_rate=1e-3, gamma=float(checkpoint.get("gamma", 0.95)), hidden_dim=128)
+backend/app/rl_agent/checkpoint.py:7:    Manage saving and loading RL model checkpoints
+backend/app/rl_agent/checkpoint.py:11:    def __init__(self, checkpoint_dir="models/checkpoints"):
+backend/app/rl_agent/checkpoint.py:12:        self.checkpoint_dir = checkpoint_dir
+backend/app/rl_agent/checkpoint.py:13:        self.best_model_path = "models/best_model.pth"
+backend/app/rl_agent/checkpoint.py:15:        os.makedirs(self.checkpoint_dir, exist_ok=True)
+backend/app/rl_agent/checkpoint.py:23:        filename="checkpoint.pth",
+backend/app/rl_agent/checkpoint.py:26:        Save a training checkpoint.
+backend/app/rl_agent/checkpoint.py:30:            self.checkpoint_dir,
+backend/app/rl_agent/checkpoint.py:57:        filename="checkpoint.pth",
+backend/app/rl_agent/checkpoint.py:60:        Load a training checkpoint.
+backend/app/rl_agent/checkpoint.py:64:            self.checkpoint_dir,
+backend/app/rl_agent/checkpoint.py:69:            print("No checkpoint found.")
+backend/app/rl_agent/checkpoint.py:73:            checkpoint = pickle.load(f)
+backend/app/rl_agent/checkpoint.py:75:        if hasattr(model, "load_state_dict") and "model_state_dict" in checkpoint:
+backend/app/rl_agent/checkpoint.py:76:            model.load_state_dict(checkpoint["model_state_dict"])
+backend/app/rl_agent/checkpoint.py:78:        if optimizer is not None and hasattr(optimizer, "load_state_dict") and "optimizer_state_dict" in checkpoint:
+backend/app/rl_agent/checkpoint.py:79:            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+backend/app/rl_agent/checkpoint.py:83:        return checkpoint["episode"]
+backend/app/rl_agent/real_pipeline.py:21:MODEL_PATH = MODELS / "real_dqn_agent.pt"
+backend/app/rl_agent/inference.py:14:    model_path: str = "models/real_dqn_agent.pt",
+backend/app/rl_agent/inference.py:68:    output_path: str = "models/new_data_predictions.csv",
+backend/app/rl_agent/inference.py:69:    model_path: str = "models/real_dqn_agent.pt",
+backend/app/rl_agent/trainer.py:78:def _checkpoint(model, path: Path) -> None:
+backend/app/rl_agent/trainer.py:104:    checkpoint_path: str | None = None,
+backend/app/rl_agent/trainer.py:124:    best_path = Path(checkpoint_path) if checkpoint_path else metrics_path.with_name("best_candidate.pt")
+backend/app/rl_agent/trainer.py:174:                best_score = validation_score; best_epoch = epoch; best_validation = validation; epochs_without_improvement = 0; _checkpoint(model, best_path)
+backend/app/rl_agent/dqn.py:255:        checkpoint = torch.load(
+backend/app/rl_agent/dqn.py:262:            checkpoint["online"]
+backend/app/rl_agent/dqn.py:266:            checkpoint.get(
+backend/app/rl_agent/dqn.py:268:                checkpoint["online"],
+frontend/src/pages/Training.tsx:129:    if (!window.confirm("Stop the running full real-data training process? Completed epoch metrics and candidate checkpoints will be preserved.")) return;
+frontend/src/pages/Settings.tsx:12:    <section className="panel"><div className="panel__header"><div><p className="eyebrow">API SURFACE</p><h2>Current integration</h2></div></div><ul className="contract-list"><li><code>/api/dashboard/summary</code><span>Dashboard KPI values</span></li><li><code>/api/alerts</code><span>Alert queue and detail</span></li><li><code>/api/decisions</code><span>Decision records</span></li><li><code>/api/rewards</code><span>Reward records and statistics</span></li><li><code>/api/training/*</code><span>Status, loss history, checkpoints, commands</span></li></ul></section>
+frontend/src/services/training.service.ts:7:  getCheckpoints: () => apiRequest<TrainingCheckpoints>("/api/training/checkpoints"),
+frontend/src/types/domain.ts:134:  checkpoint?: string;
+frontend/src/types/domain.ts:153:  checkpoints: TrainingCheckpoint[];

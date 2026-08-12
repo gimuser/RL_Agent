@@ -1,0 +1,14 @@
+data/external/.gitkeep
+data/interim/.gitkeep
+data/metadata/.gitkeep
+data/processed/.gitkeep
+data/processed/test_processed.csv
+data/processed/train_processed.csv
+data/raw/.gitkeep
+data/rl_incident/split_report.json
+data/rl_incident/test_incident.csv
+data/rl_incident/test_incidents.txt
+data/rl_incident/train_incident.csv
+data/rl_incident/train_incidents.txt
+data/rl_incident/validation_incident.csv
+data/rl_incident/validation_incidents.txt
