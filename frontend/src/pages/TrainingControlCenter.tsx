@@ -45,7 +45,7 @@ export function TrainingControlCenter() {
   const comparison = results?.comparison;
   const candidates = comparison?.candidates ?? [];
   const currentCandidate = training?.candidate_index ?? 0;
-  const totalCandidates = training?.candidate_count ?? candidates.length || 3;
+  const totalCandidates = (training?.candidate_count ?? candidates.length) || 3;
   const history = training?.history ?? [];
   const latest = history.at(-1);
   const live = results?.live_inference as any;
