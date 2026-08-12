@@ -1,0 +1,64 @@
+=== GIT STATUS ===
+ D .bash_profile
+ D .bashrc
+ D .gitmodules
+ D .idea
+ D .mcp.json
+ D .profile
+ D .ripgreprc
+ D .vscode
+ D .zprofile
+ D .zshrc
+ D AUDIT_CHECKPOINT.md
+ D AUDIT_RESULTS.md
+ D FRONTEND_BACKEND_ALIGNMENT_REQUIRED.md
+ D backend/app/api/pipeline.py.bak_20260811_212106
+ D backend_frontend_link_report_20260812_140021.txt
+ D data.ipynb
+ D final_frontend_backend_smoke.sh
+ D fix_alert_test_pollution.sh
+ D fix_dynamic_backend_frontend.sh
+ D fix_project_startpoint.sh
+ D fix_test_database_pollution.sh
+ D gpt.txt
+ D hiba.txt
+ D link_backend_frontend.sh
+ D modifiedtochat.txt
+ M monitor_training.sh
+ D project_startpoint_repair_20260812_132959.txt
+ D project_startpoint_repair_20260812_133805.txt
+ D project_startpoint_repair_20260812_134723.txt
+ D scripts/create_branches.sh
+ D scripts/evaluate.sh
+ D scripts/final_rl_quality_audit.py
+ D scripts/preprocess.sh
+ D scripts/seed_database.py
+ D scripts/setup.sh
+ D scripts/train.sh
+ D scripts/verify_project_contract.sh
+ D test.txt
+?? audit_redundancy_full.sh
+?? data/rl_incident/validation_incident.csv
+?? data/rl_incident/validation_incidents.txt
+?? models/experiments/
+?? reports/redundancy_parts/
+31e0237 Add full redundancy audit
+13a5ecc Add full project redundancy audit
+7e6602c Add canonical live training monitor
+88b8cd6 Remove legacy interactive repository updater
+993d7e9 Remove one-time project stabilization script
+a477908 Remove obsolete training monitor script
+f40fc1c Show current live agent decision history
+7363504 Use live agent decisions in decision history
+d19e8d9 Show live agent decisions in decision history
+c5d4ea8 Improve Training Live light/dark theme contrast and chart hover tooltip styling
+9f37d2f Fix Training Live light theme readability and add chart hover telemetry
+493cb58 Fix run-scoped training telemetry history persistence
+ef52df4 Fix training run id frontend contract
+a28ebfe Add final full-project stabilization and validation script
+d91cdc3 Bind sequential training telemetry to selected run identity
+be788be Fix run isolation and prevent stale model telemetry
+fbe093f Restore live inference status API compatibility
+ada0acf Evaluate champion with its actual offline-RL algorithm checkpoint
+961b2d3 Fix live training telemetry typing and algorithm-aware labels
+47758eb Align training telemetry types with algorithm-aware live console

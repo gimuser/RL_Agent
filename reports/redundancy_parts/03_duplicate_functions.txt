@@ -1,0 +1,157 @@
+=== DUPLICATE FUNCTIONS ===
+__init__
+  backend/app/config/settings.py
+  backend/app/reward/reward_function.py
+  backend/app/monitoring/metrics.py
+  backend/app/simulation/soc_simulator.py
+  backend/app/environment/episode_manager.py
+  backend/app/environment/triage_env.py
+  backend/app/rl_agent/networks.py
+  backend/app/rl_agent/networks.py
+  backend/app/rl_agent/networks.py
+  backend/app/rl_agent/policy.py
+  backend/app/rl_agent/ppo.py
+  backend/app/rl_agent/cql.py
+  backend/app/rl_agent/offline_algorithms.py
+  backend/app/rl_agent/offline_algorithms.py
+  backend/app/rl_agent/checkpoint.py
+  backend/app/rl_agent/replay_buffer.py
+  backend/app/rl_agent/metrics.py
+  backend/app/rl_agent/rl_agent.py
+  backend/app/rl_agent/dqn.py
+  backend/app/rl_agent/dqn.py
+
+_history
+  backend/app/services/authoritative_training_control.py
+  backend/app/services/training_service.py
+  backend/app/api/training.py
+
+_json_safe
+  backend/app/services/authoritative_training_control.py
+  backend/app/services/live_alert_service.py
+
+_load
+  backend/app/services/dashboard_service.py
+  backend/app/api/authoritative_metrics.py
+
+_load_json
+  backend/app/services/authoritative_training_control.py
+  backend/app/services/training_service.py
+
+act
+  backend/app/rl_agent/ppo.py
+  backend/app/rl_agent/offline_algorithms.py
+  backend/app/rl_agent/offline_algorithms.py
+  backend/app/rl_agent/rl_agent.py
+  backend/app/rl_agent/dqn.py
+  backend/app/rl_agent/dqn.py
+
+compute
+  backend/app/reward/analyst_reward.py
+  backend/app/reward/false_positive_reward.py
+  backend/app/reward/latency_reward.py
+  backend/app/reward/severity_reward.py
+
+forward
+  backend/app/rl_agent/networks.py
+  backend/app/rl_agent/networks.py
+  backend/app/rl_agent/networks.py
+
+get_alert
+  backend/app/services/live_alert_service.py
+  backend/app/api/alerts.py
+
+get_history
+  backend/app/services/live_alert_service.py
+  backend/app/services/training_service.py
+
+get_metrics
+  backend/app/monitoring/metrics.py
+  backend/app/services/training_service.py
+  backend/app/api/metrics.py
+
+inference_status
+  backend/app/api/live_cycle.py
+  backend/app/api/live_alerts.py
+
+load
+  backend/app/rl_agent/offline_algorithms.py
+  backend/app/rl_agent/offline_algorithms.py
+  backend/app/rl_agent/checkpoint.py
+  backend/app/rl_agent/rl_agent.py
+  backend/app/rl_agent/dqn.py
+  backend/app/rl_agent/dqn.py
+
+load_model
+  backend/app/services/model_service.py
+  backend/app/rl_agent/utils.py
+
+main
+  backend/verify_real_rl.py
+  backend/app/rl_agent/sequential_experiment.py
+
+observations_for_split
+  backend/app/data_pipeline/contract.py
+  backend/app/tests/test_environment.py
+
+predict
+  backend/app/services/model_service.py
+  backend/app/rl_agent/rl_agent.py
+  backend/app/rl_agent/dqn.py
+
+q_values
+  backend/app/rl_agent/dqn.py
+  backend/app/rl_agent/dqn.py
+
+remember
+  backend/app/rl_agent/ppo.py
+  backend/app/rl_agent/rl_agent.py
+
+require_logged_actions
+  backend/app/rl_agent/bcq.py
+  backend/app/rl_agent/iql.py
+
+reset
+  backend/app/environment/episode_manager.py
+  backend/app/environment/triage_env.py
+
+reward_for
+  backend/app/reward/real_reward.py
+  backend/app/rl_agent/triage_env.py
+
+sample
+  backend/app/environment/action_space.py
+  backend/app/rl_agent/replay_buffer.py
+
+save
+  backend/app/rl_agent/cql.py
+  backend/app/rl_agent/offline_algorithms.py
+  backend/app/rl_agent/offline_algorithms.py
+  backend/app/rl_agent/checkpoint.py
+  backend/app/rl_agent/rl_agent.py
+  backend/app/rl_agent/dqn.py
+  backend/app/rl_agent/dqn.py
+
+start_training
+  backend/app/services/training_service.py
+  backend/app/api/training.py
+
+stop_training
+  backend/app/services/training_service.py
+  backend/app/api/training.py
+
+update
+  backend/app/rl_agent/ppo.py
+  backend/app/rl_agent/rl_agent.py
+  backend/app/rl_agent/dqn.py
+  backend/app/rl_agent/dqn.py
+
+update_target
+  backend/app/rl_agent/dqn.py
+  backend/app/rl_agent/dqn.py
+
+utc_now
+  backend/app/services/live_inference_service.py
+  backend/app/services/live_cycle_service.py
+  backend/app/services/live_alert_service.py
+
