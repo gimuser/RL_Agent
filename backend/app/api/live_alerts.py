@@ -124,6 +124,48 @@ def live_analysts():
     return analysts_workload()
 
 
+@router.get("/analysts/pending-alerts")
+def analyst_pending_alerts(
+    analyst_id: str | None = None,
+    limit: int = Query(default=100, ge=1, le=200),
+):
+    """Alerts still requiring analyst control, optionally scoped to one analyst."""
+    result = list_alerts(limit=limit, skip=0)
+    items = [
+        item
+        for item in result["items"]
+        if item.get("agent", {}).get("requires_human_review")
+        and item.get("status") in {"HUMAN_REVIEW_PENDING", "ESCALATED", "OPEN"}
+        and (analyst_id is None or item.get("assigned_analyst") == analyst_id)
+    ]
+    return {"items": items, "alerts": items, "total": len(items)}
+
+
+@router.get("/analysts/recent-actions")
+def analyst_recent_actions(
+    limit: int = Query(default=100, ge=1, le=300),
+    analyst_id: str | None = None,
+):
+    """Recent human analyst actions persisted in MongoDB activity history."""
+    query = {"actor": {"$ne": "system"}}
+    if analyst_id:
+        query["actor"] = analyst_id
+
+    activity_items = list(
+        activity_collection.find(query, {"_id": 0})
+        .sort("timestamp", -1)
+        .limit(limit)
+    )
+
+    items = [
+        item
+        for item in activity_items
+        if str(item.get("action", "")).startswith(("HUMAN_", "ASSIGNED"))
+    ]
+
+    return {"items": items, "actions": items, "total": len(items)}
+
+
 @router.post("/live-alerts/bootstrap")
 def bootstrap_live_alerts():
     return seed_live_alerts(force=True)
