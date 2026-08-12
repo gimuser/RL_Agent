@@ -5,26 +5,31 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { QueryState } from "../components/ui/QueryState";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { useApi } from "../hooks/useApi";
-import { alertsService } from "../services/alerts.service";
+import { liveAlertsService } from "../services/liveAlerts.service";
+import type { LiveAlert } from "../types/domain";
 
 const PAGE_SIZE = 10;
 
 export function AlertsPage() {
-  const alerts = useApi(alertsService.getAlerts, { poll: true });
   const [query, setQuery] = useState("");
   const [severity, setSeverity] = useState("all");
   const [page, setPage] = useState(1);
 
+  const alerts = useApi(
+    () => liveAlertsService.getAlerts((page - 1) * PAGE_SIZE, PAGE_SIZE, query, severity),
+    { poll: true },
+  );
+
   return (
     <>
-      <PageHeader eyebrow="ALERT OPERATIONS" title="Alert queue" description="Search and inspect the alerts currently returned by the API." />
+      <PageHeader eyebrow="ALERT OPERATIONS" title="Alert queue" description="Live holdout alerts stored in MongoDB and awaiting agent/human supervision." />
       <section className="panel filter-panel">
         <label className="search-input"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search alert, source, or ID" aria-label="Search alerts" /></label>
         <label className="select-label">Severity<select value={severity} onChange={(event) => { setSeverity(event.target.value); setPage(1); }}><option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
         <button className="button button--quiet" type="button" onClick={() => void alerts.refresh()} disabled={alerts.isRefreshing}>{alerts.isRefreshing ? "Refreshing…" : "Refresh"}</button>
       </section>
-      <QueryState state={alerts} empty={(data) => data.length === 0}>
-        {(items) => <AlertsTable alerts={items} query={query} severity={severity} page={page} onPageChange={setPage} />}
+      <QueryState state={alerts} empty={(data) => data.items.length === 0}>
+        {(data) => <AlertsTable alerts={data.items} total={data.total} page={page} onPageChange={setPage} />}
       </QueryState>
     </>
   );
@@ -32,35 +37,34 @@ export function AlertsPage() {
 
 function AlertsTable({
   alerts,
-  query,
-  severity,
+  total,
   page,
   onPageChange,
 }: {
-  alerts: Awaited<ReturnType<typeof alertsService.getAlerts>>;
-  query: string;
-  severity: string;
+  alerts: LiveAlert[];
+  total: number;
   page: number;
   onPageChange: (page: number) => void;
 }) {
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return alerts.filter((alert) => {
-      const matchesSeverity = severity === "all" || alert.severity.toLowerCase() === severity;
-      const haystack = `${alert.id} ${alert.title} ${alert.source}`.toLowerCase();
-      return matchesSeverity && (!normalized || haystack.includes(normalized));
-    });
-  }, [alerts, query, severity]);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const resolvedPage = Math.min(page, totalPages);
-  const visible = filtered.slice((resolvedPage - 1) * PAGE_SIZE, resolvedPage * PAGE_SIZE);
+  const visible = useMemo(() => alerts, [alerts]);
 
-  if (visible.length === 0) return <EmptyState title="No alerts match the current filters" description="Try clearing the search or selecting another severity." />;
+  if (visible.length === 0) return <EmptyState title="No live alerts match the current filters" description="Try clearing the search or selecting another severity." />;
+
   return (
     <section className="panel table-panel">
-      <div className="table-panel__summary"><span>{filtered.length} alert{filtered.length === 1 ? "" : "s"} returned</span><span>API pagination is currently handled client-side for this view.</span></div>
-      <div className="table-scroll"><table className="alerts-table"><thead><tr><th>ID</th><th>Alert</th><th>Severity</th><th>Source</th><th>RL decision</th><th /></tr></thead><tbody>
-        {visible.map((alert) => <tr key={alert.id}><td className="mono">{alert.id}</td><td><strong>{alert.title}</strong></td><td><StatusBadge value={alert.severity} /></td><td>{alert.source}</td><td><span className="not-provided">Not provided</span></td><td><Link className="table-link" to={`/alerts/${alert.id}`}>Details →</Link></td></tr>)}
+      <div className="table-panel__summary"><span>{total} live alert{total === 1 ? "" : "s"} returned</span><span>Source values remain human-readable; processed values stay linked for the RL agent.</span></div>
+      <div className="table-scroll"><table className="alerts-table"><thead><tr><th>ID</th><th>Alert</th><th>Severity</th><th>Source</th><th>Agent</th><th>Human review</th><th /></tr></thead><tbody>
+        {visible.map((alert) => <tr key={alert.alert_id}>
+          <td className="mono">{alert.alert_id}</td>
+          <td><strong>{alert.title}</strong><div className="muted">Incident {String(alert.incident_id)}</div></td>
+          <td><StatusBadge value={String(alert.severity ?? "unknown")} /></td>
+          <td>{String(alert.source.Category ?? "Unknown")}</td>
+          <td><span className="not-provided">{alert.agent.action}</span></td>
+          <td><StatusBadge value={alert.agent.requires_human_review ? "Pending" : alert.status} /></td>
+          <td><Link className="table-link" to={`/alerts/${encodeURIComponent(alert.alert_id)}`}>Details →</Link></td>
+        </tr>)}
       </tbody></table></div>
       <Pagination page={resolvedPage} totalPages={totalPages} onPageChange={onPageChange} />
     </section>
