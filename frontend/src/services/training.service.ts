@@ -58,6 +58,8 @@ export type ModelCandidate = {
 };
 
 export type AuthoritativeHistoryPoint = {
+  run_id?: string | null;
+  algorithm?: string | null;
   epoch: number;
   loss: number;
   avg_reward?: number | null;
@@ -77,9 +79,11 @@ export type AuthoritativeHistoryPoint = {
   patience_used?: number | null;
   best_epoch?: number | null;
   improved?: boolean | null;
+  stopping_reason?: string | null;
 };
 
 export type AuthoritativeResults = {
+  run_id?: string | null;
   source?: string;
   status?: string;
   dataset?: {
@@ -96,6 +100,7 @@ export type AuthoritativeResults = {
     unseen_incidents?: boolean | null;
   };
   training?: {
+    run_id?: string | null;
     model_name?: string | null;
     display_name?: string | null;
     algorithm?: string | null;
@@ -110,6 +115,8 @@ export type AuthoritativeResults = {
     min_epochs?: number | null;
     patience?: number | null;
     min_delta?: number | null;
+    stability_window?: number | null;
+    stability_tolerance?: number | null;
     batch_size?: number | null;
     updates_per_epoch?: number | null;
     max_total_updates?: number | null;
@@ -153,6 +160,7 @@ export type AuthoritativeResults = {
     modified_at?: string | null;
   };
   live_inference?: {
+    run_id?: string | null;
     status?: string;
     decision_cycle_id?: string | null;
     cycle_id?: string | null;
@@ -185,7 +193,7 @@ export const getAuthoritativeFullTrainingStatus = () =>
   apiRequest<AuthoritativeTrainingStatus>("/api/training-control");
 
 export const startAuthoritativeFullTraining = (modelNames: string[] = []) =>
-  apiRequest<{ status: string; message?: string; selected_models?: string[] }>("/api/training-control", {
+  apiRequest<{ status: string; message?: string; selected_models?: string[]; run_id?: string }>("/api/training-control", {
     method: "POST",
     body: JSON.stringify({ model_names: modelNames }),
   });
