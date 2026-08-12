@@ -1,0 +1,66 @@
+frontend/src/components/layout/Sidebar.tsx:7:  ["/decisions", "Decisions", "↗"],
+frontend/src/pages/Analysts.tsx:121:        <p className="muted">Incoming alerts assigned to {CURRENT_ANALYST} or still waiting for analyst control. Actions below are persisted as human decisions and MongoDB activity history.</p>
+frontend/src/pages/TrainingLive.tsx:107:  const colors = { allow: "#6ea8ff", block: "#ff956f", human_review: "#c7a0ff" };
+frontend/src/pages/TrainingLive.tsx:136:        human_review: Number(values.human_review || 0) / total,
+frontend/src/pages/TrainingLive.tsx:154:          <span><i className="tooltip-dot" style={{background: colors.human_review}}/>Human review {(hovered.values.human_review * 100).toFixed(1)}%</span>
+frontend/src/pages/TrainingLive.tsx:157:      <div className="legend"><span><i style={{background:colors.allow}}/>Allow</span><span><i style={{background:colors.block}}/>Block</span><span><i style={{background:colors.human_review}}/>Human review</span></div>
+frontend/src/pages/TrainingLive.tsx:184:    <section className="live-bottom-grid"><article><div className="panel-title">Selected models</div><div className="chips">{selected.length?selected.map(s=><span key={s}>{s}</span>):<span>—</span>}</div><div className="panel-title">Champion</div><strong>{best?.display_name ?? best?.name ?? "Not selected until comparison completes"}</strong></article><article><div className="panel-title">Live 40-alert evaluation</div><div className="live-stats"><span>Considered<strong>{live?.alerts_considered??"—"}</strong></span><span>Processed<strong>{live?.alerts_processed??"—"}</strong></span><span>Human review<strong>{live?.human_review_routed??"—"}</strong></span></div></article></section>
+frontend/src/pages/History.tsx:17:      <PageHeader eyebrow="SYSTEM RECORDS" title="History" description="Persistent live-alert activity, assignments, human decisions, and system events from MongoDB." actions={<button className="button" type="button" onClick={() => void activity.refresh()}>Refresh</button>} />
+frontend/src/pages/History.tsx:19:        <article className="panel"><div className="panel__header"><div><p className="eyebrow">LIVE DATA</p><h2>Operational state</h2></div></div><QueryState state={system}>{(data) => <dl className="detail-list"><Detail label="API" value={data.api} /><Detail label="Database" value={data.database} /><Detail label="Live alerts" value={String(data.live_alerts)} /><Detail label="Human review pending" value={String(data.pending_human_review)} /></dl>}</QueryState></article>
+frontend/src/pages/TrainingControlCenter.tsx:91:  const actions = ["allow", "block", "human_review"];
+frontend/src/pages/TrainingControlCenter.tsx:92:  const colors = { allow: "#6ea8ff", block: "#ff8c69", human_review: "#c6a0ff" };
+frontend/src/pages/TrainingControlCenter.tsx:113:    <div className="lux-legend"><span><i style={{ background: colors.allow }} />Allow</span><span><i style={{ background: colors.block }} />Block</span><span><i style={{ background: colors.human_review }} />Human review</span></div>
+frontend/src/pages/TrainingControlCenter.tsx:171:    if (!confirm("Create a fresh 40-alert cycle? Previous Mongo decisions will be archived and the immutable source files will remain unchanged.")) return;
+frontend/src/pages/TrainingControlCenter.tsx:184:    { key: "human_review", label: "Human review", value: Number(actionCounts.human_review ?? 0) },
+frontend/src/pages/TrainingControlCenter.tsx:198:    <section className="lux-main-grid"><article className="lux-card"><div className="lux-card-label">LIVE 40-ALERT EVALUATION</div><h2>Latest inference cycle</h2><div className="lux-mini-grid" style={{ marginTop:16 }}><div><span>Cycle</span><strong>{liveSummary?.cycle_id ?? liveSummary?.decision_cycle_id ?? "—"}</strong></div><div><span>Considered</span><strong>{n(liveSummary?.alerts_considered)}</strong></div><div><span>Processed</span><strong>{n(liveSummary?.alerts_processed)}</strong></div><div><span>Human review</span><strong>{n(liveSummary?.human_review_routed)}</strong></div></div><div className="lux-main-grid" style={{ marginTop:14 }}>{actionCards.map((item)=><div key={item.key} className="lux-mini-grid"><div><span>{item.label}</span><strong>{n(item.value)}</strong></div></div>)}</div><p className="lux-muted" style={{marginTop:14}}>Every candidate receives a new MongoDB cycle; source, processed, and lineage files remain untouched.</p></article><article className="lux-card"><div className="lux-card-label">RESET SEMANTICS</div><h2>Fresh means fresh</h2><div className="lux-rule"><b>1</b><div><strong>Archive</strong><p>Previous alerts, reviews, and analyst actions stay in cycle history.</p></div></div><div className="lux-rule"><b>2</b><div><strong>Rebuild</strong><p>The active queue is recreated from the immutable 40-alert holdout.</p></div></div><div className="lux-rule"><b>3</b><div><strong>Re-infer</strong><p>The next model evaluates all 40 alerts from a clean cycle.</p></div></div></article></section>
+frontend/src/pages/TrainingLuxury.tsx:72:  const actions = ["allow", "block", "human_review"];
+frontend/src/pages/TrainingLuxury.tsx:73:  const colors = { allow: "#4f8cff", block: "#ff6b7f", human_review: "#d5a83a" } as const;
+frontend/src/pages/TrainingLuxury.tsx:139:    <section className="lux-main-grid"><article className="lux-card"><div className="lux-card-head"><div><div className="lux-card-label">MODEL SELECTION</div><h2>Champion leaderboard</h2></div><span className="lux-pill">Validation only</span></div><div className="lux-table-wrap"><table className="lux-table"><thead><tr><th>Model</th><th>LR</th><th>Actual epochs</th><th>Best epoch</th><th>Val score</th><th>Status</th></tr></thead><tbody>{candidates.map((candidate,index)=><tr key={String(candidate.name??index)} className={best?.name===candidate.name?"is-best":""}><td><strong>{String(candidate.name??`Candidate ${index+1}`)}</strong></td><td>{String(candidate.learning_rate??"—")}</td><td>{n(candidate.actual_epochs)}</td><td>{n(candidate.best_epoch)}</td><td>{d(candidate.validation_score,4)}</td><td>{best?.name===candidate.name?"CHAMPION":String(candidate.status??"completed")}</td></tr>)}</tbody></table></div></article><article className="lux-card"><div className="lux-card-label">LIVE MODEL</div><h2>Operational champion</h2><div className="lux-mini-grid lux-mini-grid--model"><div><span>Version</span><strong>{String((run?.post_training?.model as any)?.model_version??"—")}</strong></div><div><span>Algorithm</span><strong>{String((run?.post_training?.model as any)?.model_name??"—")}</strong></div><div><span>Inference</span><strong>{String((run?.live_inference as any)?.status??"NOT_RUN")}</strong></div><div><span>Review routed</span><strong>{n((run?.live_inference as any)?.human_review_routed)}</strong></div></div></article></section>
+frontend/src/pages/Dashboard.tsx:18:  const pending = system.data?.pending_human_review ?? 0;
+frontend/src/pages/Dashboard.tsx:75:            <div><p className="eyebrow">AGENT ACTIVITY</p><h2>Latest decisions / supervision</h2></div>
+frontend/src/pages/Dashboard.tsx:112:              <Detail label="Pending human review" value={String(data.human_review_pending)} />
+frontend/src/pages/Alerts.tsx:65:          <td><StatusBadge value={alert.agent.requires_human_review ? "Pending" : alert.status} /></td>
+frontend/src/pages/Decisions.tsx:8:import { decisionsService, type LiveDecision } from "../services/decisions.service";
+frontend/src/pages/Decisions.tsx:11:export function DecisionsPage() {
+frontend/src/pages/Decisions.tsx:12:  const decisions = useApi(() => decisionsService.getLiveDecisions(100), { poll: true });
+frontend/src/pages/Decisions.tsx:21:        actions={<button className="button button--quiet" type="button" onClick={() => void decisions.refresh()} disabled={decisions.isRefreshing}>{decisions.isRefreshing ? "Refreshing…" : "Refresh"}</button>}
+frontend/src/pages/Decisions.tsx:24:      <QueryState state={decisions} empty={(data) => data.items.length === 0}>
+frontend/src/pages/Decisions.tsx:29:            <Metric label="Human review" value={formatNumber(result.summary.human_review ?? 0)} />
+frontend/src/pages/Decisions.tsx:30:            <Metric label="Decisions" value={formatNumber(result.total)} />
+frontend/src/pages/Decisions.tsx:32:          <DecisionTable decisions={result.items} query={query} onQueryChange={setQuery} />
+frontend/src/pages/Decisions.tsx:43:function DecisionTable({ decisions, query, onQueryChange }: { decisions: LiveDecision[]; query: string; onQueryChange: (value: string) => void }) {
+frontend/src/pages/Decisions.tsx:46:    return decisions.filter((decision) => {
+frontend/src/pages/Decisions.tsx:50:  }, [decisions, query]);
+frontend/src/pages/Decisions.tsx:54:      <label className="search-input"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search alert, action, model, or verdict" aria-label="Search live decisions" /></label>
+frontend/src/pages/Decisions.tsx:57:    {filtered.length === 0 ? <EmptyState compact title="No decisions match the search" description="Try another alert ID, action, model, or verdict." /> : <div className="table-scroll"><table>
+frontend/src/pages/Settings.tsx:12:    <section className="panel"><div className="panel__header"><div><p className="eyebrow">API SURFACE</p><h2>Current integration</h2></div></div><ul className="contract-list"><li><code>/api/dashboard/summary</code><span>Dashboard KPI values</span></li><li><code>/api/alerts</code><span>Alert queue and detail</span></li><li><code>/api/decisions</code><span>Decision records</span></li><li><code>/api/rewards</code><span>Reward records and statistics</span></li><li><code>/api/training/*</code><span>Status, loss history, checkpoints, commands</span></li></ul></section>
+frontend/src/pages/Agent.tsx:24:          <Detail label="Human review pending" value={formatNumber(data.human_review_pending)} />
+frontend/src/pages/Agent.tsx:28:        <QueryState state={agent}>{(data) => <div className="inline-stat"><span>Current agent mode</span><StatusBadge value={data.model_status} /><strong>{formatNumber(data.human_review_pending)} pending</strong></div>}</QueryState>
+frontend/src/pages/AlertDetails.tsx:25:        comment: `Decision made from the SOC supervision interface: ${decision}`,
+frontend/src/pages/AlertDetails.tsx:77:            <div className="panel__header"><div><p className="eyebrow">RL / HUMAN SUPERVISION</p><h2>Decision state</h2></div></div>
+frontend/src/pages/AlertDetails.tsx:84:              <Detail label="Human review" value={data.agent.requires_human_review ? "Required" : "Completed"} />
+frontend/src/services/liveAlerts.service.ts:24:    return apiRequest<{ items: LiveAlert[]; total: number }>(`/api/live-alerts?${query.toString()}`);
+frontend/src/services/liveAlerts.service.ts:28:    apiRequest<LiveAlert & { history?: Record<string, unknown>[] }>(`/api/live-alerts/${encodeURIComponent(id)}`),
+frontend/src/services/liveAlerts.service.ts:31:    apiRequest<{ items: Record<string, unknown>[]; total: number }>(`/api/live-alerts/${encodeURIComponent(id)}/history`),
+frontend/src/services/liveAlerts.service.ts:37:    apiRequest<LiveAlert>(`/api/live-alerts/${encodeURIComponent(id)}/review`, {
+frontend/src/services/liveAlerts.service.ts:43:    apiRequest<LiveAlert>(`/api/live-alerts/${encodeURIComponent(id)}/assign`, {
+frontend/src/services/training.service.ts:168:    human_review_routed?: number | null;
+frontend/src/services/decisions.service.ts:2:import type { Decision } from "../types/domain";
+frontend/src/services/decisions.service.ts:4:export type LiveDecision = {
+frontend/src/services/decisions.service.ts:22:export type LiveDecisionResponse = {
+frontend/src/services/decisions.service.ts:23:  items: LiveDecision[];
+frontend/src/services/decisions.service.ts:30:    human_review?: number;
+frontend/src/services/decisions.service.ts:34:export const decisionsService = {
+frontend/src/services/decisions.service.ts:35:  // Legacy decisions endpoint retained for compatibility.
+frontend/src/services/decisions.service.ts:36:  getDecisions: (skip = 0, limit = 100) =>
+frontend/src/services/decisions.service.ts:37:    apiRequest<Decision[]>(`/api/decisions?skip=${skip}&limit=${limit}`),
+frontend/src/services/decisions.service.ts:40:  getLiveDecisions: (limit = 100, cycleId?: string) => {
+frontend/src/services/decisions.service.ts:43:    return apiRequest<LiveDecisionResponse>(`/api/live-decisions?${query.toString()}`);
+frontend/src/App.tsx:9:import { DecisionsPage } from "./pages/Decisions";
+frontend/src/App.tsx:25:      <Route path="/decisions" element={<DecisionsPage />} />
+frontend/src/types/domain.ts:27:    requires_human_review: boolean;
+frontend/src/types/domain.ts:48:  agent_decisions: number;
+frontend/src/types/domain.ts:49:  human_review_pending: number;
+frontend/src/types/domain.ts:78:  pending_human_review: number;
+frontend/src/types/domain.ts:81:export interface Decision {
+frontend/src/types/domain.ts:99:  total_decisions: number | null;

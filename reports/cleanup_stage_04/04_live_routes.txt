@@ -1,0 +1,75 @@
+backend/app/api/dashboard.py:3:from app.services.dashboard_service import get_enhanced_dashboard_summary
+backend/app/api/dashboard.py:5:# إزالة prefix="/dashboard"
+backend/app/api/dashboard.py:10:def get_dashboard_summary():
+backend/app/api/dashboard.py:12:    return get_enhanced_dashboard_summary()
+backend/app/api/decisions.py:3:from app.database.repository import create_decision_in_db, get_decisions_from_db
+backend/app/api/decisions.py:5:# إزالة prefix="/decisions"
+backend/app/api/decisions.py:10:def get_decisions(skip: int = 0, limit: int = 10):
+backend/app/api/decisions.py:12:    return get_decisions_from_db(skip=skip, limit=limit)
+backend/app/api/__init__.py:1:"""API package for the SOAR RL agent."""
+backend/app/api/agent.py:3:Provides a small router to query agent status and request an action for an
+backend/app/api/agent.py:4:incoming event. Uses `app.services.agent_service` for behavior.
+backend/app/api/agent.py:9:from app.services.agent_service import get_agent_status, act_on_event
+backend/app/api/agent.py:12:router = APIRouter(prefix="/api/agent", tags=["Agent"])
+backend/app/api/agent.py:16:def api_agent_status():
+backend/app/api/agent.py:17:	return get_agent_status()
+backend/app/api/live_cycle.py:9:router = APIRouter(prefix="/api/live-cycle", tags=["Live Evaluation Cycle"])
+backend/app/api/training.py:75:        from app.rl_agent.real_pipeline import main
+backend/app/api/training.py:146:        "model": _root / "models" / "real_dqn_agent.pt",
+backend/app/api/router.py:3:from app.api.alerts import router as alerts_router
+backend/app/api/router.py:6:from app.api.decisions import router as decisions_router
+backend/app/api/router.py:10:from app.api.dashboard import router as dashboard_router
+backend/app/api/router.py:11:from app.api.agent import router as agent_router
+backend/app/api/router.py:15:from app.api.live_alerts import router as live_alerts_router
+backend/app/api/router.py:22:router.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
+backend/app/api/router.py:25:router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
+backend/app/api/router.py:27:router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+backend/app/api/router.py:28:router.include_router(live_alerts_router)
+backend/app/api/router.py:35:router.include_router(agent_router)
+backend/app/api/live_alerts.py:8:    agent_status,
+backend/app/api/live_alerts.py:14:    list_alerts,
+backend/app/api/live_alerts.py:16:    seed_live_alerts,
+backend/app/api/live_alerts.py:46:@router.get("/live-alerts")
+backend/app/api/live_alerts.py:47:def live_alerts(
+backend/app/api/live_alerts.py:53:    return list_alerts(skip=skip, limit=limit, search=search, severity=severity)
+backend/app/api/live_alerts.py:56:@router.get("/live-alerts/{alert_id}")
+backend/app/api/live_alerts.py:65:@router.get("/live-alerts/{alert_id}/history")
+backend/app/api/live_alerts.py:79:@router.get("/live-decisions")
+backend/app/api/live_alerts.py:80:def live_decisions(
+backend/app/api/live_alerts.py:84:    """Return the agent's decisions from the latest live inference cycle.
+backend/app/api/live_alerts.py:86:    This is intentionally separate from the legacy /api/decisions collection:
+backend/app/api/live_alerts.py:87:    live inference persists its authoritative decisions in live_alert_activity
+backend/app/api/live_alerts.py:115:        agent = alert.get("agent") or {}
+backend/app/api/live_alerts.py:122:                "model_action": details.get("model_action") or agent.get("model_action"),
+backend/app/api/live_alerts.py:123:                "confidence": details.get("confidence", agent.get("confidence")),
+backend/app/api/live_alerts.py:124:                "action_margin": details.get("action_margin", agent.get("action_margin")),
+backend/app/api/live_alerts.py:125:                "uncertainty_reason": details.get("uncertainty_reason") or agent.get("uncertainty_reason"),
+backend/app/api/live_alerts.py:126:                "algorithm": details.get("algorithm") or agent.get("algorithm"),
+backend/app/api/live_alerts.py:127:                "model_version": details.get("model_version") or agent.get("model_version"),
+backend/app/api/live_alerts.py:151:    result = list_alerts(limit=limit, skip=0)
+backend/app/api/live_alerts.py:152:    items = [item for item in result["items"] if item.get("agent", {}).get("requires_human_review")]
+backend/app/api/live_alerts.py:153:    return {"items": items, "alerts": items, "total": len(items)}
+backend/app/api/live_alerts.py:156:@router.post("/live-alerts/{alert_id}/review")
+backend/app/api/live_alerts.py:166:@router.post("/live-alerts/{alert_id}/assign")
+backend/app/api/live_alerts.py:174:@router.get("/agent/live-status")
+backend/app/api/live_alerts.py:175:def live_agent_status():
+backend/app/api/live_alerts.py:176:    return agent_status()
+backend/app/api/live_alerts.py:179:@router.get("/agent/live-alerts")
+backend/app/api/live_alerts.py:180:def live_agent_alerts(limit: int = Query(default=100, ge=1, le=500)):
+backend/app/api/live_alerts.py:181:    return list_alerts(limit=limit, skip=0)
+backend/app/api/live_alerts.py:184:@router.get("/agent/model")
+backend/app/api/live_alerts.py:189:@router.get("/agent/inference/status")
+backend/app/api/live_alerts.py:194:@router.post("/agent/inference/run")
+backend/app/api/live_alerts.py:218:@router.get("/analysts/pending-alerts")
+backend/app/api/live_alerts.py:219:def analyst_pending_alerts(
+backend/app/api/live_alerts.py:223:    result = list_alerts(limit=limit, skip=0)
+backend/app/api/live_alerts.py:226:        if item.get("agent", {}).get("requires_human_review")
+backend/app/api/live_alerts.py:230:    return {"items": items, "alerts": items, "total": len(items)}
+backend/app/api/live_alerts.py:246:@router.post("/live-alerts/bootstrap")
+backend/app/api/live_alerts.py:247:def bootstrap_live_alerts():
+backend/app/api/live_alerts.py:248:    return seed_live_alerts(force=True)
+backend/app/api/alerts.py:9:    get_all_alerts,
+backend/app/api/alerts.py:23:def alerts_health():
+backend/app/api/alerts.py:26:        "service": "alerts",
+backend/app/api/alerts.py:34:def get_alerts(
+backend/app/api/alerts.py:38:    return get_all_alerts(
