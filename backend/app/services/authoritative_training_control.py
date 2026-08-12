@@ -11,6 +11,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
+from fastapi import HTTPException
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODELS_DIR = PROJECT_ROOT / "models"
 TRAIN_METRICS = MODELS_DIR / "training_metrics.json"
@@ -224,8 +226,11 @@ def start(model_names: list[str] | None = None) -> dict[str, Any]:
         available = _experiment_configs()
         available_names = {str(item.get("name")) for item in available}
         selected = [str(name) for name in (model_names or []) if str(name) in available_names]
+        invalid = [str(name) for name in (model_names or []) if str(name) not in available_names]
+        if invalid:
+            raise HTTPException(status_code=400, detail={"message": "Unknown model candidate(s).", "invalid_models": invalid, "available_models": sorted(available_names)})
         if not selected:
-            selected = [str(item.get("name")) for item in available]
+            raise HTTPException(status_code=400, detail={"message": "Select at least one model candidate before starting training.", "available_models": sorted(available_names)})
         _selected_models = selected
 
         TRAIN_METRICS.write_text('{"config": {}, "metrics": []}\n', encoding="utf-8")
