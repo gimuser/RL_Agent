@@ -140,9 +140,11 @@ def train(
     seed: int = 42,
     stop_event: Optional[object] = None,
     validation_csv: str | None = None,
-    min_epochs: int = 50,
-    patience: int = 30,
+    min_epochs: int = 20,
+    patience: int = 10,
     min_delta: float = 1e-3,
+    stability_window: int = 6,
+    stability_tolerance: float = 0.002,
     checkpoint_path: str | None = None,
     progress_callback: Optional[Callable[[dict], None]] = None,
     max_total_updates: int | None = None,
@@ -170,6 +172,7 @@ def train(
     best_validation: dict | None = None
     epochs_without_improvement = 0
     total_updates_used = 0
+    stopping_reason = "max_epochs"
 
     root = Path(__file__).resolve().parents[3]
     models_dir = root / "models"
@@ -185,6 +188,8 @@ def train(
         "min_epochs": min_epochs,
         "patience": patience,
         "min_delta": min_delta,
+        "stability_window": stability_window,
+        "stability_tolerance": stability_tolerance,
         "batch_size": batch_size,
         "learning_rate": learning_rate,
         "gamma": gamma,
@@ -200,6 +205,7 @@ def train(
         "updates_per_epoch": updates_per_epoch,
         "max_total_updates": update_budget,
         "update_budget_mode": "automatic_from_dataset_size_and_epoch_ceiling",
+        "stopping_mode": "best_validation_plus_convergence_plus_persistent_decline",
     }
     metrics_path.write_text(json.dumps({"config": config, "metrics": []}, indent=2), encoding="utf-8")
 
@@ -212,6 +218,8 @@ def train(
     print(f"Min epochs       : {min_epochs}")
     print(f"Patience         : {patience}")
     print(f"Min delta        : {min_delta}")
+    print(f"Stability window : {stability_window}")
+    print(f"Stability tol.   : {stability_tolerance}")
     print(f"Batch size       : {batch_size}")
     print(f"Updates / epoch  : {updates_per_epoch}")
     print(f"Update budget    : {update_budget}")
@@ -220,8 +228,10 @@ def train(
 
     for epoch in range(1, epochs + 1):
         if stop_event is not None and getattr(stop_event, "is_set", lambda: False)():
+            stopping_reason = "manual_stop"
             raise TrainingStopped(f"Training stopped before epoch {epoch}.")
         if total_updates_used >= update_budget:
+            stopping_reason = "update_budget"
             break
 
         epoch_start = time.perf_counter()
@@ -234,6 +244,7 @@ def train(
 
         for start_idx in range(0, n_rows, batch_size):
             if stop_event is not None and getattr(stop_event, "is_set", lambda: False)():
+                stopping_reason = "manual_stop"
                 raise TrainingStopped(f"Training stopped during epoch {epoch}.")
             if total_updates_used >= update_budget:
                 break
@@ -304,9 +315,56 @@ def train(
             "best_epoch": best_epoch,
             "patience_used": epochs_without_improvement,
             "improved": improved,
+            "stopping_reason": None,
         }
         metrics.append(row)
-        payload = {"config": config, "metrics": metrics, "best_epoch": best_epoch, "actual_epochs": epoch}
+
+        convergence_detected = False
+        persistent_decline = False
+        if validation and epoch >= min_epochs:
+            recent = [
+                r.get("validation_score")
+                for r in metrics[-stability_window:]
+                if isinstance(r.get("validation_score"), (int, float))
+            ]
+            recent_rewards = [
+                r.get("policy_reward")
+                for r in metrics[-stability_window:]
+                if isinstance(r.get("policy_reward"), (int, float))
+            ]
+            if len(recent) == stability_window and len(recent_rewards) == stability_window:
+                validation_flat = max(recent) - min(recent) <= stability_tolerance
+                reward_span = max(recent_rewards) - min(recent_rewards)
+                reward_reference = max(abs(float(np.mean(recent_rewards))), 1.0)
+                reward_flat = reward_span <= max(stability_tolerance, reward_reference * 0.0025)
+                no_recent_improvement = all(
+                    float(score) <= best_score + min_delta for score in recent
+                )
+                convergence_detected = validation_flat and reward_flat and no_recent_improvement
+
+            if len(recent) == stability_window:
+                persistent_decline = (
+                    recent[-1] < best_score - min_delta
+                    and all(recent[i] <= recent[i - 1] + (min_delta * 0.25) for i in range(1, len(recent)))
+                )
+
+        if convergence_detected:
+            stopping_reason = "validation_and_policy_converged"
+            row["stopping_reason"] = stopping_reason
+        elif persistent_decline:
+            stopping_reason = "persistent_validation_decline"
+            row["stopping_reason"] = stopping_reason
+        elif validation and epoch >= min_epochs and epochs_without_improvement >= patience:
+            stopping_reason = "validation_patience_exhausted"
+            row["stopping_reason"] = stopping_reason
+
+        payload = {
+            "config": config,
+            "metrics": metrics,
+            "best_epoch": best_epoch,
+            "actual_epochs": epoch,
+            "stopping_reason": stopping_reason if row["stopping_reason"] else None,
+        }
         metrics_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
         print(
@@ -325,11 +383,15 @@ def train(
         if progress_callback:
             progress_callback(row)
 
-        if validation and epoch >= min_epochs and epochs_without_improvement >= patience:
-            print(f"[EARLY STOP] Validation policy stabilized at epoch {epoch}; best epoch={best_epoch}.")
+        if row["stopping_reason"]:
+            print(
+                f"[EARLY STOP] reason={row['stopping_reason']} "
+                f"at epoch={epoch}; best_epoch={best_epoch}."
+            )
             break
 
         if total_updates_used >= update_budget:
+            stopping_reason = "update_budget"
             print(f"[UPDATE BUDGET] Automatic update budget reached at {total_updates_used:,} updates.")
             break
 
@@ -346,6 +408,7 @@ def train(
         "total_updates_used": total_updates_used,
         "updates_per_epoch": updates_per_epoch,
         "max_total_updates": update_budget,
+        "stopping_reason": stopping_reason,
     }
     metrics_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
