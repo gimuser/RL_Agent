@@ -1,5 +1,5 @@
 import { apiRequest } from "./api";
-import type { ExperimentStatus, TrainingCheckpoints, TrainingHistory, TrainingStatus } from "../types/domain";
+import type { TrainingCheckpoints, TrainingHistory, TrainingStatus } from "../types/domain";
 
 export const trainingService = {
   getStatus: () => apiRequest<TrainingStatus>("/api/training/status"),
@@ -8,9 +8,6 @@ export const trainingService = {
   getMetrics: () => apiRequest<TrainingMetricsResponse>("/api/training/metrics"),
   start: () => apiRequest<{ message: string }>("/api/training/start", { method: "POST" }),
   stop: () => apiRequest<{ message: string }>("/api/training/stop", { method: "POST" }),
-  startExperiment: (models: unknown) => apiRequest<unknown>("/api/training/experiment", { method: "POST", body: JSON.stringify(models) }),
-  stopExperiment: (runId: string) => apiRequest<unknown>(`/api/training/experiment/${runId}/stop`, { method: "POST" }),
-  getExperimentStatus: (runId: string) => apiRequest<ExperimentStatus>(`/api/training/experiment/${runId}/status`),
 };
 
 export type TrainingMetricRow = {
