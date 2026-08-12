@@ -8,67 +8,136 @@ import {
 } from "../services/training.service";
 
 const nf = new Intl.NumberFormat("en-US");
+const CHART_WIDTH = 1100;
+const CHART_HEIGHT = 360;
+const DEFAULT_WINDOW = 160;
 
-function n(v: unknown) {
-  return typeof v === "number" && Number.isFinite(v) ? nf.format(v) : "—";
-}
-function d(v: unknown, digits = 4) {
-  return typeof v === "number" && Number.isFinite(v) ? v.toFixed(digits) : "—";
-}
-function pct(v: unknown) {
-  return typeof v === "number" && Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : "—";
-}
-function value(point: AuthoritativeHistoryPoint, metric: string) {
+type Metric = "loss" | "policy" | "oracle" | "efficiency" | "validation" | "updates";
+
+function n(v: unknown) { return typeof v === "number" && Number.isFinite(v) ? nf.format(v) : "—"; }
+function d(v: unknown, digits = 4) { return typeof v === "number" && Number.isFinite(v) ? v.toFixed(digits) : "—"; }
+function pct(v: unknown) { return typeof v === "number" && Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : "—"; }
+function metricValue(point: AuthoritativeHistoryPoint, metric: Metric) {
   if (metric === "loss") return point.loss;
   if (metric === "policy") return point.policy_reward ?? point.avg_reward ?? point.average_reward ?? 0;
   if (metric === "oracle") return point.oracle_average_reward ?? 0;
   if (metric === "efficiency") return point.reward_efficiency ?? 0;
   if (metric === "validation") return point.validation_score ?? 0;
-  if (metric === "updates") return point.total_updates ?? point.updates ?? 0;
-  return 0;
+  return point.total_updates ?? point.updates ?? 0;
 }
 
-function Sparkline({ history, metric }: { history: AuthoritativeHistoryPoint[]; metric: string }) {
-  if (!history.length) return <div className="lux-empty">Waiting for the first completed epoch.</div>;
-  const values = history.map((p) => value(p, metric));
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+function visibleHistory(history: AuthoritativeHistoryPoint[], startEpoch: number, endEpoch: number) {
+  const clipped = history.filter((row) => row.epoch >= startEpoch && row.epoch <= endEpoch);
+  if (clipped.length <= 500) return clipped;
+  const stride = Math.ceil(clipped.length / 500);
+  const sampled = clipped.filter((_, index) => index % stride === 0);
+  const last = clipped.at(-1);
+  if (last && sampled.at(-1)?.epoch !== last.epoch) sampled.push(last);
+  return sampled;
+}
+
+function lineChart(history: AuthoritativeHistoryPoint[], metric: Metric, startEpoch: number, endEpoch: number, stackedAction?: string) {
+  const source = visibleHistory(history, startEpoch, endEpoch);
+  if (!source.length) return null;
+  const points = source.map((row) => {
+    if (!stackedAction) return metricValue(row, metric);
+    const counts = row.action_distribution ?? {};
+    const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+    return total > 0 ? (counts[stackedAction] ?? 0) / total : 0;
+  });
+  const min = Math.min(...points);
+  const max = Math.max(...points);
   const span = max - min || 1;
-  const pts = values.map((v, i) => {
-    const x = (i / Math.max(1, values.length - 1)) * 100;
-    const y = 92 - ((v - min) / span) * 78;
-    return `${x},${y}`;
-  }).join(" ");
+  const left = 62, right = 28, top = 26, bottom = 42;
+  const width = CHART_WIDTH - left - right;
+  const height = CHART_HEIGHT - top - bottom;
+  const coords = points.map((value, index) => ({
+    x: left + (index / Math.max(1, points.length - 1)) * width,
+    y: top + (1 - (value - min) / span) * height,
+    value,
+    epoch: source[index].epoch,
+  }));
+  return { source, coords, min, max, left, right, top, bottom, width, height, line: coords.map((p) => `${p.x},${p.y}`).join(" ") };
+}
+
+function InteractiveChart({ history, metric, startEpoch, endEpoch }: { history: AuthoritativeHistoryPoint[]; metric: Metric; startEpoch: number; endEpoch: number }) {
+  const chart = lineChart(history, metric, startEpoch, endEpoch);
+  if (!chart) return <div className="lux-empty">Waiting for completed epoch telemetry.</div>;
+  const title = metric === "policy" ? "Policy reward" : metric === "oracle" ? "Oracle reward" : metric === "efficiency" ? "Policy efficiency" : metric === "validation" ? "Validation score" : metric === "updates" ? "Cumulative optimizer updates" : "Training loss";
   return (
-    <div className="lux-chart-wrap">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="lux-chart" aria-label={`${metric} chart`}>
-        <defs><linearGradient id={`lux-${metric}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="currentColor" stopOpacity=".30"/><stop offset="100%" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>
-        <polygon points={`0,100 ${pts} 100,100`} fill={`url(#lux-${metric})`} />
-        <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="2.4" vectorEffect="non-scaling-stroke" />
+    <div className="lux-chart-shell">
+      <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="lux-big-svg" role="img" aria-label={`${title} from epoch ${startEpoch} to ${endEpoch}`}>
+        <defs>
+          <linearGradient id={`area-${metric}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity=".28" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity=".01" />
+          </linearGradient>
+        </defs>
+        {[0, .25, .5, .75, 1].map((ratio) => {
+          const y = chart.top + ratio * chart.height;
+          const value = chart.max - ratio * (chart.max - chart.min);
+          return <g key={ratio}>
+            <line x1={chart.left} y1={y} x2={chart.left + chart.width} y2={y} className="lux-grid-line" />
+            <text x={chart.left - 10} y={y + 4} textAnchor="end" className="lux-axis-label">{metric === "efficiency" || metric === "validation" ? pct(value) : d(value, metric === "updates" ? 0 : 4)}</text>
+          </g>;
+        })}
+        <polygon points={`${chart.left},${chart.top + chart.height} ${chart.line} ${chart.left + chart.width},${chart.top + chart.height}`} fill={`url(#area-${metric})`} />
+        <polyline points={chart.line} fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {chart.coords.map((point) => <g key={`${metric}-${point.epoch}`} className="lux-chart-point"><circle cx={point.x} cy={point.y} r="4.5" fill="var(--lux-surface)" stroke="currentColor" strokeWidth="2" /><title>{`Epoch ${point.epoch} · ${metric === "updates" ? n(point.value) : d(point.value, 6)}`}</title></g>)}
+        <text x={chart.left} y={CHART_HEIGHT - 12} className="lux-axis-label">Epoch {chart.source[0].epoch}</text>
+        <text x={chart.left + chart.width} y={CHART_HEIGHT - 12} textAnchor="end" className="lux-axis-label">Epoch {chart.source.at(-1)?.epoch}</text>
       </svg>
-      <div className="lux-chart-axis"><span>E{history[0].epoch}</span><span>E{history[history.length - 1].epoch}</span></div>
+      <div className="lux-chart-caption"><span>{title}</span><span>Zoomed view · E{startEpoch} → E{endEpoch}</span></div>
+    </div>
+  );
+}
+
+function ActionDistributionChart({ history, startEpoch, endEpoch }: { history: AuthoritativeHistoryPoint[]; startEpoch: number; endEpoch: number }) {
+  const actions = ["allow", "block", "human_review"];
+  const colors = { allow: "#4f8cff", block: "#ff6b7f", human_review: "#d5a83a" } as const;
+  return (
+    <div className="lux-action-timeline">
+      {actions.map((action) => (
+        <div key={action} className="lux-action-lane">
+          <div className="lux-action-head"><span>{action.replaceAll("_", " ")}</span><strong>epoch trend</strong></div>
+          <div className="lux-action-track">
+            {visibleHistory(history, startEpoch, endEpoch).map((row) => {
+              const counts = row.action_distribution ?? {};
+              const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+              const ratio = total > 0 ? ((counts[action] ?? 0) / total) : 0;
+              return <span key={`${action}-${row.epoch}`} title={`Epoch ${row.epoch}: ${(ratio * 100).toFixed(1)}%`} style={{ height: `${Math.max(3, ratio * 100)}%`, background: colors[action as keyof typeof colors] }} />;
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 export function TrainingLuxuryPage() {
   const [response, setResponse] = useState<AuthoritativeTrainingStatus | null>(null);
-  const [metric, setMetric] = useState("loss");
+  const [metric, setMetric] = useState<Metric>("loss");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [startEpoch, setStartEpoch] = useState(1);
+  const [endEpoch, setEndEpoch] = useState(1);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      setResponse(await getAuthoritativeFullTrainingStatus());
+      const value = await getAuthoritativeFullTrainingStatus();
+      setResponse(value);
       setError("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
+      const history = value.results?.training?.history ?? [];
+      const latest = history.at(-1)?.epoch ?? 1;
+      if (endEpoch === 1 || latest < endEpoch) {
+        setEndEpoch(latest);
+        setStartEpoch(Math.max(1, latest - DEFAULT_WINDOW + 1));
+      }
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setRefreshing(false); }
+  }, [endEpoch]);
 
   useEffect(() => {
     void refresh();
@@ -84,15 +153,22 @@ export function TrainingLuxuryPage() {
   const candidates = comparison?.candidates ?? [];
   const best = comparison?.best ?? null;
   const running = response?.status === "running";
-  const percentDone = training?.epochs && training?.actual_epochs ? Math.min(100, (training.actual_epochs / training.epochs) * 100) : 0;
-  const updatePercent = training?.max_total_updates && training?.total_updates_used ? Math.min(100, (training.total_updates_used / training.max_total_updates) * 100) : 0;
+  const maxEpoch = Math.max(1, latest?.epoch ?? training?.actual_epochs ?? 1);
+  const actualEpoch = training?.actual_epochs ?? latest?.epoch ?? 0;
+  const totalUpdates = training?.total_updates_used ?? latest?.total_updates ?? 0;
+  const updateBudget = training?.max_total_updates ?? (training?.updates_per_epoch && training?.epochs ? training.updates_per_epoch * training.epochs : 0);
+  const selected = visibleHistory(history, startEpoch, endEpoch);
 
-  const rewardDelta = useMemo(() => {
-    if (!latest) return null;
-    const p = latest.policy_reward ?? latest.avg_reward ?? latest.average_reward;
-    const o = latest.oracle_average_reward;
-    return typeof p === "number" && typeof o === "number" ? o - p : null;
-  }, [latest]);
+  const chartBounds = useMemo(() => {
+    const safeEnd = Math.max(1, Math.min(endEpoch, maxEpoch));
+    const safeStart = Math.max(1, Math.min(startEpoch, safeEnd));
+    return { start: safeStart, end: safeEnd };
+  }, [startEpoch, endEpoch, maxEpoch]);
+
+  function zoomLast() { const end = maxEpoch; setStartEpoch(Math.max(1, end - DEFAULT_WINDOW + 1)); setEndEpoch(end); }
+  function zoomAll() { setStartEpoch(1); setEndEpoch(maxEpoch); }
+  function zoomIn() { const mid = Math.floor((chartBounds.start + chartBounds.end) / 2); const span = Math.max(10, Math.floor((chartBounds.end - chartBounds.start + 1) / 2)); setStartEpoch(Math.max(1, mid - Math.floor(span / 2))); setEndEpoch(Math.min(maxEpoch, mid + Math.ceil(span / 2))); }
+  function zoomOut() { const span = chartBounds.end - chartBounds.start + 1; const next = span * 2; const mid = Math.floor((chartBounds.start + chartBounds.end) / 2); setStartEpoch(Math.max(1, mid - Math.floor(next / 2))); setEndEpoch(Math.min(maxEpoch, mid + Math.ceil(next / 2))); }
 
   async function start() {
     if (!confirm("Start adaptive multi-model training on the real incident-level dataset?")) return;
@@ -108,15 +184,8 @@ export function TrainingLuxuryPage() {
   return (
     <div className="lux-training">
       <section className="lux-hero">
-        <div>
-          <div className="lux-kicker">RL CONTROL ROOM · ADAPTIVE TRAINING</div>
-          <h1>Model intelligence console</h1>
-          <p>Luxury live telemetry for convergence, policy reward, update budget, early stopping, and automatic model selection.</p>
-        </div>
-        <div className="lux-hero-actions">
-          <button className="lux-button lux-button--ghost" disabled={refreshing || busy} onClick={() => void refresh()}>{refreshing ? "Syncing…" : "Refresh"}</button>
-          {running ? <button className="lux-button lux-button--danger" disabled={busy} onClick={() => void stop()}>{busy ? "Stopping…" : "Stop training"}</button> : <button className="lux-button lux-button--primary" disabled={busy} onClick={() => void start()}>{busy ? "Starting…" : "Start adaptive training"}</button>}
-        </div>
+        <div><div className="lux-kicker">RL CONTROL ROOM · AUTONOMOUS TRAINING</div><h1>Model intelligence console</h1><p>Live convergence, policy reward, adaptive updates, uncertainty-aware inference, and champion-model telemetry.</p></div>
+        <div className="lux-hero-actions"><button className="lux-button lux-button--ghost" disabled={refreshing || busy} onClick={() => void refresh()}>{refreshing ? "Syncing…" : "Refresh"}</button>{running ? <button className="lux-button lux-button--danger" disabled={busy} onClick={() => void stop()}>{busy ? "Stopping…" : "Stop training"}</button> : <button className="lux-button lux-button--primary" disabled={busy} onClick={() => void start()}>{busy ? "Starting…" : "Start adaptive training"}</button>}</div>
       </section>
 
       {error && <div className="lux-alert">{error}</div>}
@@ -125,52 +194,32 @@ export function TrainingLuxuryPage() {
         <div><span>Status</span><strong className={`lux-status lux-status--${response?.status ?? "idle"}`}>{response?.status ?? "idle"}</strong></div>
         <div><span>Candidate</span><strong>{training?.candidate_index ? `${training.candidate_index} / ${training.candidate_count ?? "—"}` : "—"}</strong></div>
         <div><span>Learning rate</span><strong>{training?.learning_rate ?? "—"}</strong></div>
-        <div><span>Best epoch</span><strong>{n(training?.best_epoch)}</strong></div>
-        <div><span>Patience</span><strong>{training?.patience_used != null ? `${n(training.patience_used)} / ${n(training.patience)}` : "—"}</strong></div>
+        <div><span>Completed epochs</span><strong>{n(actualEpoch)} / {n(training?.epochs)}</strong></div>
+        <div><span>Total updates</span><strong>{n(totalUpdates)}</strong></div>
       </section>
 
       <section className="lux-metrics-grid">
-        <article className="lux-card lux-card--hero"><div className="lux-card-label">POLICY REWARD</div><div className="lux-number">{d(training?.policy_reward ?? training?.final_avg_reward, 6)}</div><div className="lux-sub">Reward actually obtained by the learned policy.</div><Sparkline history={history} metric="policy"/></article>
-        <article className="lux-card"><div className="lux-card-label">ORACLE GAP</div><div className="lux-number">{d(rewardDelta, 6)}</div><div className="lux-sub">Oracle reward − policy reward.</div><Sparkline history={history} metric="oracle"/></article>
-        <article className="lux-card"><div className="lux-card-label">POLICY EFFICIENCY</div><div className="lux-number">{pct(training?.reward_efficiency)}</div><div className="lux-sub">How close the learned policy is to the available reward ceiling.</div><Sparkline history={history} metric="efficiency"/></article>
-        <article className="lux-card"><div className="lux-card-label">LOSS</div><div className="lux-number">{d(training?.final_loss, 6)}</div><div className="lux-sub">Latest completed epoch.</div><Sparkline history={history} metric="loss"/></article>
+        <article className="lux-card lux-card--hero"><div className="lux-card-label">POLICY REWARD</div><div className="lux-number">{d(training?.policy_reward ?? training?.final_avg_reward, 6)}</div><div className="lux-sub">Reward actually earned by the current policy actions.</div></article>
+        <article className="lux-card"><div className="lux-card-label">ORACLE GAP</div><div className="lux-number">{d((training?.oracle_average_reward ?? 0) - (training?.policy_reward ?? 0), 6)}</div><div className="lux-sub">Oracle ceiling − learned-policy reward.</div></article>
+        <article className="lux-card"><div className="lux-card-label">POLICY EFFICIENCY</div><div className="lux-number">{pct(training?.reward_efficiency)}</div><div className="lux-sub">Policy reward divided by oracle reward.</div></article>
+        <article className="lux-card"><div className="lux-card-label">MODEL STATE</div><div className="lux-number">{response?.results?.model?.exists ? "READY" : "—"}</div><div className="lux-sub">{response?.results?.post_training?.status ?? "Waiting for champion model"}</div></article>
+      </section>
+
+      <section className="lux-card lux-card--wide">
+        <div className="lux-card-head"><div><div className="lux-card-label">INTERACTIVE TELEMETRY</div><h2>Learning dynamics</h2></div><div className="lux-tabs">{(["loss","policy","oracle","efficiency","validation","updates"] as Metric[]).map((item) => <button key={item} className={metric === item ? "active" : ""} onClick={() => setMetric(item)}>{item}</button>)}</div></div>
+        <div className="lux-zoom-toolbar"><div className="lux-zoom-info"><strong>E{chartBounds.start} → E{chartBounds.end}</strong><span>{selected.length} rendered epochs · auto window follows the latest completed epoch</span></div><div className="lux-zoom-actions"><button onClick={zoomIn}>＋ Zoom</button><button onClick={zoomOut}>－ Zoom</button><button onClick={zoomLast}>Latest</button><button onClick={zoomAll}>All</button></div></div>
+        <InteractiveChart history={history} metric={metric} startEpoch={chartBounds.start} endEpoch={chartBounds.end} />
+        <div className="lux-range-grid"><label>Start epoch<input type="range" min={1} max={maxEpoch} value={chartBounds.start} onChange={(event) => setStartEpoch(Math.min(Number(event.target.value), chartBounds.end))}/><span>{chartBounds.start}</span></label><label>End epoch<input type="range" min={1} max={maxEpoch} value={chartBounds.end} onChange={(event) => setEndEpoch(Math.max(Number(event.target.value), chartBounds.start))}/><span>{chartBounds.end}</span></label></div>
       </section>
 
       <section className="lux-main-grid">
-        <article className="lux-card lux-card--wide">
-          <div className="lux-card-head"><div><div className="lux-card-label">TELEMETRY</div><h2>Learning dynamics</h2></div><div className="lux-tabs">{["loss","policy","oracle","efficiency","validation","updates"].map((m) => <button key={m} className={metric === m ? "active" : ""} onClick={() => setMetric(m)}>{m}</button>)}</div></div>
-          <div className="lux-big-chart"><Sparkline history={history} metric={metric}/></div>
-          <div className="lux-chart-footer"><span>Epoch {history[0]?.epoch ?? "—"}</span><strong>{metric === "policy" ? "Policy reward" : metric === "oracle" ? "Oracle reward" : metric === "efficiency" ? "Reward efficiency" : metric === "validation" ? "Validation selection score" : metric === "updates" ? "Cumulative optimizer updates" : "Loss"}</strong><span>Epoch {history.at(-1)?.epoch ?? "—"}</span></div>
-        </article>
-
-        <article className="lux-card">
-          <div className="lux-card-label">AUTOMATIC BUDGET</div><h2>Update engine</h2>
-          <div className="lux-progress-block"><div className="lux-progress-top"><span>Epoch ceiling</span><strong>{n(training?.actual_epochs)} / {n(training?.epochs)}</strong></div><div className="lux-progress"><i style={{width: `${percentDone}%`}}/></div></div>
-          <div className="lux-progress-block"><div className="lux-progress-top"><span>Optimizer updates</span><strong>{n(training?.total_updates_used)} / {n(training?.max_total_updates)}</strong></div><div className="lux-progress lux-progress--gold"><i style={{width: `${updatePercent}%`}}/></div></div>
-          <div className="lux-mini-grid"><div><span>Updates / epoch</span><strong>{n(training?.updates_per_epoch)}</strong></div><div><span>Batch size</span><strong>{n(training?.batch_size)}</strong></div><div><span>Patience</span><strong>{n(training?.patience)}</strong></div><div><span>Min delta</span><strong>{d(training?.min_delta, 4)}</strong></div></div>
-          <div className="lux-explain"><strong>Why reward can look stable</strong><p>The old telemetry averaged the reward ceiling implied by the labels, so it did not reflect the model. This version tracks the action chosen by the current Q-network and reports the oracle ceiling separately.</p></div>
-        </article>
+        <article className="lux-card"><div className="lux-card-label">DYNAMIC POLICY</div><h2>Action distribution by epoch</h2><p className="lux-muted">Hover each vertical segment for the exact action share at that epoch.</p><ActionDistributionChart history={history} startEpoch={chartBounds.start} endEpoch={chartBounds.end}/></article>
+        <article className="lux-card"><div className="lux-card-label">AUTOMATIC UPDATE ENGINE</div><h2>Compute budget</h2><div className="lux-progress-block"><div className="lux-progress-top"><span>Epoch progress</span><strong>{n(actualEpoch)} / {n(training?.epochs)}</strong></div><div className="lux-progress"><i style={{ width: `${training?.epochs ? Math.min(100, (actualEpoch / training.epochs) * 100) : 0}%` }}/></div></div><div className="lux-progress-block"><div className="lux-progress-top"><span>Optimizer updates</span><strong>{n(totalUpdates)} / {n(updateBudget)}</strong></div><div className="lux-progress lux-progress--gold"><i style={{ width: `${updateBudget ? Math.min(100, (totalUpdates / updateBudget) * 100) : 0}%` }}/></div></div><div className="lux-mini-grid"><div><span>Updates / epoch</span><strong>{n(training?.updates_per_epoch)}</strong></div><div><span>Batch</span><strong>{n(training?.batch_size)}</strong></div><div><span>Patience</span><strong>{n(training?.patience)}</strong></div><div><span>Min delta</span><strong>{d(training?.min_delta, 4)}</strong></div></div><div className="lux-explain"><strong>Stable reward is now split correctly</strong><p>Policy reward changes with the action chosen by the current network. The oracle ceiling is shown separately, so a flat oracle value no longer masquerades as learning progress.</p></div></article>
       </section>
 
-      <section className="lux-main-grid">
-        <article className="lux-card">
-          <div className="lux-card-head"><div><div className="lux-card-label">MODEL SELECTION</div><h2>Candidate leaderboard</h2></div><span className="lux-pill">Test untouched</span></div>
-          <div className="lux-table-wrap"><table className="lux-table"><thead><tr><th>Model</th><th>LR</th><th>Epochs</th><th>Val optimality</th><th>Val efficiency</th><th>Score</th></tr></thead><tbody>{candidates.map((c, i) => <tr key={String(c.name)} className={best?.name === c.name ? "is-best" : ""}><td><strong>{String(c.name ?? `Model ${i+1}`)}</strong>{best?.name === c.name && <span className="lux-best">BEST</span>}</td><td>{String(c.learning_rate ?? "—")}</td><td>{n(c.actual_epochs)}</td><td>{pct((c.best_validation as any)?.policy_optimality)}</td><td>{pct((c.best_validation as any)?.reward_efficiency)}</td><td>{d(c.validation_score, 4)}</td></tr>)}</tbody></table></div>
-        </article>
+      <section className="lux-main-grid"><article className="lux-card"><div className="lux-card-head"><div><div className="lux-card-label">MODEL SELECTION</div><h2>Champion leaderboard</h2></div><span className="lux-pill">Validation only</span></div><div className="lux-table-wrap"><table className="lux-table"><thead><tr><th>Model</th><th>LR</th><th>Actual epochs</th><th>Best epoch</th><th>Val score</th><th>Status</th></tr></thead><tbody>{candidates.map((candidate, index) => <tr key={String(candidate.name ?? index)} className={best?.name === candidate.name ? "is-best" : ""}><td><strong>{String(candidate.name ?? `Candidate ${index + 1}`)}</strong></td><td>{String(candidate.learning_rate ?? "—")}</td><td>{n(candidate.actual_epochs)}</td><td>{n(candidate.best_epoch)}</td><td>{d(candidate.validation_score, 4)}</td><td>{best?.name === candidate.name ? "CHAMPION" : String(candidate.status ?? "completed")}</td></tr>)}</tbody></table></div></article><article className="lux-card"><div className="lux-card-label">LIVE MODEL</div><h2>Operational champion</h2><div className="lux-mini-grid lux-mini-grid--model"><div><span>Version</span><strong>{String((response?.results?.post_training?.model as any)?.model_version ?? "—")}</strong></div><div><span>Algorithm</span><strong>{String((response?.results?.post_training?.model as any)?.model_name ?? "—")}</strong></div><div><span>Inference</span><strong>{String((response?.results?.live_inference as any)?.status ?? "NOT_RUN")}</strong></div><div><span>Review routed</span><strong>{n((response?.results?.live_inference as any)?.human_review_routed)}</strong></div></div></article></section>
 
-        <article className="lux-card">
-          <div className="lux-card-label">TRAINING POLICY</div><h2>Automatic stop logic</h2>
-          <div className="lux-rule"><b>1</b><div><strong>Minimum learning window</strong><p>Never stop before the configured minimum epoch count.</p></div></div>
-          <div className="lux-rule"><b>2</b><div><strong>Validation improvement</strong><p>Model score = 70% validation optimality + 30% validation reward efficiency.</p></div></div>
-          <div className="lux-rule"><b>3</b><div><strong>Patience</strong><p>Stop after the policy stabilizes for the configured number of epochs.</p></div></div>
-          <div className="lux-rule"><b>4</b><div><strong>Safety ceiling</strong><p>The optimizer also has an automatic total-update budget derived from dataset size and the epoch ceiling.</p></div></div>
-        </article>
-      </section>
-
-      <section className="lux-card">
-        <div className="lux-card-head"><div><div className="lux-card-label">EPOCH LEDGER</div><h2>Recent training events</h2></div><span className="lux-muted">Last {Math.min(12, history.length)} epochs</span></div>
-        <div className="lux-table-wrap lux-table-wrap--tall"><table className="lux-table"><thead><tr><th>Epoch</th><th>Loss</th><th>Policy reward</th><th>Oracle</th><th>Efficiency</th><th>Total updates</th><th>Validation</th><th>Patience</th></tr></thead><tbody>{history.slice(-12).reverse().map((r) => <tr key={r.epoch}><td>{n(r.epoch)}</td><td>{d(r.loss, 6)}</td><td>{d(r.policy_reward ?? r.avg_reward, 6)}</td><td>{d(r.oracle_average_reward, 6)}</td><td>{pct(r.reward_efficiency)}</td><td>{n(r.total_updates)}</td><td>{d(r.validation_score, 4)}</td><td>{r.patience_used != null ? n(r.patience_used) : "—"}</td></tr>)}</tbody></table></div>
-      </section>
+      <section className="lux-card"><div className="lux-card-head"><div><div className="lux-card-label">EPOCH LEDGER</div><h2>Recent training events</h2></div><span className="lux-muted">Last {Math.min(16, history.length)} completed epochs</span></div><div className="lux-table-wrap lux-table-wrap--tall"><table className="lux-table"><thead><tr><th>Epoch</th><th>Loss</th><th>Policy</th><th>Oracle</th><th>Efficiency</th><th>Cumulative updates</th><th>Validation</th><th>Patience</th></tr></thead><tbody>{history.slice(-16).reverse().map((row) => <tr key={row.epoch}><td>{n(row.epoch)}</td><td>{d(row.loss, 6)}</td><td>{d(row.policy_reward ?? row.avg_reward, 6)}</td><td>{d(row.oracle_average_reward, 6)}</td><td>{pct(row.reward_efficiency)}</td><td>{n(row.total_updates)}</td><td>{d(row.validation_score, 4)}</td><td>{row.patience_used != null ? n(row.patience_used) : "—"}</td></tr>)}</tbody></table></div></section>
     </div>
   );
 }
