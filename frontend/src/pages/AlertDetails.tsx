@@ -1,70 +1,101 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { EmptyState } from "../components/ui/EmptyState";
 import { PageHeader } from "../components/ui/PageHeader";
 import { QueryState } from "../components/ui/QueryState";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { useApi } from "../hooks/useApi";
-import { alertsService } from "../services/alerts.service";
-import { decisionsService } from "../services/decisions.service";
+import { liveAlertsService } from "../services/liveAlerts.service";
 import { formatDateTime } from "../utils/format";
-
-const notProvided = "Not provided by API";
 
 export function AlertDetailsPage() {
   const { id = "" } = useParams();
-  const alert = useApi(() => alertsService.getAlert(id));
-  const decisions = useApi(decisionsService.getDecisions);
+  const alert = useApi(() => liveAlertsService.getAlert(id), { poll: true });
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function review(decision: string) {
+    setBusy(true);
+    try {
+      await liveAlertsService.review(id, {
+        analyst_id: "SA",
+        decision,
+        comment: `Decision made from the SOC supervision interface: ${decision}`,
+      });
+      setMessage(`Alert ${id} marked as ${decision}.`);
+      await alert.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to update the alert.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
-      <PageHeader eyebrow="ALERT INVESTIGATION" title={`Alert ${id || "details"}`} description="Only fields supplied by the current alert and decision APIs are populated." actions={<Link className="button button--quiet" to="/alerts">← Back to alerts</Link>} />
+      <PageHeader eyebrow="ALERT INVESTIGATION" title={`Alert ${id || "details"}`} description="Original source characteristics stay visible alongside the exact processed representation used by the RL pipeline." actions={<Link className="button button--quiet" to="/alerts">← Back to alerts</Link>} />
       <QueryState state={alert}>
-        {(data) => {
-          const linkedDecision = decisions.data?.find((decision) => String(decision.incident_id) === String(data.id));
-          return <div className="detail-grid">
-            <section className="panel detail-panel">
-              <div className="panel__header"><div><p className="eyebrow">ALERT INFORMATION</p><h2>{data.title}</h2></div><StatusBadge value={data.severity} /></div>
-              <dl className="detail-list">
-                <Detail label="Alert ID" value={String(data.id)} />
-                <Detail label="Severity" value={data.severity} />
-                <Detail label="Source" value={data.source} />
-                <Detail label="Alert type" value={notProvided} muted />
-                <Detail label="Timestamp" value={notProvided} muted />
-                <Detail label="Destination" value={notProvided} muted />
-                <Detail label="Threat score" value={notProvided} muted />
-                <Detail label="Asset criticality" value={notProvided} muted />
-                <Detail label="Business criticality" value={notProvided} muted />
-                <Detail label="MITRE ATT&CK technique" value={notProvided} muted />
-              </dl>
-            </section>
-            <section className="panel decision-panel">
-              <div className="panel__header"><div><p className="eyebrow">RL AGENT DECISION</p><h2>Decision record</h2></div></div>
-              {decisions.isLoading ? <p className="muted">Checking linked decision…</p> : linkedDecision ? <dl className="detail-list">
-                <Detail label="Action" value={linkedDecision.action} />
-                <Detail label="Decision ID" value={String(linkedDecision.id)} />
-                <Detail label="Timestamp" value={formatDateTime(linkedDecision.timestamp)} />
-                <Detail label="Priority" value={notProvided} muted />
-                <Detail label="Confidence" value={notProvided} muted />
-                <Detail label="Reward" value={notProvided} muted />
-                <Detail label="Processing time" value={notProvided} muted />
-              </dl> : <EmptyState title="No linked decision found" description="The decision API has not returned a record linked to this alert." compact />}
-              <div className="action-unavailable"><strong>Human actions are not enabled</strong><p>The current API exposes no approval, escalation, reassignment, delay, or close endpoint. No action is simulated here.</p></div>
-            </section>
-            <section className="panel detail-panel detail-panel--full">
-              <div className="panel__header"><div><p className="eyebrow">STATE VECTOR</p><h2>Features available to the interface</h2></div></div>
-              <div className="state-vector"><Feature label="Severity" value={data.severity} available /><Feature label="Alert title" value={data.title} available /><Feature label="Source" value={data.source} available /><Feature label="Alert type" value={notProvided} /><Feature label="Asset criticality" value={notProvided} /><Feature label="Threat score" value={notProvided} /><Feature label="Analyst load" value={notProvided} /><Feature label="Historical alerts" value={notProvided} /><Feature label="Playbook availability" value={notProvided} /><Feature label="Business criticality" value={notProvided} /></div>
-              <p className="panel-note">The API currently does not return explanation factors. The dashboard therefore shows supplied state features only and does not infer an explanation.</p>
-            </section>
-          </div>;
-        }}
+        {(data) => <div className="detail-grid">
+          <section className="panel detail-panel">
+            <div className="panel__header"><div><p className="eyebrow">REAL SOURCE ALERT</p><h2>{data.title}</h2></div><StatusBadge value={data.status} /></div>
+            <dl className="detail-list">
+              <Detail label="Alert ID" value={data.alert_id} />
+              <Detail label="Incident ID" value={String(data.incident_id)} />
+              <Detail label="Timestamp" value={data.timestamp} />
+              <Detail label="Category" value={String(data.source.Category ?? "Unknown")} />
+              <Detail label="MITRE technique" value={String(data.source.MitreTechniques ?? "Unknown")} />
+              <Detail label="Incident grade" value={String(data.source.IncidentGrade ?? "Unknown")} />
+              <Detail label="Action grouped" value={String(data.source.ActionGrouped ?? "Unknown")} />
+              <Detail label="Action granular" value={String(data.source.ActionGranular ?? "Unknown")} />
+              <Detail label="Entity type" value={String(data.source.EntityType ?? "Unknown")} />
+              <Detail label="Evidence role" value={String(data.source.EvidenceRole ?? "Unknown")} />
+              <Detail label="Threat family" value={String(data.source.ThreatFamily ?? "Unknown")} />
+              <Detail label="OS family" value={String(data.source.OSFamily ?? "Unknown")} />
+              <Detail label="Suspicion level" value={String(data.source.SuspicionLevel ?? "Unknown")} />
+              <Detail label="Last verdict" value={String(data.source.LastVerdict ?? "Unknown")} />
+            </dl>
+          </section>
+
+          <section className="panel decision-panel">
+            <div className="panel__header"><div><p className="eyebrow">RL / HUMAN SUPERVISION</p><h2>Decision state</h2></div></div>
+            <dl className="detail-list">
+              <Detail label="Agent state" value={data.agent.status} />
+              <Detail label="Recommended action" value={data.agent.action} />
+              <Detail label="Confidence" value={data.agent.confidence === null ? "Awaiting inference" : String(data.agent.confidence)} />
+              <Detail label="Model version" value={data.agent.model_version ?? "Awaiting inference"} />
+              <Detail label="Assigned analyst" value={data.assigned_analyst ?? "Unassigned"} />
+              <Detail label="Human review" value={data.agent.requires_human_review ? "Required" : "Completed"} />
+            </dl>
+            <div className="divider" />
+            <div className="panel__header"><div><p className="eyebrow">ANALYST CONTROLS</p><h2>Human verification</h2></div></div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              <button className="button" type="button" disabled={busy} onClick={() => void review("approve")}>Approve</button>
+              <button className="button button--quiet" type="button" disabled={busy} onClick={() => void review("reject")}>Reject</button>
+              <button className="button button--quiet" type="button" disabled={busy} onClick={() => void review("escalate")}>Escalate</button>
+              <button className="button button--quiet" type="button" disabled={busy} onClick={() => void review("delete")}>Delete</button>
+              <button className="button button--quiet" type="button" disabled={busy} onClick={() => void review("close")}>Close</button>
+            </div>
+            {message ? <p className="panel-note">{message}</p> : null}
+          </section>
+
+          <section className="panel detail-panel detail-panel--full">
+            <div className="panel__header"><div><p className="eyebrow">PROCESSED RL INPUT</p><h2>Exact pipeline representation</h2></div></div>
+            <div className="table-scroll"><table className="alerts-table"><thead><tr><th>Feature</th><th>Value passed/stored for the agent</th></tr></thead><tbody>
+              {Object.entries(data.processed).filter(([key]) => key !== "alert_id").map(([key, value]) => <tr key={key}><td className="mono">{key}</td><td className="mono">{String(value)}</td></tr>)}
+            </tbody></table></div>
+            <p className="panel-note">The live holdout keeps the original alert and its processed representation linked by alert ID and lineage data; no model training is triggered here.</p>
+          </section>
+
+          <section className="panel detail-panel detail-panel--full">
+            <div className="panel__header"><div><p className="eyebrow">ACTIVITY HISTORY</p><h2>Audit trail</h2></div></div>
+            {data.history && data.history.length ? <div className="table-scroll"><table className="alerts-table"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Details</th></tr></thead><tbody>{data.history.map((entry, index) => <tr key={`${String(entry.timestamp)}-${index}`}><td>{formatDateTime(String(entry.timestamp))}</td><td>{String(entry.actor ?? "system")}</td><td>{String(entry.action ?? "")}</td><td>{JSON.stringify(entry.details ?? {})}</td></tr>)}</tbody></table></div> : <EmptyState compact title="No activity yet" description="The first system import event should be recorded when the API seeds MongoDB." />}
+          </section>
+        </div>}
       </QueryState>
     </>
   );
 }
 
-function Detail({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
-  return <div><dt>{label}</dt><dd className={muted ? "not-provided" : ""}>{value}</dd></div>;
-}
-function Feature({ label, value, available = false }: { label: string; value: string; available?: boolean }) {
-  return <div className="feature"><div><span>{label}</span><strong>{value}</strong></div><span className={available ? "feature__available" : "not-provided"}>{available ? "Available" : "Unavailable"}</span></div>;
+function Detail({ label, value }: { label: string; value: string }) {
+  return <div><dt>{label}</dt><dd>{value}</dd></div>;
 }
