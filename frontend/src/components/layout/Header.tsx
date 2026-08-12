@@ -1,12 +1,12 @@
 import { useApi } from "../../hooks/useApi";
-import { dashboardService } from "../../services/dashboard.service";
+import { liveAlertsService } from "../../services/liveAlerts.service";
 import { StatusBadge } from "../ui/StatusBadge";
 
 export function Header({ onMenu }: { onMenu: () => void }) {
-  const system = useApi(dashboardService.getSystemHealth, { poll: true });
-  const database = useApi(dashboardService.getDatabaseHealth, { poll: true });
-  const apiStatus = system.data?.status === "ok" ? "online" : system.error ? "offline" : "unknown";
-  const dbStatus = database.data?.status ?? (database.error ? "offline" : "unknown");
+  const system = useApi(liveAlertsService.getSystemStatus, { poll: true });
+
+  const apiStatus = system.data?.api?.toLowerCase() ?? (system.error ? "offline" : "unknown");
+  const dbStatus = system.data?.database?.toLowerCase() ?? (system.error ? "offline" : "unknown");
 
   return (
     <header className="topbar">
