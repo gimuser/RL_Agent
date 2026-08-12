@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.services.live_alert_service import (
+    activity_collection,
     agent_status,
     analysts_workload,
     assign_alert,
@@ -62,10 +63,18 @@ def live_alert_history(alert_id: str):
     return {"items": items, "history": items, "total": len(items)}
 
 
+@router.get("/live-activity")
+def live_activity(limit: int = Query(default=200, ge=1, le=500)):
+    items = list(
+        activity_collection.find({}, {"_id": 0})
+        .sort("timestamp", -1)
+        .limit(limit)
+    )
+    return {"items": items, "activity": items, "total": len(items)}
+
+
 @router.get("/human-review")
-def human_review(
-    limit: int = Query(default=100, ge=1, le=500),
-):
+def human_review(limit: int = Query(default=100, ge=1, le=500)):
     result = list_alerts(limit=limit, skip=0)
     items = [item for item in result["items"] if item.get("agent", {}).get("requires_human_review")]
     return {"items": items, "alerts": items, "total": len(items)}
