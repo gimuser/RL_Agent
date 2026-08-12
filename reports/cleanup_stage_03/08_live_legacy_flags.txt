@@ -1,0 +1,12 @@
+backend/app/services/model_service.py:94:                f"Model metadata has incompatible {key}: "
+backend/app/services/experiment_service.py:1:"""Legacy multi-model experiment compatibility layer.
+backend/app/services/experiment_service.py:5:compatible for the older experiment API, but it must not import the removed
+backend/app/services/experiment_service.py:6:legacy ``Trainer`` class during FastAPI startup.
+backend/app/services/experiment_service.py:33:            "The legacy multi-model experiment endpoint is retired. "
+backend/app/services/live_inference_service.py:90:            agent_state = {"status": "INFERRED", "action": action_name, "model_action": ACTIONS[top_action], "confidence": confidence, "q_values": q_map, "action_probabilities": probability_map, "confidence_threshold": float(confidence_threshold), "margin_threshold": float(margin_threshold), "action_margin": margin, "uncertainty_reason": uncertainty_reason, "model_version": model_meta.get("model_version"), "model_name": model_meta.get("model_name") or model_name, "algorithm": model_meta.get("algorithm"), "algorithm_metadata": model_meta.get("algorithm_metadata"), "candidate_model_path": str(selected_model_path) if selected_model_path else str(MODEL_PATH), "requires_human_review": requires_human, "inference_timestamp": timestamp, "decision_cycle_id": cycle_id}
+backend/app/services/live_inference_service.py:100:    summary = {"status": "completed" if not errors else "completed_with_errors", "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "model_version": model_meta.get("model_version"), "model_name": model_meta.get("model_name") or model_name, "algorithm": model_meta.get("algorithm"), "confidence_threshold": confidence_threshold, "margin_threshold": margin_threshold, "alerts_considered": len(documents), "alerts_processed": processed, "human_review_routed": routed, "action_distribution": counts, "errors": errors, "duration_seconds": elapsed}
+backend/app/services/training_service.py:18:# /api/training-control. This module remains only for backwards-compatible
+backend/app/services/training_service.py:19:# legacy /api/training endpoints and must not import the removed Trainer class.
+backend/app/services/training_service.py:59:        "message": "Legacy training endpoint disabled; use /api/training-control for authoritative real-data training.",
+backend/app/api/training.py:103:    This is intentionally separate from the legacy multi-model
+backend/app/api/live_alerts.py:86:    This is intentionally separate from the legacy /api/decisions collection:

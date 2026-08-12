@@ -1,0 +1,29 @@
+backend/app/tests/test_environment.py:28:    assert info["action_name"] in {"allow", "block", "human_review"}
+backend/app/tests/test_api.py:3:from app.database.database import alerts_collection, decisions_collection, rewards_collection
+backend/app/tests/test_api.py:22:def test_create_and_get_alert():
+backend/app/tests/test_api.py:25:    new_alert = {
+backend/app/tests/test_api.py:30:    create_res = client.post("/api/alerts", json=new_alert)
+backend/app/tests/test_api.py:32:    created_alert_id = create_res.json()["id"]
+backend/app/tests/test_api.py:34:    assert data["title"] == new_alert["title"]
+backend/app/tests/test_api.py:37:    alert_id = data["id"]
+backend/app/tests/test_api.py:40:    get_res = client.get(f"/api/alerts/{alert_id}")
+backend/app/tests/test_api.py:42:    assert get_res.json()["id"] == alert_id
+backend/app/tests/test_api.py:44:    # Prevent the API test from polluting operational MongoDB.
+backend/app/tests/test_api.py:45:    alerts_collection.delete_one(
+backend/app/tests/test_api.py:46:        {"id": created_alert_id}
+backend/app/tests/test_api.py:49:def test_get_all_alerts_pagination():
+backend/app/tests/test_api.py:51:    response = client.get("/api/alerts?skip=0&limit=5")
+backend/app/tests/test_api.py:56:def test_alert_not_found():
+backend/app/tests/test_api.py:58:    response = client.get("/api/alerts/999999")
+backend/app/tests/test_api.py:85:def test_create_and_get_decisions():
+backend/app/tests/test_api.py:87:    decision_payload = {
+backend/app/tests/test_api.py:92:    post_res = client.post("/api/decisions", json=decision_payload)
+backend/app/tests/test_api.py:96:    created_decision_id = post_res.json()["id"]
+backend/app/tests/test_api.py:99:    get_res = client.get("/api/decisions")
+backend/app/tests/test_api.py:104:    # Tests must not pollute the real operational MongoDB.
+backend/app/tests/test_api.py:105:    decisions_collection.delete_one(
+backend/app/tests/test_api.py:106:        {"id": created_decision_id}
+backend/app/tests/test_api.py:113:def test_training_lifecycle():
+backend/app/tests/test_api.py:135:        "decision_id": 1,
+backend/app/tests/test_api.py:152:    # Tests must not pollute the real operational MongoDB.
+backend/app/tests/test_api.py:183:        "total_alerts", "processed_alerts", "total_decisions",

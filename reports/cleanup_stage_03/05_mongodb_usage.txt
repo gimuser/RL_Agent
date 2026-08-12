@@ -1,0 +1,100 @@
+backend/app/database/repository.py:8:    alerts_collection,
+backend/app/database/repository.py:25:    for doc in alerts_collection.find().skip(skip).limit(limit):
+backend/app/database/repository.py:40:    last_alert = alerts_collection.find_one(sort=[("id", -1)])
+backend/app/database/repository.py:50:    alerts_collection.insert_one(new_alert)
+backend/app/database/repository.py:57:    document = alerts_collection.find_one({"id": alert_id})
+backend/app/database/repository.py:73:    result = alerts_collection.update_one(
+backend/app/database/repository.py:94:    result = alerts_collection.delete_one({"id": alert_id})
+backend/app/database/repository.py:108:    last_decision = decisions_collection.find_one(sort=[("id", -1)])
+backend/app/database/repository.py:117:    decisions_collection.insert_one(new_decision_dict)
+backend/app/database/repository.py:125:    for doc in decisions_collection.find().skip(skip).limit(limit):
+backend/app/database/repository.py:136:    last_reward = rewards_collection.find_one(sort=[("id", -1)])
+backend/app/database/repository.py:141:    rewards_collection.insert_one(new_reward_dict)
+backend/app/database/repository.py:149:    for doc in rewards_collection.find().skip(skip).limit(limit):
+backend/app/database/database.py:1:from pymongo import MongoClient
+backend/app/database/database.py:7:client = MongoClient(
+backend/app/database/database.py:14:alerts_collection = db["alerts"]
+backend/app/database/database.py:15:decisions_collection = db["decisions"]
+backend/app/database/database.py:16:rewards_collection = db["rewards"]
+backend/app/database/database.py:17:evaluations_collection = db["evaluations"]
+backend/app/database/database.py:18:pipeline_collection = db["pipeline_logs"]
+backend/app/database/database.py:19:training_collection = db["training"]
+backend/app/database/database.py:20:metrics_collection = db["metrics"]
+backend/app/database/database.py:21:checkpoints_collection = db["checkpoints"]
+backend/app/database/database.py:22:api_statuses_collection = db["api_statuses"]
+backend/app/database/database.py:23:training_metrics_collection = db["training_metrics"]
+backend/app/database/database.py:31:    "alerts_collection",
+backend/app/database/database.py:40:    "training_metrics_collection",
+backend/app/database/session.py:20:			session.alerts.find(...)
+backend/app/database/session.py:23:		alerts=getattr(db_module, "alerts_collection"),
+backend/app/database/session.py:36:def get_collections():
+backend/app/database/session.py:39:		alerts=getattr(db_module, "alerts_collection"),
+backend/app/services/api_activity.py:69:                            training_collection.find_one,
+backend/app/services/api_activity.py:102:                    api_statuses_collection.update_one(
+backend/app/services/dataset_service.py:51:        pipeline_collection.insert_one(
+backend/app/services/live_inference_service.py:15:from app.services.live_alert_service import alerts_collection, activity_collection, analysts_collection
+backend/app/services/live_inference_service.py:34:    analysts = list(analysts_collection.find({"active": True}, {"_id": 0}))
+backend/app/services/live_inference_service.py:39:        load = alerts_collection.count_documents({"assigned_analyst": analyst_id, "status": {"$in": ["HUMAN_REVIEW_PENDING", "ESCALATED", "OPEN"]}})
+backend/app/services/live_inference_service.py:67:    documents = list(alerts_collection.find(query, {"_id": 0}).sort("timestamp", 1))
+backend/app/services/live_inference_service.py:68:    now = utc_now(); cycle_doc = alerts_collection.find_one({}, {"_id": 0, "cycle_id": 1, "decision_cycle_id": 1}) or {}
+backend/app/services/live_inference_service.py:91:            alerts_collection.update_one({"alert_id": alert_id}, {"$set": {"status": status, "agent": agent_state, "assigned_analyst": assigned_analyst, "updated_at": timestamp, "cycle_id": cycle_id, "decision_cycle_id": cycle_id}})
+backend/app/services/live_inference_service.py:92:            activity_collection.insert_one({"alert_id": alert_id, "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "actor": "agent", "action": "AGENT_INFERENCE", "details": {"action": action_name, "model_action": ACTIONS[top_action], "confidence": confidence, "action_margin": margin, "uncertainty_reason": uncertainty_reason, "model_version": model_meta.get("model_version"), "algorithm": model_meta.get("algorithm")}, "timestamp": timestamp})
+backend/app/services/live_inference_service.py:94:                activity_collection.insert_one({"alert_id": alert_id, "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "actor": "system", "action": "HUMAN_REVIEW_ROUTED", "details": {"analyst_id": assigned_analyst, "reason": uncertainty_reason or "MODEL_REQUESTED_REVIEW", "confidence": confidence, "model_version": model_meta.get("model_version"), "algorithm": model_meta.get("algorithm")}, "timestamp": timestamp})
+backend/app/services/live_inference_service.py:98:            activity_collection.insert_one({"alert_id": alert_id, "cycle_id": cycle_id, "decision_cycle_id": cycle_id, "actor": "system", "action": "AGENT_INFERENCE_ERROR", "details": {"error": str(exc), "model_version": model_meta.get("model_version")}, "timestamp": utc_now()})
+backend/app/services/dashboard_service.py:6:    alerts_collection,
+backend/app/services/live_cycle_service.py:8:    activity_collection,
+backend/app/services/live_cycle_service.py:9:    alerts_collection,
+backend/app/services/live_cycle_service.py:15:cycles_collection = db["live_alert_cycles"]
+backend/app/services/live_cycle_service.py:23:    alerts = list(alerts_collection.find({}, {"_id": 0}))
+backend/app/services/live_cycle_service.py:24:    reviews = list(review_collection.find({}, {"_id": 0}))
+backend/app/services/live_cycle_service.py:25:    activity = list(activity_collection.find({}, {"_id": 0}))
+backend/app/services/live_cycle_service.py:37:        cycles_collection.insert_one(snapshot)
+backend/app/services/live_cycle_service.py:47:    alerts_collection.update_many(
+backend/app/services/live_cycle_service.py:58:    activity_collection.update_many(
+backend/app/services/live_cycle_service.py:63:    cycles_collection.update_one(
+backend/app/services/live_cycle_service.py:100:    alert = alerts_collection.find_one({}, {"_id": 0, "cycle_id": 1, "decision_cycle_id": 1, "cycle_reason": 1, "cycle_started_at": 1})
+backend/app/services/live_cycle_service.py:106:        cycles_collection.find(
+backend/app/services/live_alert_service.py:14:alerts_collection = db["live_alerts"]
+backend/app/services/live_alert_service.py:15:activity_collection = db["live_alert_activity"]
+backend/app/services/live_alert_service.py:16:review_collection = db["live_alert_reviews"]
+backend/app/services/live_alert_service.py:17:analysts_collection = db["analysts"]
+backend/app/services/live_alert_service.py:55:    alerts_collection.create_index("alert_id", unique=True)
+backend/app/services/live_alert_service.py:56:    alerts_collection.create_index([("timestamp", -1)])
+backend/app/services/live_alert_service.py:57:    alerts_collection.create_index("status")
+backend/app/services/live_alert_service.py:58:    alerts_collection.create_index("incident_id")
+backend/app/services/live_alert_service.py:59:    alerts_collection.create_index("assigned_analyst")
+backend/app/services/live_alert_service.py:60:    alerts_collection.create_index("agent.model_version")
+backend/app/services/live_alert_service.py:61:    alerts_collection.create_index("agent.requires_human_review")
+backend/app/services/live_alert_service.py:62:    activity_collection.create_index([("alert_id", 1), ("timestamp", -1)])
+backend/app/services/live_alert_service.py:65:    analysts_collection.create_index("analyst_id", unique=True)
+backend/app/services/live_alert_service.py:73:    if alerts_collection.count_documents({}) > 0 and not force:
+backend/app/services/live_alert_service.py:76:        alerts_collection.delete_many({})
+backend/app/services/live_alert_service.py:77:        activity_collection.delete_many({})
+backend/app/services/live_alert_service.py:124:        alerts_collection.insert_many(docs)
+backend/app/services/live_alert_service.py:133:        analysts_collection.update_one({"analyst_id": analyst["analyst_id"]}, {"$set": analyst}, upsert=True)
+backend/app/services/live_alert_service.py:143:        activity_collection.insert_many(activity_docs)
+backend/app/services/live_alert_service.py:157:    total = alerts_collection.count_documents(query)
+backend/app/services/live_alert_service.py:158:    items = list(alerts_collection.find(query, {"_id": 0}).sort("timestamp", -1).skip(skip).limit(limit))
+backend/app/services/live_alert_service.py:163:    return alerts_collection.find_one({"alert_id": alert_id}, {"_id": 0})
+backend/app/services/live_alert_service.py:167:    return list(activity_collection.find({"alert_id": alert_id}, {"_id": 0}).sort("timestamp", -1).limit(200))
+backend/app/services/live_alert_service.py:188:    review_collection.insert_one({
+backend/app/services/live_alert_service.py:196:    alerts_collection.update_one(
+backend/app/services/live_alert_service.py:209:    activity_collection.insert_one({
+backend/app/services/live_alert_service.py:224:    alerts_collection.update_one({"alert_id": alert_id}, {"$set": {"assigned_analyst": analyst_id, "updated_at": now}})
+backend/app/services/live_alert_service.py:225:    activity_collection.insert_one({"alert_id": alert_id, "actor": "SA", "action": "ASSIGNED", "details": {"analyst_id": analyst_id}, "timestamp": now})
+backend/app/services/live_alert_service.py:234:    total = alerts_collection.count_documents({})
+backend/app/services/live_alert_service.py:235:    pending = alerts_collection.count_documents({"agent.requires_human_review": True})
+backend/app/services/live_alert_service.py:236:    decisions = alerts_collection.count_documents({"agent.status": "INFERRED"})
+backend/app/services/live_alert_service.py:257:    analysts = list(analysts_collection.find({"active": True}, {"_id": 0}))
+backend/app/services/live_alert_service.py:262:        load = alerts_collection.count_documents({
+backend/app/services/live_alert_service.py:291:        "live_alerts": alerts_collection.count_documents({}),
+backend/app/services/live_alert_service.py:292:        "pending_human_review": alerts_collection.count_documents({"agent.requires_human_review": True}),
+backend/app/services/training_service.py:9:    training_metrics_collection,
+backend/app/api/database_monitoring.py:18:    total_objects = sum(db[collection].count_documents({}) for collection in collections)
+backend/app/api/live_alerts.py:7:    activity_collection,
+backend/app/api/live_alerts.py:75:    items = list(activity_collection.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit))
+backend/app/api/live_alerts.py:91:        latest = activity_collection.find_one(
+backend/app/api/live_alerts.py:102:        activity_collection.find(
+backend/app/api/live_alerts.py:241:    activity_items = list(activity_collection.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit))
+backend/app/tests/test_api.py:3:from app.database.database import alerts_collection, decisions_collection, rewards_collection
+backend/app/tests/test_api.py:45:    alerts_collection.delete_one(
