@@ -1,33 +1,39 @@
-import { EmptyState } from "../components/ui/EmptyState";
 import { PageHeader } from "../components/ui/PageHeader";
 import { QueryState } from "../components/ui/QueryState";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { useApi } from "../hooks/useApi";
-import { dashboardService } from "../services/dashboard.service";
-import { pipelineService } from "../services/pipeline.service";
-import { trainingService } from "../services/training.service";
-import { formatDateTime, formatDecimal, formatNumber } from "../utils/format";
+import { liveAlertsService } from "../services/liveAlerts.service";
+import { formatDecimal, formatNumber } from "../utils/format";
 
 export function AgentPage() {
-  const summary = useApi(dashboardService.getSummary, { poll: true });
-  const training = useApi(trainingService.getStatus, { poll: true });
-  const pipeline = useApi(pipelineService.getStatus, { poll: true });
+  const agent = useApi(liveAlertsService.getAgentStatus, { poll: true });
+  const workload = useApi(liveAlertsService.getWorkload, { poll: true });
+
   return <>
-    <PageHeader eyebrow="RL AGENT" title="Agent oversight" description="Current data is composed only from dashboard, training, and pipeline endpoints; a dedicated agent endpoint is not yet exposed." />
+    <PageHeader eyebrow="RL AGENT" title="Agent oversight" description="Live-alert supervision backed by MongoDB. Training is intentionally not started from this page." />
     <section className="split-grid">
-      <article className="panel"><div className="panel__header"><div><p className="eyebrow">AVAILABLE STATUS</p><h2>Runtime signals</h2></div></div>
-        <QueryState state={summary}>{(data) => <dl className="detail-list"><Detail label="Training state" value={data.training_status} badge /><Detail label="Current episode" value={formatNumber(data.current_episode)} /><Detail label="Average reward" value={formatDecimal(data.average_reward)} /><Detail label="Reported accuracy" value={data.accuracy === null ? "—" : `${formatDecimal(data.accuracy * 100, 1)}%`} /><Detail label="Model version" value="Not provided by API" muted /><Detail label="Algorithm" value="Not provided by API" muted /></dl>}</QueryState>
+      <article className="panel"><div className="panel__header"><div><p className="eyebrow">RUNTIME SIGNALS</p><h2>Agent state</h2></div></div>
+        <QueryState state={agent}>{(data) => <dl className="detail-list">
+          <Detail label="Runtime" value={data.status} badge />
+          <Detail label="Mode" value={data.mode} />
+          <Detail label="Training" value={data.training ? "Running" : "Not running"} />
+          <Detail label="Algorithm" value={data.algorithm} />
+          <Detail label="Model version" value={data.model_version ?? "Awaiting telemetry"} />
+          <Detail label="Environment" value={data.environment_health} badge />
+          <Detail label="Live alerts" value={formatNumber(data.total_alerts)} />
+          <Detail label="Human review pending" value={formatNumber(data.human_review_pending)} />
+        </dl>}</QueryState>
       </article>
-      <article className="panel"><div className="panel__header"><div><p className="eyebrow">ENVIRONMENT</p><h2>Pipeline state</h2></div></div>
-        <QueryState state={pipeline}>{(data) => <dl className="detail-list"><Detail label="Pipeline" value={data.status} badge /><Detail label="Last run" value={formatDateTime(data.last_run)} /><Detail label="Agent endpoint" value="Not available" muted /></dl>}</QueryState>
+      <article className="panel"><div className="panel__header"><div><p className="eyebrow">HUMAN-IN-THE-LOOP</p><h2>Review state</h2></div></div>
+        <QueryState state={agent}>{(data) => <div className="inline-stat"><span>Current agent mode</span><StatusBadge value={data.model_status} /><strong>{formatNumber(data.human_review_pending)} pending</strong></div>}</QueryState>
         <div className="divider" />
-        <QueryState state={training}>{(data) => <div className="inline-stat"><span>Training endpoint</span><StatusBadge value={data.status} /><strong>Epoch {data.current_epoch}</strong></div>}</QueryState>
+        <QueryState state={workload}>{(data) => <dl className="detail-list"><Detail label="Average analyst load" value={formatDecimal(data.average_analyst_load, 2)} /><Detail label="Load variance" value={formatDecimal(data.load_variance, 2)} /></dl>}</QueryState>
       </article>
     </section>
-    <section className="panel"><div className="panel__header"><div><p className="eyebrow">MODEL DETAILS</p><h2>Awaiting agent telemetry</h2></div></div><EmptyState compact title="No model metadata endpoint" description="Algorithm, model version, policy metrics, confidence, and environment health are not available from the current FastAPI router." /></section>
+    <section className="panel"><div className="panel__header"><div><p className="eyebrow">MODEL DETAILS</p><h2>Inference telemetry</h2></div></div><QueryState state={agent}>{(data) => <div className="api-notice"><strong>{data.note}</strong><p>Processed alert vectors are stored separately from source alert characteristics so the final inference path can display both representations.</p></div>}</QueryState></section>
   </>;
 }
 
-function Detail({ label, value, badge = false, muted = false }: { label: string; value: string; badge?: boolean; muted?: boolean }) {
-  return <div><dt>{label}</dt><dd className={muted ? "not-provided" : ""}>{badge ? <StatusBadge value={value} /> : value}</dd></div>;
+function Detail({ label, value, badge = false }: { label: string; value: string | number; badge?: boolean }) {
+  return <div><dt>{label}</dt><dd>{badge ? <StatusBadge value={String(value)} /> : String(value)}</dd></div>;
 }
