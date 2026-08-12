@@ -53,6 +53,33 @@ export type AuthoritativeHistoryPoint = {
   incidents?: number | null;
   action_distribution?: Record<string, number> | null;
   time_seconds?: number | null;
+  validation?: {
+    policy_optimality?: number;
+    reward_efficiency?: number;
+    average_reward?: number;
+  } | null;
+  validation_score?: number | null;
+  best_epoch?: number | null;
+  patience_used?: number | null;
+  improved?: boolean | null;
+};
+
+export type ModelCandidate = {
+  name: string;
+  learning_rate?: number;
+  gamma?: number;
+  batch_size?: number;
+  actual_epochs?: number;
+  best_epoch?: number;
+  validation_score?: number;
+  best_validation?: {
+    policy_optimality?: number;
+    reward_efficiency?: number;
+    average_reward?: number;
+    action_distribution?: Record<string, number>;
+  } | null;
+  model_path?: string;
+  status?: string;
 };
 
 export type AuthoritativeResults = {
@@ -61,8 +88,10 @@ export type AuthoritativeResults = {
   dataset?: {
     name?: string;
     train_rows?: number | null;
+    validation_rows?: number | null;
     test_rows?: number | null;
     train_incidents?: number | null;
+    validation_incidents?: number | null;
     test_incidents?: number | null;
     incident_overlap?: number | null;
     feature_count?: number | null;
@@ -70,14 +99,35 @@ export type AuthoritativeResults = {
     unseen_incidents?: boolean | null;
   };
   training?: {
+    model_name?: string | null;
+    candidate_index?: number | null;
+    candidate_count?: number | null;
+    learning_rate?: number | null;
     epochs?: number | null;
+    actual_epochs?: number | null;
+    min_epochs?: number | null;
+    patience?: number | null;
+    min_delta?: number | null;
     batch_size?: number | null;
     final_epoch?: number | null;
     final_loss?: number | null;
     final_avg_reward?: number | null;
     updates_per_epoch?: number | null;
     action_distribution?: Record<string, number> | null;
+    validation?: {
+      policy_optimality?: number;
+      reward_efficiency?: number;
+      average_reward?: number;
+    } | null;
+    best_epoch?: number | null;
     history?: AuthoritativeHistoryPoint[];
+  };
+  comparison?: {
+    status?: string;
+    selection_rule?: string;
+    test_used_for_selection?: boolean;
+    candidates?: ModelCandidate[];
+    best?: ModelCandidate | null;
   };
   evaluation?: {
     samples?: number | null;
