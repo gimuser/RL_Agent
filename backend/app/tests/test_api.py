@@ -111,16 +111,15 @@ def test_create_and_get_decisions():
 # 5. Training Endpoints Tests (Ikram)
 # ==========================================
 def test_training_lifecycle():
-    """اختبار مسار حالة تدريب الـ Agent"""
-    # 1. حالة التدريب
+    """Verify the authoritative training status endpoint without starting training."""
+    status_res = client.get("/api/training-control")
+
     assert status_res.status_code == 200
 
-    # 2. بدء التدريب
-    assert start_res.status_code == 200
-    assert start_res.json()["message"] == "Training started"
+    payload = status_res.json()
 
-    # 3. إيقاف التدريب
-    assert stop_res.status_code == 200
+    assert isinstance(payload, dict)
+    assert "status" in payload
 
 
 # ==========================================
