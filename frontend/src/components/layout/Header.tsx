@@ -2,7 +2,15 @@ import { useApi } from "../../hooks/useApi";
 import { liveAlertsService } from "../../services/liveAlerts.service";
 import { StatusBadge } from "../ui/StatusBadge";
 
-export function Header({ onMenu }: { onMenu: () => void }) {
+export function Header({
+  onMenu,
+  theme,
+  onToggleTheme,
+}: {
+  onMenu: () => void;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
+}) {
   const system = useApi(liveAlertsService.getSystemStatus, { poll: true });
 
   const apiStatus = system.data?.api?.toLowerCase() ?? (system.error ? "offline" : "unknown");
@@ -19,6 +27,10 @@ export function Header({ onMenu }: { onMenu: () => void }) {
         </div>
       </div>
       <div className="topbar__right">
+        <button className="luxury-theme-toggle" type="button" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`} onClick={onToggleTheme}>
+          <span className="luxury-theme-toggle__icon" aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
+          <span>{theme === "light" ? "Dark" : "Light"}</span>
+        </button>
         <button className="icon-button" aria-label="Notifications" type="button">
           <span aria-hidden="true">♧</span>
           <span className="notification-dot" />
