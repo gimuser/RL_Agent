@@ -76,6 +76,76 @@ def live_activity(limit: int = Query(default=200, ge=1, le=500)):
     return {"items": items, "activity": items, "total": len(items)}
 
 
+@router.get("/live-decisions")
+def live_decisions(
+    limit: int = Query(default=100, ge=1, le=500),
+    cycle_id: str | None = None,
+):
+    """Return the agent's decisions from the latest live inference cycle.
+
+    This is intentionally separate from the legacy /api/decisions collection:
+    live inference persists its authoritative decisions in live_alert_activity
+    together with model, confidence, uncertainty, and cycle lineage.
+    """
+    if cycle_id is None:
+        latest = activity_collection.find_one(
+            {"action": "AGENT_INFERENCE"},
+            {"_id": 0, "cycle_id": 1, "decision_cycle_id": 1, "timestamp": 1},
+            sort=[("timestamp", -1)],
+        )
+        cycle_id = (latest or {}).get("cycle_id") or (latest or {}).get("decision_cycle_id")
+
+    if not cycle_id:
+        return {"items": [], "total": 0, "cycle_id": None, "summary": {}}
+
+    events = list(
+        activity_collection.find(
+            {"action": "AGENT_INFERENCE", "$or": [{"cycle_id": cycle_id}, {"decision_cycle_id": cycle_id}]},
+            {"_id": 0},
+        ).sort("timestamp", -1).limit(limit)
+    )
+
+    items = []
+    counts = {"allow": 0, "block": 0, "human_review": 0}
+    for event in events:
+        details = event.get("details") or {}
+        action = str(details.get("action") or "unknown")
+        counts[action] = counts.get(action, 0) + 1
+        alert = get_alert(str(event.get("alert_id"))) or {}
+        agent = alert.get("agent") or {}
+        items.append(
+            {
+                "decision_id": f"{cycle_id}:{event.get('alert_id')}",
+                "alert_id": event.get("alert_id"),
+                "incident_id": alert.get("incident_id"),
+                "action": action,
+                "model_action": details.get("model_action") or agent.get("model_action"),
+                "confidence": details.get("confidence", agent.get("confidence")),
+                "action_margin": details.get("action_margin", agent.get("action_margin")),
+                "uncertainty_reason": details.get("uncertainty_reason") or agent.get("uncertainty_reason"),
+                "algorithm": details.get("algorithm") or agent.get("algorithm"),
+                "model_version": details.get("model_version") or agent.get("model_version"),
+                "status": alert.get("status"),
+                "assigned_analyst": alert.get("assigned_analyst"),
+                "source_category": (alert.get("source") or {}).get("Category"),
+                "verdict": (alert.get("source") or {}).get("LastVerdict"),
+                "timestamp": event.get("timestamp"),
+            }
+        )
+
+    return {
+        "items": items,
+        "total": len(items),
+        "cycle_id": cycle_id,
+        "summary": {
+            "considered": len(items),
+            "processed": len(items),
+            "action_distribution": counts,
+            "human_review": counts.get("human_review", 0),
+        },
+    }
+
+
 @router.get("/human-review")
 def human_review(limit: int = Query(default=100, ge=1, le=500)):
     result = list_alerts(limit=limit, skip=0)
