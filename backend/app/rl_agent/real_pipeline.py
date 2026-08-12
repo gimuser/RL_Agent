@@ -18,7 +18,26 @@ import pandas as pd
 from .dqn import DoubleDQN
 from .evaluator import evaluate
 from .trainer import train
-from .triage_env import FEATURES, INCIDENT_ID, TARGET, incident_split
+
+# Keep these authoritative constants local so triage_env can import the
+# compatibility helpers from this module without creating a circular import.
+FEATURES = [
+    "Category",
+    "MitreTechniques",
+    "ActionGrouped",
+    "ActionGranular",
+    "EntityType",
+    "EvidenceRole",
+    "ThreatFamily",
+    "OSFamily",
+    "SuspicionLevel",
+    "hour",
+    "day",
+    "month",
+    "is_weekend",
+]
+INCIDENT_ID = "IncidentId"
+TARGET = "IncidentGrade"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PROCESSED = PROJECT_ROOT / "data" / "processed"
@@ -73,6 +92,8 @@ def _assert_disjoint(*frames: pd.DataFrame) -> None:
 
 
 def build_incident_split() -> tuple[str, str, str]:
+    from .triage_env import incident_split
+
     source = locate_source_dataset()
     df = pd.read_csv(source, low_memory=False)
     if INCIDENT_ID not in df.columns or TARGET not in df.columns:
@@ -159,7 +180,6 @@ def _default_float(name: str, value: float) -> float:
 
 
 def _run_candidate_live_cycle(candidate_path: Path, name: str, index: int) -> dict:
-    """Reset the active 40-alert Mongo cycle and score it with this exact candidate."""
     from app.services.live_cycle_service import start_new_live_cycle
     from app.services.live_inference_service import run_live_inference
 
@@ -298,10 +318,7 @@ def main() -> dict:
     return final_metrics
 
 
-# -------------------------------------------------------------------------
 # Compatibility helpers used by the existing application/tests.
-# -------------------------------------------------------------------------
-
 def load_dataset(path):
     path = Path(path)
     if not path.exists():
