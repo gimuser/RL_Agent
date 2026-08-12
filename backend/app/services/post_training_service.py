@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,9 +14,9 @@ TRAIN_METRICS = MODELS_DIR / "training_metrics.json"
 
 
 def promote_and_infer() -> dict[str, Any]:
-    """Create/refresh the champion model identity, then immediately score the
-    isolated live-alert holdout. Failures are returned as telemetry so training
-    itself remains successful and debuggable.
+    """Version the newly promoted champion and replay the full isolated live
+    holdout. Existing analyst actions are preserved in MongoDB history; this
+    creates a new model-decision cycle for the same independent alerts.
     """
     training = {}
     try:
@@ -37,8 +38,13 @@ def promote_and_infer() -> dict[str, Any]:
     )
 
     try:
-        inference = run_live_inference()
-        return {"status": "completed", "model": model_meta, "inference": inference}
+        inference = run_live_inference(only_uninferred=False)
+        return {
+            "status": "completed",
+            "model": model_meta,
+            "inference": inference,
+            "decision_cycle": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+        }
     except Exception as exc:
         return {
             "status": "inference_failed",
