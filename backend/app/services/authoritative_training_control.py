@@ -28,187 +28,80 @@ _process: subprocess.Popen[str] | None = None
 _log_handle = None
 _started_at: str | None = None
 _last_return_code: int | None = None
-_last_message: str = ""
+_last_message = ""
 _post_training: dict[str, Any] | None = None
 _selected_models: list[str] = []
 
 
 def _json_safe(value: Any) -> Any:
-    if isinstance(value, float):
-        return value if math.isfinite(value) else None
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
+    if isinstance(value, float): return value if math.isfinite(value) else None
+    if isinstance(value, dict): return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)): return [_json_safe(v) for v in value]
     return value
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
     try:
-        if not path.exists():
-            return None
+        if not path.exists(): return None
         value = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(value, dict):
-            return None
-        return _json_safe(value)
-    except Exception:
-        return None
+        return _json_safe(value) if isinstance(value, dict) else None
+    except Exception: return None
 
 
 def _history() -> list[dict[str, Any]]:
-    data = _load_json(TRAIN_METRICS) or {}
-    metrics = data.get("metrics")
-    if not isinstance(metrics, list):
-        return []
-    output: list[dict[str, Any]] = []
-    for item in metrics:
-        if not isinstance(item, dict):
-            continue
-        epoch = item.get("epoch")
-        loss = item.get("loss")
-        if not isinstance(epoch, (int, float)) or not isinstance(loss, (int, float)):
-            continue
-        output.append({
-            "epoch": epoch,
-            "loss": loss,
-            "avg_reward": item.get("average_reward"),
-            "policy_reward": item.get("policy_reward", item.get("average_reward")),
-            "oracle_average_reward": item.get("oracle_average_reward"),
-            "reward_efficiency": item.get("reward_efficiency"),
-            "updates": item.get("updates"),
-            "total_updates": item.get("total_updates"),
-            "updates_per_epoch": item.get("updates_per_epoch"),
-            "rows": item.get("rows"),
-            "incidents": item.get("incidents"),
-            "action_distribution": item.get("policy_action_counts") or item.get("action_counts") or item.get("action_distribution"),
-            "time_seconds": item.get("time_seconds"),
-            "validation": item.get("validation"),
-            "validation_score": item.get("validation_score"),
-            "best_epoch": item.get("best_epoch"),
-            "patience_used": item.get("patience_used"),
-            "improved": item.get("improved"),
-        })
+    data = _load_json(TRAIN_METRICS) or {}; raw = data.get("metrics")
+    if not isinstance(raw, list): return []
+    output = []
+    for item in raw:
+        if not isinstance(item, dict): continue
+        if not isinstance(item.get("epoch"), (int, float)) or not isinstance(item.get("loss"), (int, float)): continue
+        output.append({"epoch": item["epoch"], "loss": item["loss"], "avg_reward": item.get("average_reward"), "policy_reward": item.get("policy_reward", item.get("average_reward")), "oracle_average_reward": item.get("oracle_average_reward"), "reward_efficiency": item.get("reward_efficiency"), "updates": item.get("updates"), "total_updates": item.get("total_updates"), "updates_per_epoch": item.get("updates_per_epoch"), "rows": item.get("rows"), "incidents": item.get("incidents"), "action_distribution": item.get("action_distribution") or item.get("action_counts"), "time_seconds": item.get("time_seconds"), "validation": item.get("validation"), "validation_score": item.get("validation_score"), "best_epoch": item.get("best_epoch"), "patience_used": item.get("patience_used"), "improved": item.get("improved"), "stopping_reason": item.get("stopping_reason")})
     return output
 
 
-def _results() -> dict[str, Any]:
-    training = _load_json(TRAIN_METRICS) or {}
-    testing = _load_json(TEST_METRICS) or {}
-    comparison = _load_json(COMPARISON) or {}
-    split = _load_json(SPLIT_REPORT) or {}
-    inference = _load_json(INFERENCE) or {}
-    config = training.get("config") if isinstance(training.get("config"), dict) else {}
-    history = _history()
-    last = history[-1] if history else {}
-    features = split.get("features")
-    model_exists = MODEL_PATH.exists()
-    model_size = None
-    model_modified = None
-    if model_exists:
-        try:
-            model_size = MODEL_PATH.stat().st_size
-            model_modified = datetime.fromtimestamp(MODEL_PATH.stat().st_mtime, tz=timezone.utc).isoformat()
-        except OSError:
-            model_exists = False
+def _available_models() -> list[dict[str, Any]]:
+    from app.rl_agent.real_pipeline import _experiment_configs
+    from app.rl_agent.offline_algorithms import algorithm_metadata
+    return [{**cfg, **algorithm_metadata(str(cfg.get("algorithm", cfg.get("name", "double_dqn"))))} for cfg in _experiment_configs()]
 
-    return _json_safe({
-        "source": "authoritative_files",
-        "dataset": {
-            "name": "train_processed.csv",
-            "train_rows": split.get("train_rows"),
-            "validation_rows": split.get("validation_rows"),
-            "test_rows": split.get("test_rows"),
-            "train_incidents": split.get("train_incidents"),
-            "validation_incidents": split.get("validation_incidents"),
-            "test_incidents": split.get("test_incidents"),
-            "incident_overlap": split.get("incident_overlap"),
-            "features": features,
-            "feature_count": len(features) if isinstance(features, list) else None,
-            "synthetic_data": config.get("synthetic_data") if config else testing.get("synthetic_data"),
-            "unseen_incidents": testing.get("unseen_incidents"),
-        },
-        "training": {
-            "model_name": config.get("model_name"),
-            "candidate_index": config.get("candidate_index"),
-            "candidate_count": config.get("candidate_count"),
-            "selected_models": _selected_models,
-            "learning_rate": config.get("learning_rate"),
-            "epochs": config.get("epochs", config.get("max_epochs")),
-            "actual_epochs": training.get("actual_epochs", last.get("epoch")),
-            "min_epochs": config.get("min_epochs"),
-            "patience": config.get("patience"),
-            "min_delta": config.get("min_delta"),
-            "batch_size": config.get("batch_size"),
-            "updates_per_epoch": last.get("updates_per_epoch") or config.get("updates_per_epoch"),
-            "max_total_updates": config.get("max_total_updates"),
-            "total_updates_used": training.get("total_updates_used", last.get("total_updates")),
-            "final_epoch": last.get("epoch"),
-            "final_loss": last.get("loss"),
-            "final_avg_reward": last.get("avg_reward"),
-            "policy_reward": last.get("policy_reward"),
-            "oracle_average_reward": last.get("oracle_average_reward"),
-            "reward_efficiency": last.get("reward_efficiency"),
-            "rows_per_epoch": last.get("rows"),
-            "incidents_per_epoch": last.get("incidents"),
-            "action_distribution": last.get("action_distribution"),
-            "validation": last.get("validation"),
-            "validation_score": last.get("validation_score"),
-            "patience_used": last.get("patience_used"),
-            "best_epoch": training.get("best_epoch", last.get("best_epoch")),
-            "history": history,
-        },
-        "comparison": comparison,
-        "evaluation": {
-            "samples": testing.get("test_rows"),
-            "throughput_rows_per_second": testing.get("throughput_rows_per_second"),
-            "action_distribution": testing.get("action_distribution"),
-            "per_class": testing.get("per_class"),
-            "average_reward": testing.get("average_reward"),
-            "oracle_average_reward": testing.get("oracle_average_reward"),
-            "policy_optimality": testing.get("policy_optimality"),
-            "reward_efficiency": testing.get("reward_efficiency"),
-            "reward_regret": testing.get("reward_regret"),
-        },
-        "model": {
-            "path": str(MODEL_PATH),
-            "exists": model_exists,
-            "size_bytes": model_size,
-            "modified_at": model_modified,
-        },
-        "live_inference": inference,
-        "post_training": _post_training,
-    })
+
+def models() -> dict[str, Any]:
+    return {"models": _available_models(), "count": len(_available_models())}
+
+
+def _orphan_pids() -> list[int]:
+    try:
+        out = subprocess.check_output(["ps", "-eo", "pid=,args="], text=True)
+    except Exception: return []
+    pids = []
+    for line in out.splitlines():
+        line = line.strip()
+        if "app.rl_agent.sequential_experiment" not in line or "grep" in line: continue
+        try: pids.append(int(line.split(None, 1)[0]))
+        except Exception: pass
+    return pids
 
 
 def _sync_process_state() -> None:
     global _process, _log_handle, _last_return_code, _last_message, _post_training
-    if _process is None:
-        return
+    if _process is None: return
     code = _process.poll()
-    if code is None:
-        return
+    if code is None: return
     _last_return_code = code
     if code == 0:
-        _last_message = "Sequential model training and live-alert evaluation completed."
+        _last_message = "Selected model training and live evaluation completed."
         try:
             from app.services.post_training_service import promote_and_infer
             _post_training = promote_and_infer()
-            if _post_training.get("status") == "completed":
-                _last_message = "All selected model candidates evaluated; champion model versioned and final live-alert cycle routed."
-            else:
-                _last_message = "Model sequence completed; final live inference reported an error and requires review."
+            if _post_training.get("status") == "completed": _last_message = "Selected models evaluated; champion versioned and final live cycle routed."
         except Exception as exc:
             _post_training = {"status": "post_training_failed", "error": str(exc)}
-            _last_message = "Model sequence completed, but final post-training live inference failed."
-    elif code < 0:
-        _last_message = f"Training process terminated by signal {-code}."
-    else:
-        _last_message = f"Training process exited with return code {code}."
-    if _log_handle is not None:
-        try:
-            _log_handle.close()
-        except Exception:
-            pass
+            _last_message = "Training completed, but final post-training inference failed."
+    elif code < 0: _last_message = f"Training process terminated by signal {-code}."
+    else: _last_message = f"Training process exited with return code {code}."
+    if _log_handle:
+        try: _log_handle.close()
+        except Exception: pass
         _log_handle = None
     _process = None
 
@@ -217,113 +110,68 @@ def start(model_names: list[str] | None = None) -> dict[str, Any]:
     global _process, _log_handle, _started_at, _last_return_code, _last_message, _post_training, _selected_models
     with _lock:
         _sync_process_state()
+        orphans = _orphan_pids()
         if _process is not None and _process.poll() is None:
-            return {"status": "running", "message": "Sequential model training is already running.", "selected_models": _selected_models}
-        MODELS_DIR.mkdir(parents=True, exist_ok=True)
-        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-        from app.rl_agent.real_pipeline import _experiment_configs
-        available = _experiment_configs()
-        available_names = {str(item.get("name")) for item in available}
-        selected = [str(name) for name in (model_names or []) if str(name) in available_names]
-        invalid = [str(name) for name in (model_names or []) if str(name) not in available_names]
-        if invalid:
-            raise HTTPException(status_code=400, detail={"message": "Unknown model candidate(s).", "invalid_models": invalid, "available_models": sorted(available_names)})
-        if not selected:
-            raise HTTPException(status_code=400, detail={"message": "Select at least one model candidate before starting training.", "available_models": sorted(available_names)})
+            raise HTTPException(status_code=409, detail={"message": "A training experiment is already running.", "pid": _process.pid, "selected_models": _selected_models})
+        if orphans:
+            raise HTTPException(status_code=409, detail={"message": "An orphaned sequential training process is still running. Stop it before starting another experiment.", "orphan_pids": orphans})
+        available = _available_models(); by_name = {str(item.get("name")): item for item in available}
+        selected = [str(n) for n in (model_names or []) if str(n) in by_name]
+        invalid = [str(n) for n in (model_names or []) if str(n) not in by_name]
+        if invalid: raise HTTPException(status_code=400, detail={"message": "Unknown model candidate(s).", "invalid_models": invalid, "available_models": sorted(by_name)})
+        if not selected: raise HTTPException(status_code=400, detail={"message": "Select at least one model candidate before starting training.", "available_models": sorted(by_name)})
         _selected_models = selected
-
-        TRAIN_METRICS.write_text('{"config": {}, "metrics": []}\n', encoding="utf-8")
+        MODELS_DIR.mkdir(parents=True, exist_ok=True); TRAIN_METRICS.write_text('{"config": {}, "metrics": []}\n', encoding="utf-8")
         _post_training = None
-        env = os.environ.copy()
-        env["PYTHONPATH"] = str(PROJECT_ROOT / "backend") + os.pathsep + env.get("PYTHONPATH", "")
-        env["REAL_RL_EXPERIMENTS"] = json.dumps([item for item in available if str(item.get("name")) in selected])
+        env = os.environ.copy(); env["PYTHONPATH"] = str(PROJECT_ROOT / "backend") + os.pathsep + env.get("PYTHONPATH", ""); env["REAL_RL_EXPERIMENTS"] = json.dumps([by_name[n] for n in selected]); env.setdefault("RL_TORCH_THREADS", "2"); env.setdefault("OMP_NUM_THREADS", "2"); env.setdefault("MKL_NUM_THREADS", "2"); env.setdefault("OPENBLAS_NUM_THREADS", "2")
         _log_handle = LOG_PATH.open("w", encoding="utf-8")
-        _process = subprocess.Popen(
-            [sys.executable, "-m", "app.rl_agent.sequential_experiment"],
-            cwd=str(PROJECT_ROOT / "backend"),
-            env=env,
-            stdout=_log_handle,
-            stderr=subprocess.STDOUT,
-            text=True,
-            start_new_session=True,
-        )
-        _started_at = datetime.now(timezone.utc).isoformat()
-        _last_return_code = None
-        _last_message = "Selected model candidates started with adaptive stopping, fresh live cycles, and human-review routing."
+        _process = subprocess.Popen([sys.executable, "-m", "app.rl_agent.sequential_experiment"], cwd=str(PROJECT_ROOT / "backend"), env=env, stdout=_log_handle, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+        _started_at = datetime.now(timezone.utc).isoformat(); _last_return_code = None; _last_message = "Selected models started with adaptive stopping and single-process resource protection."
         return {"status": "started", "message": _last_message, "pid": _process.pid, "started_at": _started_at, "selected_models": _selected_models}
 
 
 def stop() -> dict[str, Any]:
     global _process, _log_handle, _last_message, _last_return_code
     with _lock:
-        _sync_process_state()
-        if _process is None or _process.poll() is not None:
-            return {"status": "idle", "message": "No managed full training process is running."}
-        pid = _process.pid
-        try:
-            os.killpg(os.getpgid(pid), signal.SIGTERM)
-        except Exception:
-            try:
-                _process.terminate()
+        _sync_process_state(); killed: list[int] = []
+        if _process is not None and _process.poll() is None:
+            pid = _process.pid
+            try: os.killpg(os.getpgid(pid), signal.SIGTERM); killed.append(pid)
             except Exception:
-                pass
-        try:
-            _process.wait(timeout=8)
-        except subprocess.TimeoutExpired:
-            try:
-                os.killpg(os.getpgid(pid), signal.SIGKILL)
-            except Exception:
-                try:
-                    _process.kill()
+                try: _process.terminate(); killed.append(pid)
+                except Exception: pass
+            try: _process.wait(timeout=6)
+            except subprocess.TimeoutExpired:
+                try: os.killpg(os.getpgid(pid), signal.SIGKILL)
                 except Exception:
-                    pass
-            _process.wait(timeout=5)
-        _last_return_code = _process.returncode
-        _last_message = "Full real-data training was stopped by the user."
-        if _log_handle is not None:
-            try:
-                _log_handle.close()
-            except Exception:
-                pass
+                    try: _process.kill()
+                    except Exception: pass
+                try: _process.wait(timeout=3)
+                except Exception: pass
+            _last_return_code = _process.returncode
+            _process = None
+        for pid in _orphan_pids():
+            try: os.kill(pid, signal.SIGTERM); killed.append(pid)
+            except ProcessLookupError: pass
+            except Exception: pass
+        if _log_handle:
+            try: _log_handle.close()
+            except Exception: pass
             _log_handle = None
-        _process = None
-        return {"status": "stopped", "message": _last_message}
+        _last_message = "Training stop requested; all managed/orphan sequential training processes were terminated."
+        return {"status": "stopped", "message": _last_message, "terminated_pids": sorted(set(killed))}
 
 
 def status() -> dict[str, Any]:
     with _lock:
         try:
-            _sync_process_state()
-            running = _process is not None and _process.poll() is None
-            results = _results()
-            if running:
-                state = "running"
-                message = "Training selected real-data models with adaptive stopping, model comparison, fresh live cycles, and live telemetry."
-            elif _last_return_code == 0:
-                state = "completed"
-                message = _last_message or "Training, model versioning, and live inference completed."
-            elif _last_return_code is not None:
-                state = "stopped" if "stopped" in _last_message.lower() else "failed"
-                message = _last_message
-            elif results["training"]["history"]:
-                state = "completed"
-                message = "Persisted authoritative training results available."
-            else:
-                state = "idle"
-                message = "No authoritative full-training run is currently active."
-            return _json_safe({
-                "status": state,
-                "message": message,
-                "started_at": _started_at,
-                "pid": _process.pid if running and _process is not None else None,
-                "results": results,
-            })
+            _sync_process_state(); running = _process is not None and _process.poll() is None; training = _load_json(TRAIN_METRICS) or {}; testing = _load_json(TEST_METRICS) or {}; comparison = _load_json(COMPARISON) or {}; split = _load_json(SPLIT_REPORT) or {}; inference = _load_json(INFERENCE) or {}; history = _history(); last = history[-1] if history else {}; config = training.get("config") if isinstance(training.get("config"), dict) else {}
+            if running: state, message = "running", "Selected models are training with adaptive convergence and live-cycle evaluation."
+            elif _last_return_code == 0: state, message = "completed", _last_message
+            elif _last_return_code is not None: state, message = ("stopped" if "stop" in _last_message.lower() else "failed"), _last_message
+            elif history: state, message = "completed", "Persisted training results available."
+            else: state, message = "idle", "No managed training experiment is running."
+            results = {"dataset": {"name": "train_processed.csv", "train_rows": split.get("train_rows"), "validation_rows": split.get("validation_rows"), "test_rows": split.get("test_rows"), "train_incidents": split.get("train_incidents"), "validation_incidents": split.get("validation_incidents"), "test_incidents": split.get("test_incidents"), "incident_overlap": split.get("incident_overlap"), "features": split.get("features"), "feature_count": len(split.get("features", [])) if isinstance(split.get("features"), list) else None, "synthetic_data": False, "unseen_incidents": True}, "training": {"model_name": config.get("model_name"), "algorithm": config.get("algorithm"), "display_name": config.get("display_name"), "candidate_index": config.get("candidate_index"), "candidate_count": config.get("candidate_count"), "selected_models": _selected_models, "learning_rate": config.get("learning_rate"), "epochs": config.get("max_epochs", config.get("epochs")), "actual_epochs": training.get("actual_epochs", last.get("epoch")), "min_epochs": config.get("min_epochs"), "patience": config.get("patience"), "min_delta": config.get("min_delta"), "stability_window": config.get("stability_window"), "stability_tolerance": config.get("stability_tolerance"), "batch_size": config.get("batch_size"), "updates_per_epoch": training.get("updates_per_epoch") or last.get("updates_per_epoch"), "max_total_updates": training.get("max_total_updates") or config.get("max_total_updates"), "total_updates_used": training.get("total_updates_used", last.get("total_updates")), "policy_reward": last.get("policy_reward"), "oracle_average_reward": last.get("oracle_average_reward"), "reward_efficiency": last.get("reward_efficiency"), "validation": last.get("validation"), "validation_score": last.get("validation_score"), "best_epoch": training.get("best_epoch", last.get("best_epoch")), "stopping_reason": training.get("stopping_reason") or last.get("stopping_reason"), "history": history}, "comparison": comparison, "evaluation": {"samples": testing.get("test_rows"), "throughput_rows_per_second": testing.get("throughput_rows_per_second"), "average_reward": testing.get("average_reward"), "oracle_average_reward": testing.get("oracle_average_reward"), "policy_optimality": testing.get("policy_optimality"), "reward_efficiency": testing.get("reward_efficiency"), "reward_regret": testing.get("reward_regret"), "action_distribution": testing.get("action_distribution"), "per_class": testing.get("per_class")}, "model": {"path": str(MODEL_PATH), "exists": MODEL_PATH.exists(), "size_bytes": MODEL_PATH.stat().st_size if MODEL_PATH.exists() else None, "modified_at": datetime.fromtimestamp(MODEL_PATH.stat().st_mtime, tz=timezone.utc).isoformat() if MODEL_PATH.exists() else None}, "live_inference": inference, "post_training": _post_training}
+            return _json_safe({"status": state, "message": message, "started_at": _started_at, "pid": _process.pid if running and _process else None, "results": results})
         except Exception as exc:
-            return {
-                "status": "error",
-                "message": f"Training telemetry error: {exc}",
-                "started_at": _started_at,
-                "pid": _process.pid if _process is not None else None,
-                "results": {"dataset": {}, "training": {"history": []}, "evaluation": {}, "model": {"exists": MODEL_PATH.exists()}},
-            }
+            return {"status": "error", "message": f"Training telemetry error: {exc}", "results": {"training": {"history": []}, "dataset": {}, "evaluation": {}, "comparison": {}, "model": {}}}
