@@ -13,6 +13,7 @@ from app.api.evaluation import router as evaluation_router
 from app.api.metrics import router as metrics_router
 from app.api.api_status import router as api_status_router
 from app.api.live_alerts import router as live_alerts_router
+from app.api.live_cycle import router as live_cycle_router
 from app.api.authoritative_training import router as authoritative_training_router
 from app.api.authoritative_metrics import router as authoritative_metrics_router
 
@@ -25,6 +26,7 @@ router.include_router(decisions_router, prefix="/api/decisions", tags=["Decision
 router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
 router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 router.include_router(live_alerts_router)
+router.include_router(live_cycle_router)
 router.include_router(authoritative_training_router)
 router.include_router(authoritative_metrics_router)
 router.include_router(pipeline_router)
