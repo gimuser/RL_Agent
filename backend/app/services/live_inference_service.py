@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import math
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from app.database.database import db
 from app.rl_agent.dqn import DoubleDQN
 from app.rl_agent.triage_env import ACTIONS, FEATURES
 from app.services.model_versioning import get_current_model_version, ensure_model_version
@@ -16,6 +16,7 @@ from app.services.live_alert_service import alerts_collection, activity_collecti
 
 MODEL_PATH = Path(__file__).resolve().parents[3] / "models" / "real_dqn_agent.pt"
 INFERENCE_META_PATH = Path(__file__).resolve().parents[3] / "models" / "live_inference.json"
+
 DEFAULT_CONFIDENCE_THRESHOLD = 0.60
 DEFAULT_MARGIN_THRESHOLD = 0.15
 
@@ -64,14 +65,33 @@ def _feature_matrix(document: dict[str, Any]) -> np.ndarray:
     return np.asarray([values], dtype=np.float32)
 
 
-def _load_model() -> tuple[DoubleDQN, dict[str, Any]]:
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(f"Trained model not found: {MODEL_PATH}")
-    metadata = get_current_model_version() or ensure_model_version(model_path=MODEL_PATH, model_name="DoubleDQN") or {
-        "model_version": "unknown", "model_name": "DoubleDQN"
+def _load_model(
+    *,
+    model_path: Path | None = None,
+    model_name: str | None = None,
+) -> tuple[DoubleDQN, dict[str, Any]]:
+    path = model_path or MODEL_PATH
+    if not path.exists():
+        raise FileNotFoundError(f"Trained model not found: {path}")
+
+    if model_path is None:
+        metadata = get_current_model_version() or ensure_model_version(
+            model_path=path,
+            model_name=model_name or "DoubleDQN",
+        )
+    else:
+        metadata = ensure_model_version(
+            model_path=path,
+            model_name=model_name or path.stem,
+            extra={"inference_role": "candidate_live_evaluation"},
+        )
+
+    metadata = metadata or {
+        "model_version": "unknown",
+        "model_name": model_name or path.stem,
     }
     model = DoubleDQN(input_dim=len(FEATURES), n_actions=len(ACTIONS), gamma=0.95)
-    model.load(str(MODEL_PATH))
+    model.load(str(path))
     return model, metadata
 
 
@@ -80,20 +100,25 @@ def run_live_inference(
     confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
     margin_threshold: float = DEFAULT_MARGIN_THRESHOLD,
     only_uninferred: bool = True,
+    model_path: str | None = None,
+    model_name: str | None = None,
 ) -> dict[str, Any]:
-    """Score the isolated live-alert holdout and route uncertain alerts to analysts.
+    """Score the active isolated live cycle.
 
-    Every run creates a decision-cycle identifier. Source, processed, and lineage
-    payloads are preserved; analyst decisions stay in the append-only activity/review
-    collections even when a later model creates a new cycle.
+    The caller may supply a candidate checkpoint so every experiment candidate is
+    evaluated against a fresh 40-alert cycle before the next candidate starts.
     """
-    model, model_meta = _load_model()
-    cycle_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    selected_model_path = Path(model_path) if model_path else None
+    model, model_meta = _load_model(model_path=selected_model_path, model_name=model_name)
+
     query: dict[str, Any] = {}
     if only_uninferred:
         query["agent.status"] = {"$in": ["WAITING_INFERENCE", None]}
 
     documents = list(alerts_collection.find(query, {"_id": 0}).sort("timestamp", 1))
+    now = utc_now()
+    cycle_doc = alerts_collection.find_one({}, {"_id": 0, "cycle_id": 1, "decision_cycle_id": 1}) or {}
+    cycle_id = cycle_doc.get("cycle_id") or cycle_doc.get("decision_cycle_id") or f"CYCLE-INFER-{int(now.timestamp())}"
     counts = {name: 0 for name in ACTIONS.values()}
     routed = 0
     errors = []
@@ -151,25 +176,28 @@ def run_live_inference(
                 "uncertainty_reason": uncertainty_reason,
                 "model_version": model_meta.get("model_version"),
                 "model_name": model_meta.get("model_name"),
-                "decision_cycle_id": cycle_id,
+                "candidate_model_path": str(selected_model_path) if selected_model_path else str(MODEL_PATH),
                 "requires_human_review": requires_human,
                 "inference_timestamp": timestamp,
+                "decision_cycle_id": cycle_id,
             }
 
-            update = {
-                "$set": {
+            alerts_collection.update_one(
+                {"alert_id": alert_id},
+                {"$set": {
                     "status": status,
                     "agent": agent_state,
                     "assigned_analyst": assigned_analyst,
                     "updated_at": timestamp,
+                    "cycle_id": cycle_id,
                     "decision_cycle_id": cycle_id,
-                    "last_human_decision": None,
-                }
-            }
-            alerts_collection.update_one({"alert_id": alert_id}, update)
+                }},
+            )
 
             activity_collection.insert_one({
                 "alert_id": alert_id,
+                "cycle_id": cycle_id,
+                "decision_cycle_id": cycle_id,
                 "actor": "agent",
                 "action": "AGENT_INFERENCE",
                 "details": {
@@ -179,7 +207,7 @@ def run_live_inference(
                     "action_margin": margin,
                     "uncertainty_reason": uncertainty_reason,
                     "model_version": model_meta.get("model_version"),
-                    "decision_cycle_id": cycle_id,
+                    "model_name": model_meta.get("model_name"),
                 },
                 "timestamp": timestamp,
             })
@@ -187,6 +215,8 @@ def run_live_inference(
             if requires_human:
                 activity_collection.insert_one({
                     "alert_id": alert_id,
+                    "cycle_id": cycle_id,
+                    "decision_cycle_id": cycle_id,
                     "actor": "system",
                     "action": "HUMAN_REVIEW_ROUTED",
                     "details": {
@@ -194,7 +224,6 @@ def run_live_inference(
                         "reason": uncertainty_reason or "MODEL_REQUESTED_REVIEW",
                         "confidence": confidence,
                         "model_version": model_meta.get("model_version"),
-                        "decision_cycle_id": cycle_id,
                     },
                     "timestamp": timestamp,
                 })
@@ -205,18 +234,22 @@ def run_live_inference(
             errors.append({"alert_id": alert_id, "error": str(exc)})
             activity_collection.insert_one({
                 "alert_id": alert_id,
+                "cycle_id": cycle_id,
+                "decision_cycle_id": cycle_id,
                 "actor": "system",
                 "action": "AGENT_INFERENCE_ERROR",
-                "details": {"error": str(exc), "model_version": model_meta.get("model_version"), "decision_cycle_id": cycle_id},
+                "details": {"error": str(exc), "model_version": model_meta.get("model_version")},
                 "timestamp": utc_now(),
             })
 
     elapsed = time.perf_counter() - start
     summary = {
         "status": "completed" if not errors else "completed_with_errors",
+        "cycle_id": cycle_id,
         "decision_cycle_id": cycle_id,
         "model_version": model_meta.get("model_version"),
         "model_name": model_meta.get("model_name"),
+        "model_path": str(selected_model_path) if selected_model_path else str(MODEL_PATH),
         "confidence_threshold": confidence_threshold,
         "margin_threshold": margin_threshold,
         "alerts_considered": len(documents),
@@ -226,7 +259,7 @@ def run_live_inference(
         "errors": errors,
         "duration_seconds": elapsed,
         "throughput_alerts_per_second": (processed / elapsed) if elapsed else 0.0,
-        "completed_at": utc_now().isoformat(),
+        "completed_at": now.isoformat(),
     }
     INFERENCE_META_PATH.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     return summary
