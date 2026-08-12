@@ -174,7 +174,9 @@ export type AuthoritativeTrainingStatus = {
 export const getAuthoritativeFullTrainingStatus = () =>
   apiRequest<AuthoritativeTrainingStatus>("/api/training-control");
 
-export const startAuthoritativeFullTraining = (modelNames: string[]) =>
+// Legacy pages may call this without a selection. The backend rejects an empty
+// selection; the dedicated /training launcher is the only supported start path.
+export const startAuthoritativeFullTraining = (modelNames: string[] = []) =>
   apiRequest<{ status: string; message?: string; selected_models?: string[] }>("/api/training-control", {
     method: "POST",
     body: JSON.stringify({ model_names: modelNames }),
