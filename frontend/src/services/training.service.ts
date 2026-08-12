@@ -42,10 +42,15 @@ export type CandidateValidation = {
 
 export type ModelCandidate = {
   name?: string | null;
+  algorithm?: string | null;
+  display_name?: string | null;
+  behavior_action_mode?: string | null;
+  research_warning?: string | null;
   learning_rate?: number | null;
   actual_epochs?: number | null;
   best_epoch?: number | null;
   validation_score?: number | null;
+  stopping_reason?: string | null;
   status?: string | null;
   best_validation?: CandidateValidation | null;
   live_inference?: Record<string, unknown> | null;
@@ -92,6 +97,10 @@ export type AuthoritativeResults = {
   };
   training?: {
     model_name?: string | null;
+    display_name?: string | null;
+    algorithm?: string | null;
+    behavior_action_mode?: string | null;
+    research_warning?: string | null;
     candidate_index?: number | null;
     candidate_count?: number | null;
     selected_models?: string[];
@@ -116,6 +125,7 @@ export type AuthoritativeResults = {
     validation_score?: number | null;
     patience_used?: number | null;
     best_epoch?: number | null;
+    stopping_reason?: string | null;
     history?: AuthoritativeHistoryPoint[];
   };
   comparison?: {
@@ -174,8 +184,6 @@ export type AuthoritativeTrainingStatus = {
 export const getAuthoritativeFullTrainingStatus = () =>
   apiRequest<AuthoritativeTrainingStatus>("/api/training-control");
 
-// Legacy pages may call this without a selection. The backend rejects an empty
-// selection; the dedicated /training launcher is the only supported start path.
 export const startAuthoritativeFullTraining = (modelNames: string[] = []) =>
   apiRequest<{ status: string; message?: string; selected_models?: string[] }>("/api/training-control", {
     method: "POST",
