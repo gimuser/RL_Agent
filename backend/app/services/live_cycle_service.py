@@ -7,7 +7,6 @@ from typing import Any
 from app.services.live_alert_service import (
     activity_collection,
     alerts_collection,
-    analysts_collection,
     review_collection,
     seed_live_alerts,
 )
@@ -40,20 +39,11 @@ def _archive_current_cycle(cycle_id: str) -> dict[str, Any]:
 
 
 def start_new_live_cycle(reason: str = "manual_refresh", metadata: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Archive the active evaluation cycle and recreate the untouched 40-alert holdout.
-
-    Source files in data_alert are never modified. The active Mongo collections are
-    replaced with a fresh cycle so the same isolated alerts can be evaluated again.
-    Previous analyst decisions remain available in live_alert_cycles.
-    """
     cycle_id = f"CYCLE-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
     archived = _archive_current_cycle(cycle_id)
-
-    # seed_live_alerts(force=True) clears only the active live operational
-    # collections and reconstructs them from the immutable data_alert files.
     seed_result = seed_live_alerts(force=True)
-
     now = utc_now()
+
     alerts_collection.update_many(
         {},
         {
@@ -108,6 +98,27 @@ def start_new_live_cycle(reason: str = "manual_refresh", metadata: dict[str, Any
 
 def current_cycle() -> dict[str, Any] | None:
     alert = alerts_collection.find_one({}, {"_id": 0, "cycle_id": 1, "decision_cycle_id": 1, "cycle_reason": 1, "cycle_started_at": 1})
-    if not alert:
-        return None
     return alert
+
+
+def archived_cycles(limit: int = 20) -> list[dict[str, Any]]:
+    return list(
+        cycles_collection.find(
+            {},
+            {
+                "_id": 0,
+                "cycle_id": 1,
+                "status": 1,
+                "reason": 1,
+                "metadata": 1,
+                "archived_at": 1,
+                "started_at": 1,
+                "alert_count": 1,
+                "review_count": 1,
+                "activity_count": 1,
+                "live_alert_count": 1,
+            },
+        )
+        .sort("archived_at", -1)
+        .limit(limit)
+    )
