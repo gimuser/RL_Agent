@@ -12,6 +12,7 @@ import os
 import shutil
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from .dqn import DoubleDQN
@@ -249,7 +250,6 @@ def main() -> dict:
             "status": "completed",
         }
 
-        # Immediately evaluate this exact candidate against a newly rebuilt 40-alert cycle.
         try:
             candidate_live = _run_candidate_live_cycle(candidate_path, name, index)
             candidate_record["live_cycle_id"] = candidate_live.get("cycle_id")
@@ -275,7 +275,6 @@ def main() -> dict:
 
     shutil.copy2(best_path, MODEL_PATH)
     _write_comparison(comparison_records, best, "selected")
-
     final_metrics = evaluate(test_csv=test_csv, model_path=str(MODEL_PATH))
 
     selected_history_path = EXPERIMENTS_DIR / f"{best['name']}.training.json"
@@ -297,6 +296,57 @@ def main() -> dict:
         "model_comparison": comparison_records,
     }, indent=2), encoding="utf-8")
     return final_metrics
+
+
+# -------------------------------------------------------------------------
+# Compatibility helpers used by the existing application/tests.
+# -------------------------------------------------------------------------
+
+def load_dataset(path):
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(path)
+    df = pd.read_csv(path, low_memory=False)
+    missing = [c for c in list(FEATURES) + [TARGET] if c not in df.columns]
+    if missing:
+        raise RuntimeError(f"{path} missing required columns: {missing}")
+    states = df[list(FEATURES)].astype(np.float32).to_numpy()
+    labels = pd.to_numeric(df[TARGET], errors="raise").astype(np.int64).to_numpy()
+    return df, states, labels
+
+
+def reward_matrix(labels):
+    from .triage_env import REWARD_TABLE
+    rewards = np.zeros((len(labels), 3), dtype=np.float32)
+    for i, label in enumerate(labels):
+        row = REWARD_TABLE.get(int(label), REWARD_TABLE[3])
+        for action in range(3):
+            rewards[i, action] = float(row[action])
+    return rewards
+
+
+def reward_vector(labels):
+    return reward_matrix(labels)
+
+
+def fit_normalization(states):
+    x = np.asarray(states, dtype=np.float32)
+    if x.ndim != 2:
+        raise ValueError(f"Expected 2D state matrix, got shape={x.shape}")
+    mean = x.mean(axis=0)
+    std = x.std(axis=0)
+    std = np.where(std < 1e-8, 1.0, std)
+    return {"mean": mean.astype(float).tolist(), "std": std.astype(float).tolist()}
+
+
+def apply_normalization(states, normalization=None):
+    x = np.asarray(states, dtype=np.float32)
+    if normalization is None:
+        return x
+    mean = np.asarray(normalization["mean"], dtype=np.float32)
+    std = np.asarray(normalization["std"], dtype=np.float32)
+    std = np.where(std < 1e-8, 1.0, std)
+    return ((x - mean) / std).astype(np.float32)
 
 
 if __name__ == "__main__":
