@@ -45,7 +45,7 @@ class Settings:
         self.api_status_timeout_seconds: int = 15
         self.persist_api_statuses: bool = True
         self.api_components: list[dict] = [
-            {"name": "training", "prefix": "/api/training"},
+
             {"name": "database", "prefix": "/api/database"},
             {"name": "alerts", "prefix": "/api/alerts"},
             {"name": "decisions", "prefix": "/api/decisions"},

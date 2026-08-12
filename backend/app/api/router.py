@@ -4,7 +4,6 @@ from app.api.alerts import router as alerts_router
 from app.api.health import router as health_router
 from app.api.pipeline import router as pipeline_router
 from app.api.decisions import router as decisions_router
-from app.api.training import router as training_router
 from app.api.rewards import router as rewards_router
 from app.api.database_monitoring import router as db_router
 from app.api.dashboard import router as dashboard_router
@@ -30,7 +29,6 @@ router.include_router(live_cycle_router)
 router.include_router(authoritative_training_router)
 router.include_router(authoritative_metrics_router)
 router.include_router(pipeline_router)
-router.include_router(training_router)
 router.include_router(db_router)
 router.include_router(agent_router)
 router.include_router(evaluation_router)

@@ -1,31 +1,4 @@
 import { apiRequest } from "./api";
-import type { TrainingCheckpoints, TrainingHistory, TrainingStatus } from "../types/domain";
-
-export const trainingService = {
-  getStatus: () => apiRequest<TrainingStatus>("/api/training/status"),
-  getHistory: () => apiRequest<TrainingHistory>("/api/training/history"),
-  getCheckpoints: () => apiRequest<TrainingCheckpoints>("/api/training/checkpoints"),
-  getMetrics: () => apiRequest<TrainingMetricsResponse>("/api/training/metrics"),
-  start: () => apiRequest<{ message: string }>("/api/training/start", { method: "POST" }),
-  stop: () => apiRequest<{ message: string }>("/api/training/stop", { method: "POST" }),
-};
-
-export type TrainingMetricRow = {
-  epoch: number;
-  rows?: number;
-  incidents?: number;
-  updates?: number;
-  loss: number;
-  average_reward?: number;
-  action_counts?: Record<string, number>;
-  time_seconds?: number;
-};
-
-export type TrainingMetricsResponse = {
-  metrics?: TrainingMetricRow[];
-  status?: string;
-  message?: string;
-};
 
 export type ValidationMetrics = {
   policy_optimality?: number | null;

@@ -113,16 +113,13 @@ def test_create_and_get_decisions():
 def test_training_lifecycle():
     """اختبار مسار حالة تدريب الـ Agent"""
     # 1. حالة التدريب
-    status_res = client.get("/api/training/status")
     assert status_res.status_code == 200
 
     # 2. بدء التدريب
-    start_res = client.post("/api/training/start")
     assert start_res.status_code == 200
     assert start_res.json()["message"] == "Training started"
 
     # 3. إيقاف التدريب
-    stop_res = client.post("/api/training/stop")
     assert stop_res.status_code == 200
 
 
