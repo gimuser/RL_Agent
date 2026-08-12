@@ -15,6 +15,7 @@ MODELS_DIR = PROJECT_ROOT / "models"
 TRAIN_METRICS = MODELS_DIR / "training_metrics.json"
 TEST_METRICS = MODELS_DIR / "real_test_metrics.json"
 COMPARISON = MODELS_DIR / "model_comparison.json"
+INFERENCE = MODELS_DIR / "live_inference.json"
 SPLIT_REPORT = PROJECT_ROOT / "data" / "rl_incident" / "split_report.json"
 MODEL_PATH = MODELS_DIR / "real_dqn_agent.pt"
 LOG_PATH = MODELS_DIR / "full_real_training.log"
@@ -25,6 +26,7 @@ _log_handle = None
 _started_at: str | None = None
 _last_return_code: int | None = None
 _last_message: str = ""
+_post_training: dict[str, Any] | None = None
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
@@ -50,28 +52,26 @@ def _history() -> list[dict[str, Any]]:
         loss = item.get("loss")
         if not isinstance(epoch, (int, float)) or not isinstance(loss, (int, float)):
             continue
-        output.append(
-            {
-                "epoch": epoch,
-                "loss": loss,
-                "avg_reward": item.get("average_reward"),
-                "policy_reward": item.get("policy_reward", item.get("average_reward")),
-                "oracle_average_reward": item.get("oracle_average_reward"),
-                "reward_efficiency": item.get("reward_efficiency"),
-                "updates": item.get("updates"),
-                "total_updates": item.get("total_updates"),
-                "updates_per_epoch": item.get("updates_per_epoch"),
-                "rows": item.get("rows"),
-                "incidents": item.get("incidents"),
-                "action_distribution": item.get("action_counts") or item.get("action_distribution") or item.get("actions"),
-                "time_seconds": item.get("time_seconds"),
-                "validation": item.get("validation"),
-                "validation_score": item.get("validation_score"),
-                "best_epoch": item.get("best_epoch"),
-                "patience_used": item.get("patience_used"),
-                "improved": item.get("improved"),
-            }
-        )
+        output.append({
+            "epoch": epoch,
+            "loss": loss,
+            "avg_reward": item.get("average_reward"),
+            "policy_reward": item.get("policy_reward", item.get("average_reward")),
+            "oracle_average_reward": item.get("oracle_average_reward"),
+            "reward_efficiency": item.get("reward_efficiency"),
+            "updates": item.get("updates"),
+            "total_updates": item.get("total_updates"),
+            "updates_per_epoch": item.get("updates_per_epoch"),
+            "rows": item.get("rows"),
+            "incidents": item.get("incidents"),
+            "action_distribution": item.get("policy_action_counts") or item.get("action_counts") or item.get("action_distribution"),
+            "time_seconds": item.get("time_seconds"),
+            "validation": item.get("validation"),
+            "validation_score": item.get("validation_score"),
+            "best_epoch": item.get("best_epoch"),
+            "patience_used": item.get("patience_used"),
+            "improved": item.get("improved"),
+        })
     return output
 
 
@@ -80,6 +80,7 @@ def _results() -> dict[str, Any]:
     testing = _load_json(TEST_METRICS) or {}
     comparison = _load_json(COMPARISON) or {}
     split = _load_json(SPLIT_REPORT) or {}
+    inference = _load_json(INFERENCE) or {}
     config = training.get("config") if isinstance(training.get("config"), dict) else {}
     history = _history()
     last = history[-1] if history else {}
@@ -157,11 +158,13 @@ def _results() -> dict[str, Any]:
             "size_bytes": model_size,
             "modified_at": model_modified,
         },
+        "live_inference": inference,
+        "post_training": _post_training,
     }
 
 
 def _sync_process_state() -> None:
-    global _process, _log_handle, _last_return_code, _last_message
+    global _process, _log_handle, _last_return_code, _last_message, _post_training
     if _process is None:
         return
     code = _process.poll()
@@ -170,6 +173,16 @@ def _sync_process_state() -> None:
     _last_return_code = code
     if code == 0:
         _last_message = "Authoritative real-data training and model selection completed."
+        try:
+            from app.services.post_training_service import promote_and_infer
+            _post_training = promote_and_infer()
+            if _post_training.get("status") == "completed":
+                _last_message = "Training completed; champion model versioned and live-alert inference routed automatically."
+            else:
+                _last_message = "Training completed; live inference reported an error and requires review."
+        except Exception as exc:
+            _post_training = {"status": "post_training_failed", "error": str(exc)}
+            _last_message = "Training completed, but post-training live inference failed."
     elif code < 0:
         _last_message = f"Training process terminated by signal {-code}."
     else:
@@ -184,7 +197,7 @@ def _sync_process_state() -> None:
 
 
 def start() -> dict[str, Any]:
-    global _process, _log_handle, _started_at, _last_return_code, _last_message
+    global _process, _log_handle, _started_at, _last_return_code, _last_message, _post_training
     with _lock:
         _sync_process_state()
         if _process is not None and _process.poll() is None:
@@ -192,6 +205,7 @@ def start() -> dict[str, Any]:
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         TRAIN_METRICS.write_text('{"config": {}, "metrics": []}\n', encoding="utf-8")
+        _post_training = None
         env = os.environ.copy()
         env["PYTHONPATH"] = str(PROJECT_ROOT / "backend") + os.pathsep + env.get("PYTHONPATH", "")
         _log_handle = LOG_PATH.open("w", encoding="utf-8")
@@ -206,7 +220,7 @@ def start() -> dict[str, Any]:
         )
         _started_at = datetime.now(timezone.utc).isoformat()
         _last_return_code = None
-        _last_message = "Full real-data RL training started with adaptive stopping and model comparison."
+        _last_message = "Full real-data RL training started with adaptive stopping, model comparison, and live telemetry."
         return {"status": "started", "message": _last_message, "pid": _process.pid, "started_at": _started_at}
 
 
@@ -255,10 +269,10 @@ def status() -> dict[str, Any]:
             results = _results()
             if running:
                 state = "running"
-                message = "Training real processed data with adaptive stopping and model comparison."
+                message = "Training real processed data with adaptive stopping, model comparison, and live telemetry."
             elif _last_return_code == 0:
                 state = "completed"
-                message = _last_message or "Training and model comparison completed."
+                message = _last_message or "Training, model versioning, and live inference completed."
             elif _last_return_code is not None:
                 state = "stopped" if "stopped" in _last_message.lower() else "failed"
                 message = _last_message
