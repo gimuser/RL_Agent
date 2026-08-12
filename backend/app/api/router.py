@@ -13,13 +13,13 @@ from app.api.evaluation import router as evaluation_router
 from app.api.metrics import router as metrics_router
 from app.api.api_status import router as api_status_router
 from app.api.live_alerts import router as live_alerts_router
+from app.api.authoritative_training import router as authoritative_training_router
 
 router = APIRouter()
 
 # 1. Alerts & System Health
 router.include_router(alerts_router, prefix="/api/alerts", tags=["Alerts"])
 router.include_router(health_router, prefix="/api/system", tags=["System Health"])
-# API status / activity tracking endpoint
 router.include_router(api_status_router)
 router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
 router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
@@ -28,7 +28,10 @@ router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboar
 # Live-alert/MongoDB operations, isolated from training/evaluation data.
 router.include_router(live_alerts_router)
 
-# 2. Routers الخرى اللي نجحات سابقاً
+# Dedicated managed authoritative training control.
+router.include_router(authoritative_training_router)
+
+# Existing routers.
 router.include_router(pipeline_router)
 router.include_router(training_router)
 router.include_router(db_router)
