@@ -1,5 +1,18 @@
 import { apiRequest } from "./api";
-import type { AnalystWorkload, LiveAgentStatus, LiveAlert, SystemLiveStatus } from "../types/domain";
+import type {
+  AnalystWorkload,
+  LiveAgentStatus,
+  LiveAlert,
+  SystemLiveStatus,
+} from "../types/domain";
+
+export type LiveActivityItem = {
+  alert_id: string;
+  actor: string;
+  action: string;
+  details: Record<string, unknown>;
+  timestamp: string;
+};
 
 export const liveAlertsService = {
   getAlerts: (skip = 0, limit = 100, search = "", severity = "all") => {
@@ -38,4 +51,7 @@ export const liveAlertsService = {
   getWorkload: () => apiRequest<AnalystWorkload>("/api/analysts/live-workload"),
 
   getSystemStatus: () => apiRequest<SystemLiveStatus>("/api/system/live-status"),
+
+  getActivity: (limit = 100) =>
+    apiRequest<{ items: LiveActivityItem[]; total: number }>(`/api/live-activity?limit=${limit}`),
 };
