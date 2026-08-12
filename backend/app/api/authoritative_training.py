@@ -1,15 +1,20 @@
-from typing import Any
+from __future__ import annotations
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.services.authoritative_training_control import start, status, stop
+from app.services.authoritative_training_control import models, start, status, stop
 
 router = APIRouter(prefix="/api/training-control", tags=["Authoritative Training Control"])
 
 
 class TrainingStartRequest(BaseModel):
     model_names: list[str] = Field(default_factory=list)
+
+
+@router.get("/models")
+def get_training_models():
+    return models()
 
 
 @router.post("")
