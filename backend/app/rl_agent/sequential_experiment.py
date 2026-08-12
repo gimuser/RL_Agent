@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -14,7 +15,6 @@ from .real_pipeline import (
     COMPARISON_PATH,
     EXPERIMENTS_DIR,
     MODEL_PATH,
-    MODELS,
     TEST_METRICS_PATH,
     TRAIN_METRICS_PATH,
     _experiment_configs,
@@ -27,12 +27,10 @@ from .triage_env import FEATURES
 
 
 def _int_env(name: str, default: int) -> int:
-    import os
     return int(os.getenv(name, str(default)))
 
 
 def _float_env(name: str, default: float) -> float:
-    import os
     return float(os.getenv(name, str(default)))
 
 
@@ -54,22 +52,24 @@ def _write_live_candidate_metrics(config: dict[str, Any], result: dict[str, Any]
         "total_updates_used": result.get("total_updates_used"),
         "updates_per_epoch": result.get("updates_per_epoch"),
         "max_total_updates": result.get("max_total_updates"),
+        "stopping_reason": result.get("stopping_reason"),
     }
     TRAIN_METRICS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def main() -> None:
-    import os
-
     print("=" * 78)
     print("SEQUENTIAL MODEL -> FRESH 40-ALERT LIVE EVALUATION")
+    print("ADAPTIVE EARLY STOPPING: CONVERGENCE + VALIDATION PATIENCE")
     print("=" * 78)
 
     train_csv, validation_csv, test_csv = build_incident_split()
     max_epochs = _int_env("REAL_RL_MAX_EPOCHS", 4000)
-    min_epochs = _int_env("REAL_RL_MIN_EPOCHS", 50)
-    patience = _int_env("REAL_RL_PATIENCE", 30)
+    min_epochs = _int_env("REAL_RL_MIN_EPOCHS", 20)
+    patience = _int_env("REAL_RL_PATIENCE", 10)
     min_delta = _float_env("REAL_RL_MIN_DELTA", 1e-3)
+    stability_window = _int_env("REAL_RL_STABILITY_WINDOW", 6)
+    stability_tolerance = _float_env("REAL_RL_STABILITY_TOLERANCE", 0.002)
     seed = _int_env("REAL_RL_SEED", 42)
     target_update = _int_env("REAL_RL_TARGET_UPDATE", 1)
 
@@ -87,6 +87,11 @@ def main() -> None:
         print("\n" + "=" * 78)
         print(f"MODEL {index}/{len(configs)}: {name}")
         print("=" * 78)
+        print(f"Max epochs       : {max_epochs}")
+        print(f"Warm-up epochs   : {min_epochs}")
+        print(f"Patience         : {patience}")
+        print(f"Stability window : {stability_window}")
+        print(f"Stability tol.   : {stability_tolerance}")
 
         def on_progress(row: dict[str, Any]) -> None:
             _write_live_candidate_metrics(
@@ -99,8 +104,10 @@ def main() -> None:
                     "min_epochs": min_epochs,
                     "patience": patience,
                     "min_delta": min_delta,
+                    "stability_window": stability_window,
+                    "stability_tolerance": stability_tolerance,
                 },
-                {"metrics": [row], "actual_epochs": row.get("epoch"), "best_epoch": row.get("best_epoch"), "total_updates_used": row.get("total_updates"), "updates_per_epoch": row.get("updates_per_epoch"), "max_total_updates": max_epochs * max(1, int(row.get("updates_per_epoch") or 0))},
+                {"metrics": [row], "actual_epochs": row.get("epoch"), "best_epoch": row.get("best_epoch"), "total_updates_used": row.get("total_updates"), "updates_per_epoch": row.get("updates_per_epoch"), "max_total_updates": max_epochs * max(1, int(row.get("updates_per_epoch") or 0)), "stopping_reason": row.get("stopping_reason")},
                 index,
                 len(configs),
             )
@@ -112,6 +119,8 @@ def main() -> None:
             min_epochs=min_epochs,
             patience=patience,
             min_delta=min_delta,
+            stability_window=stability_window,
+            stability_tolerance=stability_tolerance,
             batch_size=batch_size,
             learning_rate=learning_rate,
             gamma=gamma,
@@ -130,6 +139,8 @@ def main() -> None:
             "min_epochs": min_epochs,
             "patience": patience,
             "min_delta": min_delta,
+            "stability_window": stability_window,
+            "stability_tolerance": stability_tolerance,
         }
         _write_live_candidate_metrics(candidate_config, result, index, len(configs))
 
@@ -145,17 +156,15 @@ def main() -> None:
             "best_validation": best_validation,
             "validation_score": _score({"best_validation": best_validation}),
             "model_path": str(candidate_path),
+            "stopping_reason": result.get("stopping_reason"),
             "status": "trained",
         }
 
-        # Every trained candidate receives a completely fresh 40-alert cycle.
         cycle = start_new_live_cycle(
             reason=f"model_candidate_{index}",
             metadata={"model_name": name, "candidate_index": index, "candidate_count": len(configs)},
         )
 
-        # Candidate becomes temporarily active so the live inference engine
-        # uses exactly this checkpoint and gets its own model version.
         shutil.copy2(candidate_path, MODEL_PATH)
         candidate_meta = ensure_model_version(
             model_path=MODEL_PATH,
@@ -192,7 +201,6 @@ def main() -> None:
     if not best_path.exists():
         raise RuntimeError(f"Best model checkpoint missing: {best_path}")
 
-    # Promote winner and run one final clean champion cycle.
     shutil.copy2(best_path, MODEL_PATH)
     final_cycle = start_new_live_cycle(
         reason="champion_model",
@@ -216,7 +224,8 @@ def main() -> None:
     final_metrics = evaluate(test_csv=test_csv, model_path=str(MODEL_PATH))
     TEST_METRICS_PATH.write_text(json.dumps(final_metrics, indent=2), encoding="utf-8")
 
-    selected_history = json.loads((EXPERIMENTS_DIR / f"{best['name']}.training.json").read_text(encoding="utf-8"))
+    selected_history_path = EXPERIMENTS_DIR / f"{best['name']}.training.json"
+    selected_history = json.loads(selected_history_path.read_text(encoding="utf-8"))
     selected_config = selected_history.get("config", {})
     selected_config.update({
         "model_name": best["name"],
@@ -236,6 +245,7 @@ def main() -> None:
         "total_updates_used": selected_history.get("total_updates_used"),
         "updates_per_epoch": selected_history.get("updates_per_epoch"),
         "max_total_updates": selected_history.get("max_total_updates"),
+        "stopping_reason": best.get("stopping_reason"),
         "model_comparison": comparison_records,
         "champion_model_version": champion_meta.get("model_version"),
         "champion_live_cycle": final_cycle,
