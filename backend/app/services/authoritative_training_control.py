@@ -28,10 +28,10 @@ _started_at: str | None = None
 _last_return_code: int | None = None
 _last_message: str = ""
 _post_training: dict[str, Any] | None = None
+_selected_models: list[str] = []
 
 
 def _json_safe(value: Any) -> Any:
-    """Return JSON-compatible telemetry, replacing NaN/Infinity recursively."""
     if isinstance(value, float):
         return value if math.isfinite(value) else None
     if isinstance(value, dict):
@@ -129,6 +129,7 @@ def _results() -> dict[str, Any]:
             "model_name": config.get("model_name"),
             "candidate_index": config.get("candidate_index"),
             "candidate_count": config.get("candidate_count"),
+            "selected_models": _selected_models,
             "learning_rate": config.get("learning_rate"),
             "epochs": config.get("epochs", config.get("max_epochs")),
             "actual_epochs": training.get("actual_epochs", last.get("epoch")),
@@ -191,7 +192,7 @@ def _sync_process_state() -> None:
             from app.services.post_training_service import promote_and_infer
             _post_training = promote_and_infer()
             if _post_training.get("status") == "completed":
-                _last_message = "All model candidates evaluated; champion model versioned and final live-alert cycle routed."
+                _last_message = "All selected model candidates evaluated; champion model versioned and final live-alert cycle routed."
             else:
                 _last_message = "Model sequence completed; final live inference reported an error and requires review."
         except Exception as exc:
@@ -210,18 +211,28 @@ def _sync_process_state() -> None:
     _process = None
 
 
-def start() -> dict[str, Any]:
-    global _process, _log_handle, _started_at, _last_return_code, _last_message, _post_training
+def start(model_names: list[str] | None = None) -> dict[str, Any]:
+    global _process, _log_handle, _started_at, _last_return_code, _last_message, _post_training, _selected_models
     with _lock:
         _sync_process_state()
         if _process is not None and _process.poll() is None:
-            return {"status": "running", "message": "Sequential model training is already running."}
+            return {"status": "running", "message": "Sequential model training is already running.", "selected_models": _selected_models}
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+        from app.rl_agent.real_pipeline import _experiment_configs
+        available = _experiment_configs()
+        available_names = {str(item.get("name")) for item in available}
+        selected = [str(name) for name in (model_names or []) if str(name) in available_names]
+        if not selected:
+            selected = [str(item.get("name")) for item in available]
+        _selected_models = selected
+
         TRAIN_METRICS.write_text('{"config": {}, "metrics": []}\n', encoding="utf-8")
         _post_training = None
         env = os.environ.copy()
         env["PYTHONPATH"] = str(PROJECT_ROOT / "backend") + os.pathsep + env.get("PYTHONPATH", "")
+        env["REAL_RL_EXPERIMENTS"] = json.dumps([item for item in available if str(item.get("name")) in selected])
         _log_handle = LOG_PATH.open("w", encoding="utf-8")
         _process = subprocess.Popen(
             [sys.executable, "-m", "app.rl_agent.sequential_experiment"],
@@ -234,8 +245,8 @@ def start() -> dict[str, Any]:
         )
         _started_at = datetime.now(timezone.utc).isoformat()
         _last_return_code = None
-        _last_message = "Sequential model training started with adaptive stopping, candidate comparison, fresh live cycles, and human-review routing."
-        return {"status": "started", "message": _last_message, "pid": _process.pid, "started_at": _started_at}
+        _last_message = "Selected model candidates started with adaptive stopping, fresh live cycles, and human-review routing."
+        return {"status": "started", "message": _last_message, "pid": _process.pid, "started_at": _started_at, "selected_models": _selected_models}
 
 
 def stop() -> dict[str, Any]:
@@ -283,7 +294,7 @@ def status() -> dict[str, Any]:
             results = _results()
             if running:
                 state = "running"
-                message = "Training real processed data with adaptive stopping, model comparison, fresh live cycles, and live telemetry."
+                message = "Training selected real-data models with adaptive stopping, model comparison, fresh live cycles, and live telemetry."
             elif _last_return_code == 0:
                 state = "completed"
                 message = _last_message or "Training, model versioning, and live inference completed."
