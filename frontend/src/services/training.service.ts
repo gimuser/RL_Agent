@@ -94,6 +94,7 @@ export type AuthoritativeResults = {
     model_name?: string | null;
     candidate_index?: number | null;
     candidate_count?: number | null;
+    selected_models?: string[];
     learning_rate?: number | null;
     epochs?: number | null;
     actual_epochs?: number | null;
@@ -173,8 +174,11 @@ export type AuthoritativeTrainingStatus = {
 export const getAuthoritativeFullTrainingStatus = () =>
   apiRequest<AuthoritativeTrainingStatus>("/api/training-control");
 
-export const startAuthoritativeFullTraining = () =>
-  apiRequest<{ status: string; message?: string }>("/api/training-control", { method: "POST" });
+export const startAuthoritativeFullTraining = (modelNames: string[]) =>
+  apiRequest<{ status: string; message?: string; selected_models?: string[] }>("/api/training-control", {
+    method: "POST",
+    body: JSON.stringify({ model_names: modelNames }),
+  });
 
 export const stopAuthoritativeFullTraining = () =>
   apiRequest<{ status: string; message?: string }>("/api/training-control/stop", { method: "POST" });
