@@ -24,6 +24,34 @@ export type TrainingMetricRow = {
   time_seconds?: number;
 };
 
+export type TrainingMetricsResponse = {
+  metrics?: TrainingMetricRow[];
+  status?: string;
+  message?: string;
+};
+
+export type ValidationMetrics = {
+  policy_optimality?: number | null;
+  reward_efficiency?: number | null;
+};
+
+export type CandidateValidation = {
+  policy_optimality?: number | null;
+  reward_efficiency?: number | null;
+};
+
+export type ModelCandidate = {
+  name?: string | null;
+  learning_rate?: number | null;
+  actual_epochs?: number | null;
+  best_epoch?: number | null;
+  validation_score?: number | null;
+  status?: string | null;
+  best_validation?: CandidateValidation | null;
+  live_inference?: Record<string, unknown> | null;
+  live_cycle_id?: string | null;
+};
+
 export type AuthoritativeHistoryPoint = {
   epoch: number;
   loss: number;
@@ -39,7 +67,7 @@ export type AuthoritativeHistoryPoint = {
   incidents?: number | null;
   action_distribution?: Record<string, number> | null;
   time_seconds?: number | null;
-  validation?: Record<string, unknown> | null;
+  validation?: ValidationMetrics | null;
   validation_score?: number | null;
   patience_used?: number | null;
   best_epoch?: number | null;
@@ -83,7 +111,7 @@ export type AuthoritativeResults = {
     oracle_average_reward?: number | null;
     reward_efficiency?: number | null;
     action_distribution?: Record<string, number> | null;
-    validation?: Record<string, unknown> | null;
+    validation?: ValidationMetrics | null;
     validation_score?: number | null;
     patience_used?: number | null;
     best_epoch?: number | null;
@@ -93,8 +121,8 @@ export type AuthoritativeResults = {
     status?: string;
     selection_rule?: string;
     test_used_for_selection?: boolean;
-    candidates?: Array<Record<string, unknown>>;
-    best?: Record<string, unknown> | null;
+    candidates?: ModelCandidate[];
+    best?: ModelCandidate | null;
   } | null;
   evaluation?: {
     samples?: number | null;
@@ -116,18 +144,21 @@ export type AuthoritativeResults = {
   live_inference?: {
     status?: string;
     decision_cycle_id?: string | null;
+    cycle_id?: string | null;
     model_version?: string | null;
     human_review_routed?: number | null;
     alerts_processed?: number | null;
     alerts_considered?: number | null;
     action_distribution?: Record<string, number> | null;
     errors?: Array<Record<string, unknown>>;
+    summary?: Record<string, unknown> | null;
   } | null;
   post_training?: {
     status?: string;
     model?: Record<string, unknown> | null;
     inference?: Record<string, unknown> | null;
     decision_cycle?: string | null;
+    live_inference?: Record<string, unknown> | null;
   } | null;
 };
 
