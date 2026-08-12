@@ -12,6 +12,7 @@ from app.api.agent import router as agent_router
 from app.api.evaluation import router as evaluation_router
 from app.api.metrics import router as metrics_router
 from app.api.api_status import router as api_status_router
+from app.api.live_alerts import router as live_alerts_router
 
 router = APIRouter()
 
@@ -23,6 +24,9 @@ router.include_router(api_status_router)
 router.include_router(decisions_router, prefix="/api/decisions", tags=["Decisions"])
 router.include_router(rewards_router, prefix="/api/rewards", tags=["Rewards"])
 router.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+
+# Live-alert/MongoDB operations, isolated from training/evaluation data.
+router.include_router(live_alerts_router)
 
 # 2. Routers الخرى اللي نجحات سابقاً
 router.include_router(pipeline_router)
