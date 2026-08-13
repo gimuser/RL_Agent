@@ -1,1 +1,0 @@
-"""SOC Gymnasium environment feature."""
