@@ -1,1 +1,6 @@
+# Python dependencies
 -r backend/requirements.txt
+
+# Frontend runtime/tooling requirement
+# Node.js + npm are required for frontend/package.json
+# Recommended: Node.js 20+ with npm
