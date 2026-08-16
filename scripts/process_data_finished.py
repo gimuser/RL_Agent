@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
-"""Memory-safe processor for data_finished/GUIDE_Train.csv + GUIDE_Test.csv.
+"""Memory-safe Microsoft GUIDE -> RL incident processing.
 
-All large CSV operations use chunks. Only compact incident-ID/category/scaler
-state is retained in memory. The existing data-pipeline semantics are reused:
-cleaning (drop duplicates/fill Unknown), categorical mapping, time features,
-and MinMax normalization. The 80 live incidents are held out before fitting.
+Input is supplied at runtime through RL_AGENT_INPUT_DIR, otherwise
+<repo>/data_finished is used. Large CSVs are always processed in chunks.
+
+Flow:
+1. Keep the 13 required incident columns and remove exact duplicate rows.
+2. Select 40 unique live incidents, then another 40 different incidents.
+3. Remove ALL rows belonging to those 80 incidents from training.
+4. Fit categorical mappings and MinMax scaler only on the remaining train rows.
+5. Produce data/processed/train_processed.csv and test_processed.csv.
+6. Mirror those processed datasets to data/rl_incident/train_incident.csv
+   and test_incident.csv.
+7. Produce 80 independent live raw/processed alerts in data_alert.
+8. Verify train/test/live incident disjointness and final schema.
 """
 from __future__ import annotations
 
@@ -12,6 +21,7 @@ import csv
 import json
 import random
 import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,9 +30,12 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUT = ROOT / "data_finished"
-WORK = INPUT / "work"
-BACKUP = INPUT / "backup"
+INPUT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(
+    __import__("os").environ.get("RL_AGENT_INPUT_DIR", ROOT / "data_finished")
+).resolve()
+WORK = ROOT / "data" / "processing_work"
+BACKUP = ROOT / "data" / "processing_backups"
+PROCESSED = ROOT / "data" / "processed"
 RL = ROOT / "data" / "rl_incident"
 ALERT = ROOT / "data_alert"
 MODELS = ROOT / "models"
@@ -30,7 +43,8 @@ TRAIN = INPUT / "GUIDE_Train.csv"
 TEST = INPUT / "GUIDE_Test.csv"
 
 CHUNK_SIZE = 50_000
-N_LIVE = 80
+LIVE_BATCH_SIZE = 40
+N_LIVE = LIVE_BATCH_SIZE * 2
 SEED = 20260816
 
 KEEP = [
@@ -48,7 +62,7 @@ SCALED = ["IncidentId", "hour", "day", "month", "is_weekend"]
 FEATURES = [
     "Category", "MitreTechniques", "ActionGrouped", "ActionGranular",
     "EntityType", "EvidenceRole", "ThreatFamily", "OSFamily",
-    "SuspicionLevel", "hour", "day", "month", "is_weekend",
+    "SuspicionLevel", "LastVerdict", "hour", "day", "month", "is_weekend",
 ]
 ID = "IncidentId"
 TARGET = "IncidentGrade"
@@ -63,8 +77,8 @@ def fail(msg: str) -> None:
 
 
 def setup() -> None:
-    for p in [INPUT, WORK, BACKUP, RL, ALERT, MODELS]:
-        p.mkdir(parents=True, exist_ok=True)
+    for path in [WORK, BACKUP, PROCESSED, RL, ALERT, MODELS]:
+        path.mkdir(parents=True, exist_ok=True)
 
 
 def header(path: Path) -> list[str]:
@@ -73,85 +87,89 @@ def header(path: Path) -> list[str]:
 
 def check_inputs() -> None:
     if not TRAIN.is_file() or not TEST.is_file():
-        fail("data_finished must contain both GUIDE_Train.csv and GUIDE_Test.csv")
-    for p in [TRAIN, TEST]:
-        missing = [c for c in KEEP if c not in header(p)]
+        fail(f"Input directory must contain GUIDE_Train.csv and GUIDE_Test.csv: {INPUT}")
+    for path in [TRAIN, TEST]:
+        missing = [column for column in KEEP if column not in header(path)]
         if missing:
-            fail(f"{p.name} missing required columns: {missing}")
+            fail(f"{path.name} missing required columns: {missing}")
 
 
-def stream_clean_and_dedup(source: Path, out: Path, seen: dict[str, str], name: str) -> tuple[int, int, int]:
-    """Keep one row per IncidentId, chunked; detect conflicting labels."""
-    if out.exists():
-        out.unlink()
-    total = kept = duplicates = 0
+def stream_clean(source: Path, target: Path, name: str) -> tuple[int, int, int, set[str]]:
+    """Keep only required columns, remove exact duplicate rows, fill missing values.
+
+    We deliberately do NOT deduplicate IncidentId here because one incident can
+    legitimately contain multiple evidence/alert rows in GUIDE.
+    """
+    if target.exists():
+        target.unlink()
+    total = kept = duplicate_rows = 0
     first = True
+    incident_ids: set[str] = set()
     for chunk_no, chunk in enumerate(
         pd.read_csv(source, usecols=KEEP, chunksize=CHUNK_SIZE, low_memory=True), 1
     ):
+        before = len(chunk)
         chunk = chunk.drop_duplicates().fillna("Unknown")
-        total += len(chunk)
-        keep = []
-        for iid, grade in zip(chunk[ID].astype(str), chunk[TARGET].astype(str)):
-            old = seen.get(iid)
-            if old is not None:
-                if old != grade:
-                    fail(f"{name}: IncidentId {iid} has conflicting IncidentGrade values: {old!r} vs {grade!r}")
-                keep.append(False)
-                duplicates += 1
-            else:
-                seen[iid] = grade
-                keep.append(True)
-        part = chunk.loc[keep]
-        if not part.empty:
-            part.to_csv(out, mode="w" if first else "a", header=first, index=False)
+        duplicate_rows += before - len(chunk)
+        total += before
+        kept += len(chunk)
+        incident_ids.update(chunk[ID].astype(str))
+        if not chunk.empty:
+            chunk.to_csv(target, mode="w" if first else "a", header=first, index=False)
             first = False
-            kept += len(part)
         if chunk_no % 10 == 0:
-            log(f"  [{name}] chunks={chunk_no:,} rows={total:,} kept={kept:,} duplicate_ids={duplicates:,}")
+            log(f"  [{name}] chunks={chunk_no:,} rows_seen={total:,} rows_kept={kept:,} exact_dups={duplicate_rows:,}")
     if first:
         fail(f"{name}: no usable rows after cleaning")
-    return total, kept, duplicates
+    return total, kept, duplicate_rows, incident_ids
 
 
-def reservoir(path: Path, n: int) -> pd.DataFrame:
-    """Reservoir-sample n rows using bounded memory."""
-    rng = random.Random(SEED)
+def reservoir_incident_rows(path: Path, n: int, excluded: set[str] | None = None, seed_offset: int = 0) -> pd.DataFrame:
+    """Reservoir-sample one representative row per unique IncidentId."""
+    excluded = excluded or set()
+    rng = random.Random(SEED + seed_offset)
     sample: list[dict[str, object]] = []
-    seen = 0
+    seen_ids: set[str] = set()
     for chunk in pd.read_csv(path, usecols=KEEP, chunksize=CHUNK_SIZE, low_memory=True):
         for row in chunk.itertuples(index=False, name=None):
-            seen += 1
             item = dict(zip(KEEP, row))
+            incident_id = str(item[ID])
+            if incident_id in excluded or incident_id in seen_ids:
+                continue
+            seen_ids.add(incident_id)
+            count = len(seen_ids)
             if len(sample) < n:
                 sample.append(item)
             else:
-                j = rng.randrange(seen)
-                if j < n:
-                    sample[j] = item
+                index = rng.randrange(count)
+                if index < n:
+                    sample[index] = item
     if len(sample) < n:
-        fail(f"Only {len(sample)} rows available; cannot reserve {n} live incidents")
+        fail(f"Only {len(sample)} eligible incidents available; {n} required")
     return pd.DataFrame(sample, columns=KEEP)
 
 
 def fit_mappings(train_path: Path, excluded_ids: set[str]) -> dict[str, dict[str, int]]:
-    values = {c: set() for c in CATS}
+    values = {column: set() for column in CATS}
     for chunk in pd.read_csv(train_path, usecols=CATS + [ID], chunksize=CHUNK_SIZE, low_memory=True):
         chunk = chunk[~chunk[ID].astype(str).isin(excluded_ids)]
         if chunk.empty:
             continue
         chunk = chunk.fillna("Unknown")
-        for c in CATS:
-            values[c].update(chunk[c].astype(str).unique())
-    mappings = {c: {v: i for i, v in enumerate(sorted(values[c]))} for c in CATS}
+        for column in CATS:
+            values[column].update(chunk[column].astype(str).unique())
+    mappings = {
+        column: {value: index for index, value in enumerate(sorted(values[column]))}
+        for column in CATS
+    }
     (MODELS / "category_mappings.json").write_text(json.dumps(mappings, indent=2), encoding="utf-8")
     return mappings
 
 
 def transform_chunk(chunk: pd.DataFrame, mappings: dict[str, dict[str, int]]) -> pd.DataFrame:
     chunk = chunk.copy().fillna("Unknown")
-    for c in CATS:
-        chunk[c] = chunk[c].astype(str).map(mappings[c]).fillna(-1).astype("int32")
+    for column in CATS:
+        chunk[column] = chunk[column].astype(str).map(mappings[column]).fillna(-1).astype("int32")
     chunk["Timestamp"] = pd.to_datetime(chunk["Timestamp"], utc=True, errors="raise")
     chunk["hour"] = chunk["Timestamp"].dt.hour.astype("int16")
     chunk["day"] = chunk["Timestamp"].dt.day.astype("int16")
@@ -167,11 +185,11 @@ def fit_scaler(train_path: Path, mappings: dict[str, dict[str, int]], excluded_i
         chunk = chunk[~chunk[ID].astype(str).isin(excluded_ids)]
         if chunk.empty:
             continue
-        enc = transform_chunk(chunk, mappings)
-        scaler.partial_fit(enc[SCALED].astype(float))
+        encoded = transform_chunk(chunk, mappings)
+        scaler.partial_fit(encoded[SCALED].astype(float))
         fitted = True
     if not fitted:
-        fail("No training rows available after live holdout")
+        fail("No train rows remained after excluding live incidents")
     joblib.dump({"scaler": scaler, "columns": SCALED}, MODELS / "feature_scaler.joblib")
     return scaler
 
@@ -185,160 +203,213 @@ def write_transformed(source: Path, target: Path, mappings: dict[str, dict[str, 
         chunk = chunk[~chunk[ID].astype(str).isin(excluded_ids)]
         if chunk.empty:
             continue
-        out = transform_chunk(chunk, mappings)
-        out[SCALED] = scaler.transform(out[SCALED].astype(float))
-        out = out[FINAL]
-        out.to_csv(target, mode="w" if first else "a", header=first, index=False)
+        transformed = transform_chunk(chunk, mappings)
+        transformed[SCALED] = scaler.transform(transformed[SCALED].astype(float))
+        transformed = transformed[FINAL]
+        transformed.to_csv(target, mode="w" if first else "a", header=first, index=False)
         first = False
-        total += len(out)
+        total += len(transformed)
     if first:
         fail(f"No transformed rows written from {source}")
     return total
 
 
-def write_id_list(clean_path: Path, final_path: Path, excluded: set[str]) -> None:
-    with clean_path.open("r", encoding="utf-8", newline="") as src, final_path.open("w", encoding="utf-8") as dst:
-        for row in csv.DictReader(src):
-            iid = str(row[ID])
-            if iid not in excluded:
-                dst.write(iid + "\n")
-
-
-def verify_schema(path: Path) -> None:
-    cols = header(path)
-    if cols != FINAL:
-        fail(f"{path} schema mismatch. Expected {FINAL}, got {cols}")
+def write_ids(source: Path, target: Path, excluded: set[str]) -> None:
+    with source.open("r", encoding="utf-8", newline="") as source_handle, target.open("w", encoding="utf-8") as target_handle:
+        for row in csv.DictReader(source_handle):
+            incident_id = str(row[ID])
+            if incident_id not in excluded:
+                target_handle.write(incident_id + "\n")
 
 
 def backup_outputs() -> Path:
-    tag = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    dst = BACKUP / tag
-    dst.mkdir(parents=True, exist_ok=True)
-    for p in [RL / "train_incident.csv", RL / "test_incident.csv", RL / "train_incidents.txt", RL / "test_incidents.txt", RL / "split_report.json"]:
-        if p.exists():
-            shutil.copy2(p, dst / p.name)
-    return dst
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    destination = BACKUP / stamp
+    destination.mkdir(parents=True, exist_ok=True)
+    paths = [
+        PROCESSED / "train_processed.csv",
+        PROCESSED / "test_processed.csv",
+        RL / "train_incident.csv",
+        RL / "test_incident.csv",
+        RL / "train_incidents.txt",
+        RL / "test_incidents.txt",
+        RL / "split_report.json",
+        ALERT / "live_source.csv",
+        ALERT / "live_processed.csv",
+        ALERT / "live_mapping.csv",
+        ALERT / "live_incidents.txt",
+    ]
+    for path in paths:
+        if path.exists():
+            shutil.copy2(path, destination / path.name)
+    return destination
+
+
+def verify_schema(path: Path) -> None:
+    columns = header(path)
+    if columns != FINAL:
+        fail(f"Schema mismatch in {path}. Expected {FINAL}, got {columns}")
 
 
 def main() -> None:
     setup()
     log("=" * 78)
-    log("RL AGENT — DATA_FINISHED MEMORY-SAFE UPDATE")
+    log("RL AGENT — GUIDE -> PROCESSED -> INCIDENT -> 80 LIVE")
     log("=" * 78)
-    log(f"Chunk size: {CHUNK_SIZE:,}")
+    log(f"Input directory : {INPUT}")
+    log(f"Chunk size     : {CHUNK_SIZE:,}")
+    log(f"Live set       : {LIVE_BATCH_SIZE}+{LIVE_BATCH_SIZE}=80")
     check_inputs()
 
     train_clean = WORK / "train_clean.csv"
     test_clean = WORK / "test_clean.csv"
 
-    log("[1/8] Stream-clean + deduplicate")
-    train_seen: dict[str, str] = {}
-    tr_total, tr_kept, tr_dups = stream_clean_and_dedup(TRAIN, train_clean, train_seen, "TRAIN")
-    test_seen: dict[str, str] = {}
-    te_total, te_kept, te_dups = stream_clean_and_dedup(TEST, test_clean, test_seen, "TEST")
-    overlap = set(train_seen).intersection(test_seen)
-    if overlap:
-        fail(f"Train/test IncidentId overlap detected: {len(overlap):,}")
-    train_ids = set(train_seen)
-    test_ids = set(test_seen)
-    log(f"  train seen={tr_total:,} kept={tr_kept:,} duplicates={tr_dups:,}")
-    log(f"  test  seen={te_total:,} kept={te_keps if False else te_kept:,} duplicates={te_dups:,}")
-    log("  train/test overlap=0")
+    log("\n[1/9] Keep 13 columns + remove exact duplicate rows")
+    tr_total, tr_kept, tr_dups, train_ids = stream_clean(TRAIN, train_clean, "TRAIN")
+    te_total, te_kept, te_dups, test_ids = stream_clean(TEST, test_clean, "TEST")
+    if train_ids.intersection(test_ids):
+        fail("Train/test IncidentId overlap detected")
+    log(f"  TRAIN seen={tr_total:,} kept={tr_kept:,} exact_duplicates_removed={tr_dups:,}")
+    log(f"  TEST  seen={te_total:,} kept={te_kept:,} exact_duplicates_removed={te_dups:,}")
+    log("  TRAIN/TEST overlap=0")
 
-    log("[2/8] Reserve 80 independent live incidents")
-    live_raw = reservoir(train_clean, N_LIVE)
-    live_ids = set(live_raw[ID].astype(str))
+    log("\n[2/9] Select live batch 1 (40 unique incidents)")
+    live_one = reservoir_incident_rows(train_clean, LIVE_BATCH_SIZE, seed_offset=1)
+    live_one_ids = set(live_one[ID].astype(str))
+    log(f"  batch1={len(live_one_ids):,}")
+
+    log("[3/9] Select live batch 2 (40 different incidents)")
+    live_two = reservoir_incident_rows(train_clean, LIVE_BATCH_SIZE, excluded=live_one_ids, seed_offset=2)
+    live_two_ids = set(live_two[ID].astype(str))
+    log(f"  batch2={len(live_two_ids):,}")
+
+    live_ids = live_one_ids | live_two_ids
     if len(live_ids) != N_LIVE:
-        fail("Live holdout contains duplicate IncidentId values")
-    log(f"  live={len(live_ids):,}")
+        fail(f"Live set is not 80 unique incidents: {len(live_ids)}")
+    if live_ids & train_ids or live_ids & test_ids:
+        fail("Live incidents overlap train or test")
+    log("  live/train overlap=0")
+    log("  live/test overlap=0")
+    log("  batch1/batch2 overlap=0")
 
-    log("[3/8] Fit categorical mappings from TRAIN minus LIVE")
+    live_raw = pd.concat([live_one, live_two], ignore_index=True)
+    live_raw = live_raw.sort_values(["Timestamp", ID]).reset_index(drop=True)
+
+    log("\n[4/9] Fit mappings on TRAIN excluding all 80 live incidents")
     mappings = fit_mappings(train_clean, live_ids)
 
-    log("[4/8] Fit MinMax scaler incrementally on TRAIN minus LIVE")
+    log("[5/9] Fit MinMax scaler incrementally on TRAIN excluding all 80 live incidents")
     scaler = fit_scaler(train_clean, mappings, live_ids)
 
-    log("[5/8] Build transformed files in chunks")
-    new_train = WORK / "train_incident.new.csv"
-    new_test = WORK / "test_incident.new.csv"
-    train_rows = write_transformed(train_clean, new_train, mappings, scaler, live_ids)
-    test_rows = write_transformed(test_clean, new_test, mappings, scaler, set())
-    verify_schema(new_train)
-    verify_schema(new_test)
+    log("\n[6/9] Transform TRAIN/TEST in bounded chunks")
+    train_new_processed = WORK / "train_processed.new.csv"
+    test_new_processed = WORK / "test_processed.new.csv"
+    train_new_incident = WORK / "train_incident.new.csv"
+    test_new_incident = WORK / "test_incident.new.csv"
 
-    log("[6/8] Transform 80 live alerts with fitted artifacts")
+    train_rows = write_transformed(train_clean, train_new_processed, mappings, scaler, live_ids)
+    test_rows = write_transformed(test_clean, test_new_processed, mappings, scaler, set())
+    shutil.copy2(train_new_processed, train_new_incident)
+    shutil.copy2(test_new_processed, test_new_incident)
+    for path in [train_new_processed, test_new_processed, train_new_incident, test_new_incident]:
+        verify_schema(path)
+
+    log("\n[7/9] Transform 80 live alerts using TRAIN-fitted artifacts")
     live_processed = transform_chunk(live_raw, mappings)
     live_processed[SCALED] = scaler.transform(live_processed[SCALED].astype(float))
     live_processed = live_processed[FINAL]
-    alert_ids = [f"LIVE-{i:04d}" for i in range(1, N_LIVE + 1)]
+    live_alert_ids = [f"LIVE-{index:04d}" for index in range(1, N_LIVE + 1)]
+
     live_source_out = live_raw.copy()
-    live_source_out.insert(0, "alert_id", alert_ids)
-    live_processed.insert(0, "alert_id", alert_ids)
+    live_source_out.insert(0, "alert_id", live_alert_ids)
+    live_processed.insert(0, "alert_id", live_alert_ids)
     live_source_out.to_csv(ALERT / "live_source.csv", index=False)
     live_processed.to_csv(ALERT / "live_processed.csv", index=False)
-    pd.DataFrame({"alert_id": alert_ids, ID: live_raw[ID].astype(str).tolist(), "Timestamp": live_raw["Timestamp"].tolist()}).to_csv(ALERT / "live_mapping.csv", index=False)
-    (ALERT / "live_incidents.txt").write_text("\n".join(sorted(live_ids)) + "\n", encoding="utf-8")
+    pd.DataFrame({
+        "alert_id": live_alert_ids,
+        ID: live_raw[ID].astype(str).tolist(),
+        "Timestamp": live_raw["Timestamp"].tolist(),
+    }).to_csv(ALERT / "live_mapping.csv", index=False)
+    (ALERT / "live_incidents.txt").write_text("\n".join(live_raw[ID].astype(str).tolist()) + "\n", encoding="utf-8")
 
-    log("[7/8] Atomic replacement + backups")
+    log("\n[8/9] Backup + replace outputs")
     backup = backup_outputs()
-    new_train.replace(RL / "train_incident.csv")
-    new_test.replace(RL / "test_incident.csv")
-    write_id_list(train_clean, RL / "train_incidents.txt", live_ids)
-    write_id_list(test_clean, RL / "test_incidents.txt", set())
+    for source, destination in [
+        (train_new_processed, PROCESSED / "train_processed.csv"),
+        (test_new_processed, PROCESSED / "test_processed.csv"),
+        (train_new_incident, RL / "train_incident.csv"),
+        (test_new_incident, RL / "test_incident.csv"),
+    ]:
+        source.replace(destination)
+    write_ids(train_clean, RL / "train_incidents.txt", live_ids)
+    write_ids(test_clean, RL / "test_incidents.txt", set())
 
     final_train_ids = train_ids - live_ids
-    if final_train_ids & test_ids:
+    if final_train_ids.intersection(test_ids):
         fail("Final train/test overlap detected")
-    if final_train_ids & live_ids:
+    if final_train_ids.intersection(live_ids):
         fail("Final train/live overlap detected")
-    if test_ids & live_ids:
+    if test_ids.intersection(live_ids):
         fail("Final test/live overlap detected")
+    if len(live_raw) != N_LIVE or live_raw[ID].nunique() != N_LIVE:
+        fail("Final live dataset is not exactly 80 unique incidents")
 
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "source": "data_finished/GUIDE_Train.csv + GUIDE_Test.csv",
+        "input_directory": str(INPUT),
         "memory_safe": True,
         "chunk_size": CHUNK_SIZE,
-        "kept_columns": KEEP,
+        "raw_keep_columns": KEEP,
         "final_columns": FINAL,
         "features": FEATURES,
         "target": TARGET,
         "incident_id": ID,
-        "raw_train_rows_seen": tr_total,
-        "raw_test_rows_seen": te_total,
-        "train_rows_after_dedup": tr_kept,
-        "test_rows_after_dedup": te_kept,
-        "train_rows_final": train_rows,
-        "test_rows_final": test_rows,
+        "train_rows_seen": tr_total,
+        "test_rows_seen": te_total,
+        "train_exact_duplicate_rows_removed": tr_dups,
+        "test_exact_duplicate_rows_removed": te_dups,
+        "train_processed_rows": train_rows,
+        "test_processed_rows": test_rows,
+        "live_batch_1": LIVE_BATCH_SIZE,
+        "live_batch_2": LIVE_BATCH_SIZE,
         "live_rows": N_LIVE,
         "train_test_overlap": 0,
         "train_live_overlap": 0,
         "test_live_overlap": 0,
-        "backup": str(backup),
+        "batch1_batch2_overlap": 0,
+        "outputs": {
+            "train_processed": str(PROCESSED / "train_processed.csv"),
+            "test_processed": str(PROCESSED / "test_processed.csv"),
+            "train_incident": str(RL / "train_incident.csv"),
+            "test_incident": str(RL / "test_incident.csv"),
+            "live_source": str(ALERT / "live_source.csv"),
+            "live_processed": str(ALERT / "live_processed.csv"),
+            "live_mapping": str(ALERT / "live_mapping.csv"),
+        },
         "artifacts": {
             "category_mappings": str(MODELS / "category_mappings.json"),
             "feature_scaler": str(MODELS / "feature_scaler.joblib"),
         },
+        "backup": str(backup),
     }
     (RL / "split_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-    (INPUT / "update_manifest.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-
-    log("[8/8] Verification")
-    log(f"  train_incident.csv={train_rows:,}")
-    log(f"  test_incident.csv={test_rows:,}")
-    log(f"  live_source.csv={N_LIVE:,}")
-    log(f"  live_processed.csv={N_LIVE:,}")
+    log("\n[9/9] Final verification")
+    log(f"  data/processed/train_processed.csv = {train_rows:,} rows")
+    log(f"  data/processed/test_processed.csv  = {test_rows:,} rows")
+    log(f"  data/rl_incident/train_incident.csv = {train_rows:,} rows")
+    log(f"  data/rl_incident/test_incident.csv  = {test_rows:,} rows")
+    log("  data_alert/live_source.csv = 80 rows")
+    log("  data_alert/live_processed.csv = 80 rows")
     log("  train/test/live overlaps = 0/0/0")
-    log(f"  backup={backup}")
-    log("DONE")
+    log("  batch1/batch2 overlap = 0")
+    log(f"  backup = {backup}")
+    log("SUCCESS")
 
 
 if __name__ == "__main__":
     try:
         main()
     except MemoryError:
-        fail("MemoryError: lower CHUNK_SIZE in scripts/process_data_finished.py and retry")
+        fail("MemoryError: reduce CHUNK_SIZE and rerun")
     except KeyboardInterrupt:
-        fail("Interrupted; replacement happens only after processing completes")
-    except Exception as exc:
-        fail(str(exc))
+        fail("Interrupted before final replacement")
