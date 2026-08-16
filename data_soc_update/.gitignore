@@ -1,0 +1,9 @@
+# Runtime-only Microsoft GUIDE download/workspace
+raw/
+work/
+backup/
+*.csv
+*.parquet
+*.zip
+*.json
+!README.md
