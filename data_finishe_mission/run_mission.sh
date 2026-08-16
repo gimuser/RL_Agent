@@ -20,21 +20,12 @@ echo "RUNTIME   : $RUNTIME"
 echo "PROCESSOR : $PROCESSOR"
 echo
 
-# Keep the runtime processor synchronized with the public repository.
-echo "[1/8] Synchronizing RL_Agent runtime..."
+echo "[1/7] Synchronizing RL_Agent runtime..."
 if [[ ! -d "$RUNTIME/.git" ]]; then
-  if git clone --depth 1 https://github.com/gimuser/RL_Agent.git "$RUNTIME"; then
-    echo "[OK] Runtime cloned."
-  else
-    echo "[ERROR] Runtime clone failed. Retrying in 30 seconds."
+  until git clone --depth 1 https://github.com/gimuser/RL_Agent.git "$RUNTIME"; do
+    echo "[WAIT] Runtime clone failed; retrying in 30 seconds..."
     sleep 30
-    while [[ ! -d "$RUNTIME/.git" ]]; do
-      if git clone --depth 1 https://github.com/gimuser/RL_Agent.git "$RUNTIME"; then
-        break
-      fi
-      sleep 30
-    done
-  fi
+  done
 else
   git -C "$RUNTIME" fetch origin main 2>/dev/null || true
   git -C "$RUNTIME" reset --hard origin/main 2>/dev/null || true
@@ -47,19 +38,18 @@ echo
 TRAIN="$INPUT/GUIDE_Train.csv"
 TEST="$INPUT/GUIDE_Test.csv"
 
-# MANUAL-FIRST: never delete or overwrite manually supplied files.
-echo "[2/8] Checking manually supplied GUIDE datasets..."
-
+# Manual-only: never download, delete, or overwrite the source datasets.
+echo "[2/7] Waiting for manually supplied GUIDE datasets..."
 while [[ ! -s "$TRAIN" || ! -s "$TEST" ]]; do
-  echo "[WAIT] Both files are required in: $INPUT"
+  echo "[WAIT] Required files:"
   echo "       $TRAIN"
   echo "       $TEST"
-  echo "       Missing files are NOT downloaded and existing files are NOT deleted."
+  [[ -s "$TRAIN" ]] || echo "       Missing: GUIDE_Train.csv"
+  [[ -s "$TEST" ]] || echo "       Missing: GUIDE_Test.csv"
   sleep 15
 done
 
-echo "[OK] GUIDE_Train.csv found: $TRAIN"
-echo "[OK] GUIDE_Test.csv  found: $TEST"
+echo "[OK] Both GUIDE datasets are present."
 ls -lh "$TRAIN" "$TEST"
 echo
 
@@ -73,28 +63,18 @@ wait_stable() {
   [[ "$a" == "$b" ]]
 }
 
-echo "[3/8] Checking dataset stability..."
-while true; do
-  if wait_stable "$TRAIN" && wait_stable "$TEST"; then
-    echo "[OK] Both files are stable."
-    break
-  fi
-  echo "[WAIT] Files are still being copied/changed."
+echo "[3/7] Checking dataset stability..."
+while ! wait_stable "$TRAIN" || ! wait_stable "$TEST"; do
+  echo "[WAIT] One or both files are still changing."
   sleep 10
 done
+
+echo "[OK] Both files are stable."
 echo
 
-# The processor reads from its own ROOT/data_finished path. Mirror the two
-# manually supplied files into that runtime input directory without changing
-# the original Data_mission copies.
-echo "[4/8] Preparing runtime input..."
-RUNTIME_INPUT="$RUNTIME/data_finished"
-mkdir -p "$RUNTIME_INPUT"
-cp --reflink=auto "$TRAIN" "$RUNTIME_INPUT/GUIDE_Train.csv"
-cp --reflink=auto "$TEST" "$RUNTIME_INPUT/GUIDE_Test.csv"
-
-echo "[OK] Runtime input prepared: $RUNTIME_INPUT"
-echo
+# The processor supports RL_AGENT_INPUT_DIR. Use that so the runtime reads
+# the files in Data_mission without loading/copying the 700-800 MB files twice.
+export RL_AGENT_INPUT_DIR="$INPUT"
 
 while [[ ! -f "$PROCESSOR" ]]; do
   echo "[WAIT] Processor not available: $PROCESSOR"
@@ -103,7 +83,7 @@ while [[ ! -f "$PROCESSOR" ]]; do
   sleep 10
 done
 
-echo "[OK] Processor found."
+echo "[4/7] Processor found."
 echo
 
 STAMP=$(date -u '+%Y%m%d_%H%M%S')
@@ -111,36 +91,29 @@ LOG="$LOGS/mission_${STAMP}.log"
 ARCHIVE_RUN="$ARCHIVE/$STAMP"
 mkdir -p "$ARCHIVE_RUN"
 
-echo "[5/8] Running memory-safe processing..."
+echo "[5/7] Running memory-safe GUIDE pipeline..."
 echo "[LOG] $LOG"
 echo
 
 if python3 "$PROCESSOR" 2>&1 | tee "$LOG"; then
-
   echo
-  echo "[6/8] Processing succeeded."
-
-  # Archive the manually supplied source files only after successful processing.
+  echo "[6/7] Processing succeeded."
   mv "$TRAIN" "$ARCHIVE_RUN/GUIDE_Train.csv"
   mv "$TEST" "$ARCHIVE_RUN/GUIDE_Test.csv"
   cp "$LOG" "$ARCHIVE_RUN/mission.log"
-
-  echo "[OK] Input datasets archived:"
+  echo "[OK] Source datasets archived at:"
   echo "     $ARCHIVE_RUN"
-
 else
-
   echo
   echo "[ERROR] Processing failed."
-  echo "[INFO] Original input datasets were NOT moved by this step."
-  echo "[INFO] Log: $LOG"
-  echo "[INFO] Runtime copies remain under: $RUNTIME_INPUT"
+  echo "[INFO] Source datasets were NOT moved and remain in:"
+  echo "       $INPUT"
+  echo "[LOG]  $LOG"
 fi
 
 echo
-echo "[7/8] Checking outputs..."
+echo "[7/7] Output check"
 echo
-
 for path in \
   "$RUNTIME/data/processed/train_processed.csv" \
   "$RUNTIME/data/processed/test_processed.csv" \
@@ -158,10 +131,11 @@ do
 done
 
 echo
-echo "[8/8] Mission status"
 echo "=============================================================="
-echo "80 live alerts are required: LIVE-0001 ... LIVE-0080"
-echo "Train/test/live disjointness is verified by the processor."
-echo "Runtime source: $RUNTIME"
-echo "Mission input : $INPUT"
+echo " MISSION STATUS"
+echo "=============================================================="
+echo "Live set: 80 incidents = 40 + 40 distinct"
+echo "Disjointness: verified by process_data_finished.py"
+echo "Input:  $INPUT"
+echo "Runtime: $RUNTIME"
 echo "=============================================================="
