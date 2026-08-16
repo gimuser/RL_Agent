@@ -1,0 +1,49 @@
+{
+  "run_id": "13c05eaf94544dd3bd1ff0eac35f3846",
+  "cycle": {
+    "cycle_id": "CYCLE-20260814T193401Z-74345ddd",
+    "status": "ACTIVE",
+    "reason": "model_candidate_1",
+    "alerts": 40,
+    "archived_alerts": 40,
+    "source_preserved": true,
+    "started_at": "2026-08-14T19:34:01.213959+00:00"
+  },
+  "inference": {
+    "status": "completed",
+    "cycle_id": "CYCLE-20260814T193401Z-74345ddd",
+    "decision_cycle_id": "CYCLE-20260814T193401Z-74345ddd",
+    "model_version": "Batch-Constrained Q-Learning (BCQ)-20260814T193401Z-c01840d911",
+    "model_name": "Batch-Constrained Q-Learning (BCQ)",
+    "algorithm": "bcq",
+    "confidence_threshold": 0.6,
+    "margin_threshold": 0.15,
+    "alerts_considered": 40,
+    "alerts_processed": 40,
+    "human_review_routed": 37,
+    "action_distribution": {
+      "allow": 0,
+      "block": 3,
+      "human_review": 37
+    },
+    "errors": [],
+    "duration_seconds": 0.19600124299904564
+  },
+  "model": {
+    "model_version": "Batch-Constrained Q-Learning (BCQ)-20260814T193401Z-c01840d911",
+    "model_name": "Batch-Constrained Q-Learning (BCQ)",
+    "model_path": "/home/oualid/Desktop/new_one/RL_Agent/models/real_dqn_agent.pt",
+    "model_sha256": "c01840d911075584b050d211ef48f65c89ba056f31f6e59e3042a2b2ff3f5c02",
+    "created_at": "2026-08-14T19:34:01.217806+00:00",
+    "source": "authoritative_training",
+    "run_id": "13c05eaf94544dd3bd1ff0eac35f3846",
+    "algorithm": "bcq",
+    "candidate_index": 1,
+    "candidate_count": 1,
+    "best_epoch": 2,
+    "actual_epochs": 20,
+    "learning_rate": 0.001,
+    "decision_cycle_id": "CYCLE-20260814T193401Z-74345ddd",
+    "behavior_action_mode": "reward_proxy"
+  }
+}

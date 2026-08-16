@@ -1,0 +1,49 @@
+{
+  "run_id": "14fa499416ba4484b69d38c899b47ae7",
+  "cycle": {
+    "cycle_id": "CYCLE-20260814T182230Z-697e31db",
+    "status": "ACTIVE",
+    "reason": "model_candidate_1",
+    "alerts": 40,
+    "archived_alerts": 40,
+    "source_preserved": true,
+    "started_at": "2026-08-14T18:22:30.525611+00:00"
+  },
+  "inference": {
+    "status": "completed",
+    "cycle_id": "CYCLE-20260814T182230Z-697e31db",
+    "decision_cycle_id": "CYCLE-20260814T182230Z-697e31db",
+    "model_version": "Double DQN-20260814T182230Z-f9f06fc6a7",
+    "model_name": "Double DQN",
+    "algorithm": "double_dqn",
+    "confidence_threshold": 0.6,
+    "margin_threshold": 0.15,
+    "alerts_considered": 40,
+    "alerts_processed": 40,
+    "human_review_routed": 35,
+    "action_distribution": {
+      "allow": 3,
+      "block": 2,
+      "human_review": 35
+    },
+    "errors": [],
+    "duration_seconds": 0.17455417699966347
+  },
+  "model": {
+    "model_version": "Double DQN-20260814T182230Z-f9f06fc6a7",
+    "model_name": "Double DQN",
+    "model_path": "/home/oualid/Desktop/new_one/RL_Agent/models/real_dqn_agent.pt",
+    "model_sha256": "f9f06fc6a74f78c1dca66698ccbfdb61e50b66ecd1aebf2e12adef0fe9826cdc",
+    "created_at": "2026-08-14T18:22:30.531222+00:00",
+    "source": "authoritative_training",
+    "run_id": "14fa499416ba4484b69d38c899b47ae7",
+    "algorithm": "double_dqn",
+    "candidate_index": 1,
+    "candidate_count": 1,
+    "best_epoch": 16,
+    "actual_epochs": 26,
+    "learning_rate": 0.001,
+    "decision_cycle_id": "CYCLE-20260814T182230Z-697e31db",
+    "behavior_action_mode": "counterfactual_reward_matrix"
+  }
+}

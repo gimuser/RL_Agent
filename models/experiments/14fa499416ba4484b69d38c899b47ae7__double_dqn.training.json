@@ -1,0 +1,1865 @@
+{
+  "config": {
+    "algorithm": "double_dqn",
+    "display_name": "Double DQN",
+    "family": "value-based",
+    "requires_logged_actions": false,
+    "behavior_action_mode": "counterfactual_reward_matrix",
+    "research_warning": null,
+    "model_name": "Double DQN",
+    "epochs": 4000,
+    "max_epochs": 4000,
+    "min_epochs": 20,
+    "patience": 10,
+    "min_delta": 0.001,
+    "stability_window": 6,
+    "stability_tolerance": 0.002,
+    "batch_size": 512,
+    "learning_rate": 0.001,
+    "gamma": 0.95,
+    "hidden_dim": 128,
+    "features": [
+      "Category",
+      "MitreTechniques",
+      "ActionGrouped",
+      "ActionGranular",
+      "EntityType",
+      "EvidenceRole",
+      "ThreatFamily",
+      "OSFamily",
+      "SuspicionLevel",
+      "hour",
+      "day",
+      "month",
+      "is_weekend"
+    ],
+    "actions": {
+      "0": "allow",
+      "1": "block",
+      "2": "human_review"
+    },
+    "incident_id": "IncidentId",
+    "target": "IncidentGrade",
+    "synthetic_data": false,
+    "real_data": true,
+    "incident_level_episodes": true,
+    "early_stopping": true,
+    "timestamp_column": "Timestamp",
+    "updates_per_epoch": 460,
+    "max_total_updates": 1840000,
+    "threads": 2
+  },
+  "metrics": [
+    {
+      "epoch": 1,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 460,
+      "updates_per_epoch": 460,
+      "loss": 10.845544632621433,
+      "average_reward": 0.36619492515128993,
+      "policy_reward": 0.36619492515128993,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.2169160004628628,
+      "action_counts": {
+        "allow": 40806,
+        "block": 54758,
+        "human_review": 139911
+      },
+      "action_distribution": {
+        "allow": 40806,
+        "block": 54758,
+        "human_review": 139911
+      },
+      "time_seconds": 2.3646371210052166,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 45328.75,
+        "average_reward": 0.5617223902052146,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3324611457867291,
+        "policy_optimality": 0.02607316347774363,
+        "action_distribution": {
+          "allow": 1719,
+          "block": 45,
+          "human_review": 78932
+        },
+        "evaluation_time_seconds": 41.529093309996824,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.29445708712613783,
+            "optimality": 0.19630472475075855
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 0.28620750190180816,
+            "optimality": 0.19080500126787212
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": 0.9893783907444931,
+            "optimality": 0.49468919537224654
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": 1.3796296296296295,
+            "optimality": 0.9197530864197531
+          }
+        }
+      },
+      "validation_score": 0.11798955817043927,
+      "best_epoch": 1,
+      "patience_used": 0,
+      "improved": true,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 2,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 920,
+      "updates_per_epoch": 460,
+      "loss": 1.1895167914421663,
+      "average_reward": 0.5171334536575007,
+      "policy_reward": 0.5171334536575007,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.30632461776085085,
+      "action_counts": {
+        "allow": 134184,
+        "block": 22287,
+        "human_review": 79004
+      },
+      "action_distribution": {
+        "allow": 134184,
+        "block": 22287,
+        "human_review": 79004
+      },
+      "time_seconds": 2.659574015000544,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 39682.75,
+        "average_reward": 0.49175609695647865,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.291050879033027,
+        "policy_optimality": 0.5445623079210865,
+        "action_distribution": {
+          "allow": 63657,
+          "block": 0,
+          "human_review": 17039
+        },
+        "evaluation_time_seconds": 43.4502244739997,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 1.185630689206762,
+            "optimality": 0.7904204594711747
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.434789923342501,
+            "optimality": 0.9565266155616674
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.8870841231453036,
+            "optimality": -0.4435420615726518
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.8287037037037037,
+            "optimality": -0.5524691358024691
+          }
+        }
+      },
+      "validation_score": 0.46850887925466866,
+      "best_epoch": 2,
+      "patience_used": 0,
+      "improved": true,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 3,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 1380,
+      "updates_per_epoch": 460,
+      "loss": 0.6841518510942873,
+      "average_reward": 0.5643274232933433,
+      "policy_reward": 0.5643274232933433,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.33428002193567213,
+      "action_counts": {
+        "allow": 45385,
+        "block": 44624,
+        "human_review": 145466
+      },
+      "action_distribution": {
+        "allow": 45385,
+        "block": 44624,
+        "human_review": 145466
+      },
+      "time_seconds": 2.7738741880020825,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 41069.25,
+        "average_reward": 0.508937865569545,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3012200846394754,
+        "policy_optimality": 0.686254585109547,
+        "action_distribution": {
+          "allow": 63960,
+          "block": 16194,
+          "human_review": 542
+        },
+        "evaluation_time_seconds": 43.95025863400224,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.6417262678803641,
+            "optimality": 0.42781751192024275
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.3971560653051671,
+            "optimality": 0.9314373768701114
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5250669978429963,
+            "optimality": -0.26253349892149813
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9009259259259259,
+            "optimality": -0.6006172839506173
+          }
+        }
+      },
+      "validation_score": 0.5707442349685254,
+      "best_epoch": 3,
+      "patience_used": 0,
+      "improved": true,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 4,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 1840,
+      "updates_per_epoch": 460,
+      "loss": 0.7068571905726971,
+      "average_reward": 0.5163318823654316,
+      "policy_reward": 0.5163318823654316,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.30584980605042184,
+      "action_counts": {
+        "allow": 187439,
+        "block": 46421,
+        "human_review": 1615
+      },
+      "action_distribution": {
+        "allow": 187439,
+        "block": 46421,
+        "human_review": 1615
+      },
+      "time_seconds": 2.7936877430038294,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 41547.75,
+        "average_reward": 0.5148675275106572,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3047296157485166,
+        "policy_optimality": 0.6896872211757707,
+        "action_distribution": {
+          "allow": 64465,
+          "block": 15841,
+          "human_review": 390
+        },
+        "evaluation_time_seconds": 39.04846083800658,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.6604356306892067,
+            "optimality": 0.4402904204594712
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.414674644508163,
+            "optimality": 0.9431164296721087
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5387933851885744,
+            "optimality": -0.2693966925942872
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.8787037037037037,
+            "optimality": -0.5858024691358025
+          }
+        }
+      },
+      "validation_score": 0.5741999395475945,
+      "best_epoch": 4,
+      "patience_used": 0,
+      "improved": true,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 5,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 2300,
+      "updates_per_epoch": 460,
+      "loss": 0.7632971811553706,
+      "average_reward": 0.5195540927911668,
+      "policy_reward": 0.5195540927911668,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.30775848623737817,
+      "action_counts": {
+        "allow": 188065,
+        "block": 45737,
+        "human_review": 1673
+      },
+      "action_distribution": {
+        "allow": 188065,
+        "block": 45737,
+        "human_review": 1673
+      },
+      "time_seconds": 2.19038861199806,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 41816.5,
+        "average_reward": 0.5181979280261723,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.30670074737977016,
+        "policy_optimality": 0.6885967086348765,
+        "action_distribution": {
+          "allow": 64518,
+          "block": 15461,
+          "human_review": 717
+        },
+        "evaluation_time_seconds": 43.57600655400165,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.6737808842652796,
+            "optimality": 0.44918725617685307
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4206726549242203,
+            "optimality": 0.9471151032828135
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.54392443950585,
+            "optimality": -0.271962219752925
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.85,
+            "optimality": -0.5666666666666667
+          }
+        }
+      },
+      "validation_score": 0.5740279202583446,
+      "best_epoch": 4,
+      "patience_used": 1,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 6,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 2760,
+      "updates_per_epoch": 460,
+      "loss": 0.847874191014663,
+      "average_reward": 0.5206178999893831,
+      "policy_reward": 0.5206178999893831,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3083886336994309,
+      "action_counts": {
+        "allow": 188126,
+        "block": 45235,
+        "human_review": 2114
+      },
+      "action_distribution": {
+        "allow": 188126,
+        "block": 45235,
+        "human_review": 2114
+      },
+      "time_seconds": 3.2307988520042272,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 41651.25,
+        "average_reward": 0.5161501189650045,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3054887306279017,
+        "policy_optimality": 0.6906538118370179,
+        "action_distribution": {
+          "allow": 64433,
+          "block": 15902,
+          "human_review": 361
+        },
+        "evaluation_time_seconds": 43.585744803000125,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.6612321196358908,
+            "optimality": 0.44082141309059386
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.413760313652057,
+            "optimality": 0.9425068757680379
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5356559252238708,
+            "optimality": -0.2678279626119354
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.8296296296296296,
+            "optimality": -0.5530864197530864
+          }
+        }
+      },
+      "validation_score": 0.575104287474283,
+      "best_epoch": 4,
+      "patience_used": 2,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 7,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 3220,
+      "updates_per_epoch": 460,
+      "loss": 0.9434900756763376,
+      "average_reward": 0.5237604841278267,
+      "policy_reward": 0.5237604841278267,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.31025014716018573,
+      "action_counts": {
+        "allow": 188006,
+        "block": 43211,
+        "human_review": 4258
+      },
+      "action_distribution": {
+        "allow": 188006,
+        "block": 43211,
+        "human_review": 4258
+      },
+      "time_seconds": 2.7157027409994043,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 42114.75,
+        "average_reward": 0.5218938980866462,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.30888824508775664,
+        "policy_optimality": 0.6882621195598295,
+        "action_distribution": {
+          "allow": 64613,
+          "block": 15167,
+          "human_review": 916
+        },
+        "evaluation_time_seconds": 44.05015685600665,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.6934330299089727,
+            "optimality": 0.46228868660598177
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4256466147814384,
+            "optimality": 0.9504310765209589
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5473560363422446,
+            "optimality": -0.2736780181711223
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9777777777777777,
+            "optimality": -0.6518518518518519
+          }
+        }
+      },
+      "validation_score": 0.5744499572182076,
+      "best_epoch": 4,
+      "patience_used": 3,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 8,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 3680,
+      "updates_per_epoch": 460,
+      "loss": 0.938440259643223,
+      "average_reward": 0.5216095126871217,
+      "policy_reward": 0.5216095126871217,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.308976016663061,
+      "action_counts": {
+        "allow": 188061,
+        "block": 44585,
+        "human_review": 2829
+      },
+      "action_distribution": {
+        "allow": 188061,
+        "block": 44585,
+        "human_review": 2829
+      },
+      "time_seconds": 2.732142772998486,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 41587.5,
+        "average_reward": 0.5153601169822544,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.30502115986886014,
+        "policy_optimality": 0.6902448696341826,
+        "action_distribution": {
+          "allow": 64395,
+          "block": 15913,
+          "human_review": 388
+        },
+        "evaluation_time_seconds": 42.80376749399875,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.6615247074122237,
+            "optimality": 0.4410164716081491
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.411748785768623,
+            "optimality": 0.9411658571790821
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5353944702268122,
+            "optimality": -0.2676972351134061
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.8435185185185186,
+            "optimality": -0.5623456790123457
+          }
+        }
+      },
+      "validation_score": 0.5746777567045859,
+      "best_epoch": 4,
+      "patience_used": 4,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 9,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 4140,
+      "updates_per_epoch": 460,
+      "loss": 1.0606056105831394,
+      "average_reward": 0.5281197579360867,
+      "policy_reward": 0.5281197579360867,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3128323681973003,
+      "action_counts": {
+        "allow": 188344,
+        "block": 39310,
+        "human_review": 7821
+      },
+      "action_distribution": {
+        "allow": 188344,
+        "block": 39310,
+        "human_review": 7821
+      },
+      "time_seconds": 2.915075737000734,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 41843.0,
+        "average_reward": 0.5185263210072371,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3068951101266658,
+        "policy_optimality": 0.6842098740953703,
+        "action_distribution": {
+          "allow": 64612,
+          "block": 14752,
+          "human_review": 1332
+        },
+        "evaluation_time_seconds": 42.98838993499521,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.6906697009102731,
+            "optimality": 0.4604464672735154
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4290479255661537,
+            "optimality": 0.9526986170441024
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5593829662069416,
+            "optimality": -0.2796914831034708
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9361111111111111,
+            "optimality": -0.6240740740740741
+          }
+        }
+      },
+      "validation_score": 0.5710154449047589,
+      "best_epoch": 4,
+      "patience_used": 5,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 10,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 4600,
+      "updates_per_epoch": 460,
+      "loss": 1.0583436851916106,
+      "average_reward": 0.5304735109884277,
+      "policy_reward": 0.5304735109884277,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3142266166238183,
+      "action_counts": {
+        "allow": 188653,
+        "block": 37771,
+        "human_review": 9051
+      },
+      "action_distribution": {
+        "allow": 188653,
+        "block": 37771,
+        "human_review": 9051
+      },
+      "time_seconds": 2.717670229001669,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 41314.5,
+        "average_reward": 0.5119770496678894,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3030188568536705,
+        "policy_optimality": 0.6073783087141866,
+        "action_distribution": {
+          "allow": 65294,
+          "block": 5008,
+          "human_review": 10394
+        },
+        "evaluation_time_seconds": 43.90028383099707,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 1.0984232769830948,
+            "optimality": 0.7322821846553966
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4549783486453274,
+            "optimality": 0.9699855657635515
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.8119158114909472,
+            "optimality": -0.4059579057454736
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.8601851851851852,
+            "optimality": -0.5734567901234567
+          }
+        }
+      },
+      "validation_score": 0.5160704731560317,
+      "best_epoch": 4,
+      "patience_used": 6,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 11,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 5060,
+      "updates_per_epoch": 460,
+      "loss": 0.9535879615856253,
+      "average_reward": 0.5312623420745302,
+      "policy_reward": 0.5312623420745302,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.314693881658055,
+      "action_counts": {
+        "allow": 188996,
+        "block": 39198,
+        "human_review": 7281
+      },
+      "action_distribution": {
+        "allow": 188996,
+        "block": 39198,
+        "human_review": 7281
+      },
+      "time_seconds": 2.737231494000298,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 41999.25,
+        "average_reward": 0.5204626003767225,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3080411168890225,
+        "policy_optimality": 0.6896624367998414,
+        "action_distribution": {
+          "allow": 64723,
+          "block": 15231,
+          "human_review": 742
+        },
+        "evaluation_time_seconds": 42.673683126005926,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.6833387516254876,
+            "optimality": 0.4555591677503251
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4287553396921997,
+            "optimality": 0.9525035597947997
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5518334531668736,
+            "optimality": -0.2759167265834368
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.8472222222222222,
+            "optimality": -0.5648148148148148
+          }
+        }
+      },
+      "validation_score": 0.5751760408265957,
+      "best_epoch": 4,
+      "patience_used": 7,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 12,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 5520,
+      "updates_per_epoch": 460,
+      "loss": 1.0305417799431345,
+      "average_reward": 0.5431022401528824,
+      "policy_reward": 0.5431022401528824,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.32170725939938516,
+      "action_counts": {
+        "allow": 189436,
+        "block": 35122,
+        "human_review": 10917
+      },
+      "action_distribution": {
+        "allow": 189436,
+        "block": 35122,
+        "human_review": 10917
+      },
+      "time_seconds": 2.6552869439983624,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44960.25,
+        "average_reward": 0.5571558689402201,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.329758403438387,
+        "policy_optimality": 0.6761921284822048,
+        "action_distribution": {
+          "allow": 64801,
+          "block": 12149,
+          "human_review": 3746
+        },
+        "evaluation_time_seconds": 43.8551842559973,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.9286085825747724,
+            "optimality": 0.6190723883831816
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4409342266955352,
+            "optimality": 0.9606228177970234
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5918360677168443,
+            "optimality": -0.29591803385842214
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.8537037037037037,
+            "optimality": -0.5691358024691358
+          }
+        }
+      },
+      "validation_score": 0.5722620109690594,
+      "best_epoch": 4,
+      "patience_used": 8,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 13,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 5980,
+      "updates_per_epoch": 460,
+      "loss": 1.0905468356350194,
+      "average_reward": 0.5473075698057118,
+      "policy_reward": 0.5473075698057118,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.32419829143251006,
+      "action_counts": {
+        "allow": 190193,
+        "block": 29217,
+        "human_review": 16065
+      },
+      "action_distribution": {
+        "allow": 190193,
+        "block": 29217,
+        "human_review": 16065
+      },
+      "time_seconds": 3.243953724995663,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44441.5,
+        "average_reward": 0.5507274214335283,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3259536609873628,
+        "policy_optimality": 0.6639362545851095,
+        "action_distribution": {
+          "allow": 65048,
+          "block": 10656,
+          "human_review": 4992
+        },
+        "evaluation_time_seconds": 40.540859553999326,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.9756989596879063,
+            "optimality": 0.6504659731252709
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4474442623910118,
+            "optimality": 0.9649628415940078
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.6388979671873979,
+            "optimality": -0.31944898359369894
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9009259259259259,
+            "optimality": -0.6006172839506173
+          }
+        }
+      },
+      "validation_score": 0.5625414765057855,
+      "best_epoch": 4,
+      "patience_used": 9,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 14,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 6440,
+      "updates_per_epoch": 460,
+      "loss": 1.1473811648462129,
+      "average_reward": 0.5410616838305553,
+      "policy_reward": 0.5410616838305553,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.32049853342926,
+      "action_counts": {
+        "allow": 191910,
+        "block": 27330,
+        "human_review": 16235
+      },
+      "action_distribution": {
+        "allow": 191910,
+        "block": 27330,
+        "human_review": 16235
+      },
+      "time_seconds": 3.2178539460001048,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 36442.5,
+        "average_reward": 0.4516023099038366,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.26728544919797864,
+        "policy_optimality": 0.6149871121245167,
+        "action_distribution": {
+          "allow": 70479,
+          "block": 2317,
+          "human_review": 7900
+        },
+        "evaluation_time_seconds": 38.27574389400252,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 1.3561605981794538,
+            "optimality": 0.9041070654529693
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4778731932822284,
+            "optimality": 0.9852487955214856
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -1.1253349892149813,
+            "optimality": -0.5626674946074907
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.912962962962963,
+            "optimality": -0.608641975308642
+          }
+        }
+      },
+      "validation_score": 0.5106766132465552,
+      "best_epoch": 4,
+      "patience_used": 10,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 15,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 6900,
+      "updates_per_epoch": 460,
+      "loss": 0.9628965932389965,
+      "average_reward": 0.5496485826520862,
+      "policy_reward": 0.5496485826520862,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3255849931828358,
+      "action_counts": {
+        "allow": 194081,
+        "block": 28470,
+        "human_review": 12924
+      },
+      "action_distribution": {
+        "allow": 194081,
+        "block": 28470,
+        "human_review": 12924
+      },
+      "time_seconds": 2.1169810589999543,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44865.75,
+        "average_reward": 0.5559848071775553,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3290652985485137,
+        "policy_optimality": 0.673094081491028,
+        "action_distribution": {
+          "allow": 66465,
+          "block": 10171,
+          "human_review": 4060
+        },
+        "evaluation_time_seconds": 40.23780668499967,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 1.0604193758127438,
+            "optimality": 0.7069462505418292
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4553075077535256,
+            "optimality": 0.9702050051690171
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.6761553042682529,
+            "optimality": -0.33807765213412644
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9148148148148149,
+            "optimality": -0.6098765432098765
+          }
+        }
+      },
+      "validation_score": 0.5698854466082737,
+      "best_epoch": 4,
+      "patience_used": 11,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 16,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 7360,
+      "updates_per_epoch": 460,
+      "loss": 0.9775225487740143,
+      "average_reward": 0.5514300881197579,
+      "policy_reward": 0.5514300881197579,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3266402700703853,
+      "action_counts": {
+        "allow": 190887,
+        "block": 34054,
+        "human_review": 10534
+      },
+      "action_distribution": {
+        "allow": 190887,
+        "block": 34054,
+        "human_review": 10534
+      },
+      "time_seconds": 2.571899176000443,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 43752.25,
+        "average_reward": 0.542186105878854,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3208983959572549,
+        "policy_optimality": 0.6903068305740061,
+        "action_distribution": {
+          "allow": 64925,
+          "block": 14310,
+          "human_review": 1461
+        },
+        "evaluation_time_seconds": 36.661674126000435,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.8034947984395319,
+            "optimality": 0.535663198959688
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4345339107027912,
+            "optimality": 0.9563559404685276
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5600692855742205,
+            "optimality": -0.28003464278711027
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9222222222222223,
+            "optimality": -0.6148148148148148
+          }
+        }
+      },
+      "validation_score": 0.5794843001889807,
+      "best_epoch": 16,
+      "patience_used": 0,
+      "improved": true,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 17,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 7820,
+      "updates_per_epoch": 460,
+      "loss": 1.1504996412474175,
+      "average_reward": 0.5474859326892452,
+      "policy_reward": 0.5474859326892452,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.32430394489920156,
+      "action_counts": {
+        "allow": 190884,
+        "block": 35940,
+        "human_review": 8651
+      },
+      "action_distribution": {
+        "allow": 190884,
+        "block": 35940,
+        "human_review": 8651
+      },
+      "time_seconds": 1.991636427002959,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44515.0,
+        "average_reward": 0.5516382472489343,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.32649274256837535,
+        "policy_optimality": 0.6788688410825815,
+        "action_distribution": {
+          "allow": 67533,
+          "block": 9830,
+          "human_review": 3333
+        },
+        "evaluation_time_seconds": 41.740396625995345,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 1.1241872561768531,
+            "optimality": 0.7494581707845687
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4607934928901634,
+            "optimality": 0.9738623285934421
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.7250473887182168,
+            "optimality": -0.3625236943591084
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9574074074074074,
+            "optimality": -0.6382716049382716
+          }
+        }
+      },
+      "validation_score": 0.5731560115283196,
+      "best_epoch": 16,
+      "patience_used": 1,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 18,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 8280,
+      "updates_per_epoch": 460,
+      "loss": 1.0923650588678278,
+      "average_reward": 0.553910181547935,
+      "policy_reward": 0.553910181547935,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3281093563691431,
+      "action_counts": {
+        "allow": 191917,
+        "block": 32965,
+        "human_review": 10593
+      },
+      "action_distribution": {
+        "allow": 191917,
+        "block": 32965,
+        "human_review": 10593
+      },
+      "time_seconds": 3.1838000699935947,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44681.0,
+        "average_reward": 0.5536953504510757,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3277102601527031,
+        "policy_optimality": 0.6728586299196986,
+        "action_distribution": {
+          "allow": 66331,
+          "block": 10368,
+          "human_review": 3997
+        },
+        "evaluation_time_seconds": 36.842287658000714,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 1.0445058517555266,
+            "optimality": 0.6963372345036845
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.453478846041313,
+            "optimality": 0.9689858973608754
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.6714491143211975,
+            "optimality": -0.33572455716059874
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9546296296296296,
+            "optimality": -0.6364197530864197
+          }
+        }
+      },
+      "validation_score": 0.5693141189895999,
+      "best_epoch": 16,
+      "patience_used": 2,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 19,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 8740,
+      "updates_per_epoch": 460,
+      "loss": 1.1013217384400575,
+      "average_reward": 0.5509300350355664,
+      "policy_reward": 0.5509300350355664,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.32634406302983954,
+      "action_counts": {
+        "allow": 191438,
+        "block": 34755,
+        "human_review": 9282
+      },
+      "action_distribution": {
+        "allow": 191438,
+        "block": 34755,
+        "human_review": 9282
+      },
+      "time_seconds": 2.5404634079968673,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 45334.5,
+        "average_reward": 0.5617936452860117,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.33250331883558376,
+        "policy_optimality": 0.6749281253098047,
+        "action_distribution": {
+          "allow": 66573,
+          "block": 10062,
+          "human_review": 4061
+        },
+        "evaluation_time_seconds": 36.85323884100217,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 1.0884102730819245,
+            "optimality": 0.725606848721283
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4570995962314939,
+            "optimality": 0.971399730820996
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.6761553042682529,
+            "optimality": -0.33807765213412644
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9574074074074074,
+            "optimality": -0.6382716049382716
+          }
+        }
+      },
+      "validation_score": 0.5722006833675384,
+      "best_epoch": 16,
+      "patience_used": 3,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 20,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 9200,
+      "updates_per_epoch": 460,
+      "loss": 1.1062420885200086,
+      "average_reward": 0.5546990126340375,
+      "policy_reward": 0.5546990126340375,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.32857662140337984,
+      "action_counts": {
+        "allow": 190482,
+        "block": 35724,
+        "human_review": 9269
+      },
+      "action_distribution": {
+        "allow": 190482,
+        "block": 35724,
+        "human_review": 9269
+      },
+      "time_seconds": 2.411422951001441,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44952.25,
+        "average_reward": 0.5570567314365025,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.32969972789215435,
+        "policy_optimality": 0.6772082878953108,
+        "action_distribution": {
+          "allow": 65240,
+          "block": 11815,
+          "human_review": 3641
+        },
+        "evaluation_time_seconds": 39.30449597199913,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.9591677503250975,
+            "optimality": 0.6394451668833984
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4467859441746151,
+            "optimality": 0.9645239627830768
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.6123602849859467,
+            "optimality": -0.3061801424929734
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9462962962962963,
+            "optimality": -0.6308641975308642
+          }
+        }
+      },
+      "validation_score": 0.5729557198943639,
+      "best_epoch": 16,
+      "patience_used": 4,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 21,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 9660,
+      "updates_per_epoch": 460,
+      "loss": 1.1747022807598113,
+      "average_reward": 0.5543550270729377,
+      "policy_reward": 0.5543550270729377,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3283728611461892,
+      "action_counts": {
+        "allow": 190524,
+        "block": 36126,
+        "human_review": 8825
+      },
+      "action_distribution": {
+        "allow": 190524,
+        "block": 36126,
+        "human_review": 8825
+      },
+      "time_seconds": 3.0181299469986698,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44504.5,
+        "average_reward": 0.5515081292753048,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.326415730913945,
+        "policy_optimality": 0.6828095568553584,
+        "action_distribution": {
+          "allow": 64702,
+          "block": 13279,
+          "human_review": 2715
+        },
+        "evaluation_time_seconds": 33.71726243000012,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.886703511053316,
+            "optimality": 0.591135674035544
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4299988296565043,
+            "optimality": 0.9533325531043362
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5719001241911236,
+            "optimality": -0.2859500620955618
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9416666666666667,
+            "optimality": -0.6277777777777778
+          }
+        }
+      },
+      "validation_score": 0.5758914090729343,
+      "best_epoch": 16,
+      "patience_used": 5,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 22,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 10120,
+      "updates_per_epoch": 460,
+      "loss": 1.2690315280271613,
+      "average_reward": 0.5512028877800191,
+      "policy_reward": 0.5512028877800191,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.32650568767829025,
+      "action_counts": {
+        "allow": 190310,
+        "block": 35150,
+        "human_review": 10015
+      },
+      "action_distribution": {
+        "allow": 190310,
+        "block": 35150,
+        "human_review": 10015
+      },
+      "time_seconds": 2.331946780002909,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44410.75,
+        "average_reward": 0.5503463616536136,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.32572812685653096,
+        "policy_optimality": 0.6881753742440765,
+        "action_distribution": {
+          "allow": 64908,
+          "block": 13758,
+          "human_review": 2030
+        },
+        "evaluation_time_seconds": 35.23032050499751,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.8585663198959688,
+            "optimality": 0.5723775465973125
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4347533501082568,
+            "optimality": 0.9565022334055046
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.566180796130466,
+            "optimality": -0.283090398065233
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9388888888888889,
+            "optimality": -0.6259259259259259
+          }
+        }
+      },
+      "validation_score": 0.5794412000278129,
+      "best_epoch": 16,
+      "patience_used": 6,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 23,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 10580,
+      "updates_per_epoch": 460,
+      "loss": 1.3871777824733569,
+      "average_reward": 0.5500987365962416,
+      "policy_reward": 0.5500987365962416,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3258516424082953,
+      "action_counts": {
+        "allow": 190901,
+        "block": 33748,
+        "human_review": 10826
+      },
+      "action_distribution": {
+        "allow": 190901,
+        "block": 33748,
+        "human_review": 10826
+      },
+      "time_seconds": 2.855035002998193,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 39432.75,
+        "average_reward": 0.4886580499653019,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.2892172682132563,
+        "policy_optimality": 0.6091132150292455,
+        "action_distribution": {
+          "allow": 68667,
+          "block": 2499,
+          "human_review": 9530
+        },
+        "evaluation_time_seconds": 37.64417626899376,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 1.3070058517555267,
+            "optimality": 0.8713372345036844
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.471253437884019,
+            "optimality": 0.9808356252560126
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.9949996731812537,
+            "optimality": -0.49749983659062685
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9416666666666667,
+            "optimality": -0.6277777777777778
+          }
+        }
+      },
+      "validation_score": 0.5131444309844487,
+      "best_epoch": 16,
+      "patience_used": 7,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 24,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 11040,
+      "updates_per_epoch": 460,
+      "loss": 1.1794413322987765,
+      "average_reward": 0.5516466716211912,
+      "policy_reward": 0.5516466716211912,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.32676856356565354,
+      "action_counts": {
+        "allow": 188370,
+        "block": 32035,
+        "human_review": 15070
+      },
+      "action_distribution": {
+        "allow": 188370,
+        "block": 32035,
+        "human_review": 15070
+      },
+      "time_seconds": 2.3908757460012566,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44256.25,
+        "average_reward": 0.5484317686130663,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3245949553699127,
+        "policy_optimality": 0.6544314464161792,
+        "action_distribution": {
+          "allow": 64399,
+          "block": 10295,
+          "human_review": 6002
+        },
+        "evaluation_time_seconds": 45.67477416100155,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.9752275682704812,
+            "optimality": 0.6501517121803208
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4346436304055241,
+            "optimality": 0.956429086937016
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.6300411791620367,
+            "optimality": -0.31502058958101836
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9222222222222223,
+            "optimality": -0.6148148148148148
+          }
+        }
+      },
+      "validation_score": 0.5554804991022992,
+      "best_epoch": 16,
+      "patience_used": 8,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 25,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 11500,
+      "updates_per_epoch": 460,
+      "loss": 1.110094829486764,
+      "average_reward": 0.5549835439006264,
+      "policy_reward": 0.5549835439006264,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3287451638383401,
+      "action_counts": {
+        "allow": 189836,
+        "block": 33095,
+        "human_review": 12544
+      },
+      "action_distribution": {
+        "allow": 189836,
+        "block": 33095,
+        "human_review": 12544
+      },
+      "time_seconds": 3.2739749729953473,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 43843.5,
+        "average_reward": 0.5433168930306335,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.3215676639064712,
+        "policy_optimality": 0.6871592148309705,
+        "action_distribution": {
+          "allow": 64603,
+          "block": 14215,
+          "human_review": 1878
+        },
+        "evaluation_time_seconds": 36.99132004099374,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.8039499349804942,
+            "optimality": 0.5359666233203294
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4290113523319095,
+            "optimality": 0.9526742348879396
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5510817700503301,
+            "optimality": -0.27554088502516505
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9259259259259259,
+            "optimality": -0.6172839506172839
+          }
+        }
+      },
+      "validation_score": 0.5774817495536207,
+      "best_epoch": 16,
+      "patience_used": 9,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": null
+    },
+    {
+      "epoch": 26,
+      "rows": 235475,
+      "incidents": 96165,
+      "updates": 460,
+      "total_updates": 11960,
+      "updates_per_epoch": 460,
+      "loss": 1.3229850504709326,
+      "average_reward": 0.5560155005839261,
+      "policy_reward": 0.5560155005839261,
+      "oracle_average_reward": 1.6881877057012422,
+      "reward_efficiency": 0.3293564446099123,
+      "action_counts": {
+        "allow": 190554,
+        "block": 33692,
+        "human_review": 11229
+      },
+      "action_distribution": {
+        "allow": 190554,
+        "block": 33692,
+        "human_review": 11229
+      },
+      "time_seconds": 2.318983423996542,
+      "validation": {
+        "rows": 80696,
+        "incidents": 32055,
+        "total_reward": 44238.5,
+        "average_reward": 0.5482118072766927,
+        "oracle_average_reward": 1.6895880836720532,
+        "reward_efficiency": 0.32446476900170895,
+        "policy_optimality": 0.6727347080400515,
+        "action_distribution": {
+          "allow": 64364,
+          "block": 12494,
+          "human_review": 3838
+        },
+        "evaluation_time_seconds": 35.38085869200586,
+        "per_class": {
+          "FalsePositive": {
+            "rows": 15380,
+            "average_reward": 0.9114596879063719,
+            "optimality": 0.6076397919375812
+          },
+          "BenignPositive": {
+            "rows": 34178,
+            "average_reward": 1.4238910995377143,
+            "optimality": 0.9492607330251429
+          },
+          "TruePositive": {
+            "rows": 30598,
+            "average_reward": -0.5864108765278776,
+            "optimality": -0.2932054382639388
+          },
+          "Unknown": {
+            "rows": 540,
+            "average_reward": -0.9305555555555556,
+            "optimality": -0.6203703703703703
+          }
+        }
+      },
+      "validation_score": 0.5682537263285488,
+      "best_epoch": 16,
+      "patience_used": 10,
+      "improved": false,
+      "algorithm": "double_dqn",
+      "behavior_action_mode": "counterfactual_reward_matrix",
+      "stopping_reason": "validation_patience_exhausted"
+    }
+  ],
+  "best_epoch": 16,
+  "best_validation": {
+    "rows": 80696,
+    "incidents": 32055,
+    "total_reward": 43752.25,
+    "average_reward": 0.542186105878854,
+    "oracle_average_reward": 1.6895880836720532,
+    "reward_efficiency": 0.3208983959572549,
+    "policy_optimality": 0.6903068305740061,
+    "action_distribution": {
+      "allow": 64925,
+      "block": 14310,
+      "human_review": 1461
+    },
+    "evaluation_time_seconds": 36.661674126000435,
+    "per_class": {
+      "FalsePositive": {
+        "rows": 15380,
+        "average_reward": 0.8034947984395319,
+        "optimality": 0.535663198959688
+      },
+      "BenignPositive": {
+        "rows": 34178,
+        "average_reward": 1.4345339107027912,
+        "optimality": 0.9563559404685276
+      },
+      "TruePositive": {
+        "rows": 30598,
+        "average_reward": -0.5600692855742205,
+        "optimality": -0.28003464278711027
+      },
+      "Unknown": {
+        "rows": 540,
+        "average_reward": -0.9222222222222223,
+        "optimality": -0.6148148148148148
+      }
+    }
+  },
+  "actual_epochs": 26,
+  "total_updates_used": 11960,
+  "updates_per_epoch": 460,
+  "max_total_updates": 1840000,
+  "stopping_reason": "validation_patience_exhausted"
+}
