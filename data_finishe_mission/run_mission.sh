@@ -2,9 +2,6 @@
 
 set -uo pipefail
 
-# This script is intended to be copied/used from a separate local
-# ~/Desktop/Data_mission directory. It never reads ~/Desktop/new_one.
-
 MISSION="${MISSION_DIR:-$HOME/Desktop/Data_mission}"
 INPUT="$MISSION/data_finished"
 RUNTIME="$MISSION/RL_Agent_runtime"
@@ -24,16 +21,21 @@ echo "PROCESSOR : $PROCESSOR"
 echo
 
 # Keep the runtime processor synchronized with the public repository.
+echo "[1/8] Synchronizing RL_Agent runtime..."
 if [[ ! -d "$RUNTIME/.git" ]]; then
-  echo "[1/8] Cloning public RL_Agent runtime..."
   if git clone --depth 1 https://github.com/gimuser/RL_Agent.git "$RUNTIME"; then
     echo "[OK] Runtime cloned."
   else
     echo "[ERROR] Runtime clone failed. Retrying in 30 seconds."
     sleep 30
+    while [[ ! -d "$RUNTIME/.git" ]]; do
+      if git clone --depth 1 https://github.com/gimuser/RL_Agent.git "$RUNTIME"; then
+        break
+      fi
+      sleep 30
+    done
   fi
 else
-  echo "[1/8] Updating public RL_Agent runtime..."
   git -C "$RUNTIME" fetch origin main 2>/dev/null || true
   git -C "$RUNTIME" reset --hard origin/main 2>/dev/null || true
 fi
@@ -45,34 +47,22 @@ echo
 TRAIN="$INPUT/GUIDE_Train.csv"
 TEST="$INPUT/GUIDE_Test.csv"
 
-# MANUAL-FIRST: the two datasets you downloaded are used directly.
-# No Kaggle download is attempted when both files already exist.
-echo "[2/8] Checking manually supplied datasets..."
+# MANUAL-FIRST: never delete or overwrite manually supplied files.
+echo "[2/8] Checking manually supplied GUIDE datasets..."
 
-if [[ -s "$TRAIN" && -s "$TEST" ]]; then
-  echo "[OK] GUIDE_Train.csv found: $TRAIN"
-  echo "[OK] GUIDE_Test.csv  found: $TEST"
-else
-  echo "[ERROR] Missing one or both required files."
-  echo "        Expected:"
-  echo "        $TRAIN"
-  echo "        $TEST"
-  echo
-  echo "Place the downloaded files there and run this script again."
-  sleep 30
-fi
-
-# Keep waiting until both manually supplied files are present.
 while [[ ! -s "$TRAIN" || ! -s "$TEST" ]]; do
-  echo "[WAIT] Waiting for both GUIDE files in $INPUT ..."
+  echo "[WAIT] Both files are required in: $INPUT"
+  echo "       $TRAIN"
+  echo "       $TEST"
+  echo "       Missing files are NOT downloaded and existing files are NOT deleted."
   sleep 15
 done
 
-echo "[OK] Both GUIDE datasets are present."
+echo "[OK] GUIDE_Train.csv found: $TRAIN"
+echo "[OK] GUIDE_Test.csv  found: $TEST"
 ls -lh "$TRAIN" "$TEST"
 echo
 
-# Verify that the files are no longer growing before processing.
 wait_stable() {
   local file="$1"
   local a b
@@ -94,8 +84,18 @@ while true; do
 done
 echo
 
-# Ensure the processor exists in the runtime repository.
-echo "[4/8] Checking memory-safe processor..."
+# The processor reads from its own ROOT/data_finished path. Mirror the two
+# manually supplied files into that runtime input directory without changing
+# the original Data_mission copies.
+echo "[4/8] Preparing runtime input..."
+RUNTIME_INPUT="$RUNTIME/data_finished"
+mkdir -p "$RUNTIME_INPUT"
+cp --reflink=auto "$TRAIN" "$RUNTIME_INPUT/GUIDE_Train.csv"
+cp --reflink=auto "$TEST" "$RUNTIME_INPUT/GUIDE_Test.csv"
+
+echo "[OK] Runtime input prepared: $RUNTIME_INPUT"
+echo
+
 while [[ ! -f "$PROCESSOR" ]]; do
   echo "[WAIT] Processor not available: $PROCESSOR"
   git -C "$RUNTIME" fetch origin main 2>/dev/null || true
@@ -105,9 +105,6 @@ done
 
 echo "[OK] Processor found."
 echo
-
-# Give the processor the Data_mission input path explicitly.
-export RL_AGENT_INPUT_DIR="$INPUT"
 
 STAMP=$(date -u '+%Y%m%d_%H%M%S')
 LOG="$LOGS/mission_${STAMP}.log"
@@ -123,7 +120,7 @@ if python3 "$PROCESSOR" 2>&1 | tee "$LOG"; then
   echo
   echo "[6/8] Processing succeeded."
 
-  # Archive only after successful processing.
+  # Archive the manually supplied source files only after successful processing.
   mv "$TRAIN" "$ARCHIVE_RUN/GUIDE_Train.csv"
   mv "$TEST" "$ARCHIVE_RUN/GUIDE_Test.csv"
   cp "$LOG" "$ARCHIVE_RUN/mission.log"
@@ -135,16 +132,12 @@ else
 
   echo
   echo "[ERROR] Processing failed."
-  echo "[INFO] Input datasets were NOT moved."
-  echo "[INFO] They remain available for retry:"
-  echo "       $INPUT"
-  echo "[LOG]  $LOG"
-
-  sleep 30
+  echo "[INFO] Original input datasets were NOT moved by this step."
+  echo "[INFO] Log: $LOG"
+  echo "[INFO] Runtime copies remain under: $RUNTIME_INPUT"
 fi
 
 echo
-
 echo "[7/8] Checking outputs..."
 echo
 
@@ -165,7 +158,6 @@ do
 done
 
 echo
-
 echo "[8/8] Mission status"
 echo "=============================================================="
 echo "80 live alerts are required: LIVE-0001 ... LIVE-0080"
