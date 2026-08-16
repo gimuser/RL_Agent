@@ -1,0 +1,9 @@
+# Runtime-only incoming Microsoft GUIDE data
+*.csv
+
+# Runtime working files, backups, archives and logs
+work/
+backup/
+archive/
+logs/
+update_manifest.json
