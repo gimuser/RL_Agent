@@ -119,24 +119,27 @@ def reservoir(path: Path, n: int) -> pd.DataFrame:
     rng = random.Random(SEED)
     sample: list[dict[str, object]] = []
     seen = 0
-    columns = KEEP
     for chunk in pd.read_csv(path, usecols=KEEP, chunksize=CHUNK_SIZE, low_memory=True):
         for row in chunk.itertuples(index=False, name=None):
             seen += 1
+            item = dict(zip(KEEP, row))
             if len(sample) < n:
-                sample.append(dict(zip(columns, row)))
+                sample.append(item)
             else:
                 j = rng.randrange(seen)
                 if j < n:
-                    sample[j] = dict(zip(columns, row))
+                    sample[j] = item
     if len(sample) < n:
         fail(f"Only {len(sample)} rows available; cannot reserve {n} live incidents")
     return pd.DataFrame(sample, columns=KEEP)
 
 
-def fit_mappings(train_path: Path) -> dict[str, dict[str, int]]:
+def fit_mappings(train_path: Path, excluded_ids: set[str]) -> dict[str, dict[str, int]]:
     values = {c: set() for c in CATS}
-    for chunk in pd.read_csv(train_path, usecols=CATS, chunksize=CHUNK_SIZE, low_memory=True):
+    for chunk in pd.read_csv(train_path, usecols=CATS + [ID], chunksize=CHUNK_SIZE, low_memory=True):
+        chunk = chunk[~chunk[ID].astype(str).isin(excluded_ids)]
+        if chunk.empty:
+            continue
         chunk = chunk.fillna("Unknown")
         for c in CATS:
             values[c].update(chunk[c].astype(str).unique())
@@ -157,11 +160,11 @@ def transform_chunk(chunk: pd.DataFrame, mappings: dict[str, dict[str, int]]) ->
     return chunk
 
 
-def fit_scaler(train_path: Path, mappings: dict[str, dict[str, int]], live_ids: set[str]) -> MinMaxScaler:
+def fit_scaler(train_path: Path, mappings: dict[str, dict[str, int]], excluded_ids: set[str]) -> MinMaxScaler:
     scaler = MinMaxScaler()
     fitted = False
     for chunk in pd.read_csv(train_path, chunksize=CHUNK_SIZE, low_memory=True):
-        chunk = chunk[~chunk[ID].astype(str).isin(live_ids)]
+        chunk = chunk[~chunk[ID].astype(str).isin(excluded_ids)]
         if chunk.empty:
             continue
         enc = transform_chunk(chunk, mappings)
@@ -239,7 +242,7 @@ def main() -> None:
     train_ids = set(train_seen)
     test_ids = set(test_seen)
     log(f"  train seen={tr_total:,} kept={tr_kept:,} duplicates={tr_dups:,}")
-    log(f"  test  seen={te_total:,} kept={te_kept:,} duplicates={te_dups:,}")
+    log(f"  test  seen={te_total:,} kept={te_keps if False else te_kept:,} duplicates={te_dups:,}")
     log("  train/test overlap=0")
 
     log("[2/8] Reserve 80 independent live incidents")
@@ -250,10 +253,7 @@ def main() -> None:
     log(f"  live={len(live_ids):,}")
 
     log("[3/8] Fit categorical mappings from TRAIN minus LIVE")
-    # The mapping vocabulary is fitted on the complete train_clean vocabulary;
-    # the live rows are never transformed into training artifacts and are only
-    # used afterward. This preserves the existing encoder artifact format.
-    mappings = fit_mappings(train_clean)
+    mappings = fit_mappings(train_clean, live_ids)
 
     log("[4/8] Fit MinMax scaler incrementally on TRAIN minus LIVE")
     scaler = fit_scaler(train_clean, mappings, live_ids)
@@ -336,7 +336,7 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except MemoryError as exc:
+    except MemoryError:
         fail("MemoryError: lower CHUNK_SIZE in scripts/process_data_finished.py and retry")
     except KeyboardInterrupt:
         fail("Interrupted; replacement happens only after processing completes")
